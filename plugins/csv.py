@@ -1,5 +1,5 @@
 import pathlib
-from typing import final
+from typing import Generator, final
 
 import hyperleda
 import pandas
@@ -56,17 +56,14 @@ class CSVPlugin(app.UploaderPlugin, app.DefaultTableNamer):
             )
         return columns
 
-    def get_data(self) -> tuple[pandas.DataFrame, float] | None:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, float], None, None]:
         if self._reader is None:
             raise RuntimeError("Plugin not prepared. Call prepare() first.")
 
-        try:
-            chunk = next(self._reader)
+        for chunk in self._reader:
             self._current_chunk += 1
             progress = self._current_chunk / self._total_chunks
-            return chunk, progress
-        except StopIteration:
-            return None
+            yield chunk, progress
 
     def stop(self) -> None:
         pass

@@ -175,10 +175,10 @@ def question[T: Any](
     if default is not None:
         question += f" [{default}]"
 
-    if not skip_input:
-        result = input(click.style(f"{question}: ", bold=True))
-    else:
+    if skip_input and default is not None:
         result = ""
+    else:
+        result = input(click.style(f"{question}: ", bold=True))
 
     if result == "":
         if default is not None:

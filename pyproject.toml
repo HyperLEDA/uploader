@@ -9,6 +9,7 @@ dependencies = [
     "pandas-stubs>=2.2.3.250308",
     "structlog>=25.3.0",
     "pytest>=8.0.0",
+    "astroquery>=0.4.10",
 ]
 
 [tool.uv.sources]

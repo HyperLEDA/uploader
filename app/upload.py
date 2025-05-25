@@ -34,7 +34,7 @@ def _upload(
 
     if bibcode == "":
         bibcode = client.create_internal_source(pub_name, pub_authors, pub_year)
-        logger.info("created internal source", id=bibcode)
+        log.logger.info("created internal source", id=bibcode)
 
     table_id = client.create_table(
         hyperleda.CreateTableRequestSchema(
@@ -45,13 +45,11 @@ def _upload(
             table_description,
         )
     )
-    logger.info("created table", table_id=table_id)
-    logger.info("starting upload")
+    log.logger.info("created table", table_id=table_id)
+    log.logger.info("starting upload")
 
     with click.progressbar(length=100, label="Upload") as bar:
-        while (res := plugin.get_data()) is not None:
-            data, progress = res
-
+        for data, progress in plugin.get_data():
             client.add_data(table_id, data)
 
             percents = int(progress * 100)

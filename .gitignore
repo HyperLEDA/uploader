@@ -174,3 +174,4 @@ poetry.toml
 pyrightconfig.json
 
 uv.lock
+.vizier_cache

@@ -1,4 +1,5 @@
 import abc
+from typing import Generator
 
 import hyperleda
 import pandas
@@ -23,12 +24,12 @@ class UploaderPlugin(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_data(self) -> tuple[pandas.DataFrame, float] | None:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, float], None, None]:
         """
-        Obtains a DataFrame that represents the data from the table.
+        Yields DataFrames that represent the data from the table.
         Not all of the columns from the `get_schema` method must be present but there should be no columns
         that were not returned from `get_schema`.
-        This method will be called multiple times until it returns `None`.
+        This method will yield tuples of (DataFrame, completion_rate) until all data is processed.
 
         The float returned is the completion rate in the range [0, 1]. It will be displayed to the user.
         """
