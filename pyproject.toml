@@ -1,0 +1,14 @@
+[project]
+name = "uploader"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "hyperleda",
+    "pandas-stubs>=2.2.3.250308",
+    "structlog>=25.3.0",
+]
+
+[tool.uv.sources]
+hyperleda = { git = "https://github.com/HyperLEDA/client.git" }
