@@ -42,3 +42,9 @@ class UploaderPlugin(abc.ABC):
         in case any unrecoverable errors occur.
         """
         pass
+
+
+class DefaultTableNamer(abc.ABC):
+    @abc.abstractmethod
+    def get_table_name(self) -> str:
+        pass

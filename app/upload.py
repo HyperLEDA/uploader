@@ -55,5 +55,7 @@ def _upload(
         while (res := plugin.get_data()) is not None:
             data, progress = res
 
+            client.add_data(table_id, data)
+
             percents = int(progress * 100)
             bar.update(percents)

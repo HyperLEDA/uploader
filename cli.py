@@ -77,10 +77,24 @@ def upload(
     )
 
     if table_name == "":
-        table_name = question("Enter table name", table_name_descr)
+        default_table_name = None
+        if hasattr(plugin, "get_table_name"):
+            default_table_name = plugin.get_table_name()  # type: ignore
+
+        table_name = question(
+            "Enter table name",
+            description=table_name_descr,
+            default=default_table_name,
+            skip_input=auto_proceed,
+        )
 
     if table_description == "":
-        table_description = question("Enter description", table_description_descr, "")
+        table_description = question(
+            "Enter description",
+            description=table_description_descr,
+            default="",
+            skip_input=auto_proceed,
+        )
 
     if bibcode == "" and (pub_name == "" or len(pub_authors) == 0 or pub_year == 0):
         has_bibcode = question(
@@ -88,15 +102,17 @@ def upload(
         )
 
         if has_bibcode == "y":
-            bibcode = question("Enter bibcode", bibcode_descr)
+            bibcode = question("Enter bibcode", description=bibcode_descr)
         else:
             if pub_name == "":
-                pub_name = question("Enter the name of the source", pub_name_descr)
+                pub_name = question(
+                    "Enter the name of the source", description=pub_name_descr
+                )
 
             if len(pub_authors) == 0:
                 pub_authors = question(
                     "Enter list of authors of the source",
-                    pub_authors_descr,
+                    description=pub_authors_descr,
                     transformer=lambda s: [ss.strip() for ss in s.split(",")],
                 )
 
@@ -105,7 +121,10 @@ def upload(
 
     if table_type == "":
         table_type = question(
-            "Enter the type of the table", table_type_descr, default="regular"
+            "Enter the type of the table",
+            description=table_type_descr,
+            default="regular",
+            skip_input=auto_proceed,
         )
 
     click.echo("\nThanks! The table will be uploaded with the following parameters: ")
@@ -144,9 +163,11 @@ def parameter(name: str, value: str) -> str:
 
 def question[T: Any](
     question: str,
+    *,
     description: str = "",
     default: str | None = None,
     transformer: Callable[[str], T] = str,
+    skip_input: bool = False,
 ) -> T:
     if description != "":
         click.echo(f"\n{description}")
@@ -154,7 +175,10 @@ def question[T: Any](
     if default is not None:
         question += f" [{default}]"
 
-    result = input(click.style(f"{question}: ", bold=True))
+    if not skip_input:
+        result = input(click.style(f"{question}: ", bold=True))
+    else:
+        result = ""
 
     if result == "":
         if default is not None:
@@ -162,7 +186,7 @@ def question[T: Any](
     else:
         return transformer(result)
 
-    while result == "":
+    while result == "" and not skip_input:
         click.echo("This is a required parameter. Please, try again.")
 
         result = input(click.style(f"{question}: ", bold=True))

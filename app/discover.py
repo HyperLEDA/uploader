@@ -28,6 +28,15 @@ def discover_plugins(dir: str) -> dict[str, type[interface.UploaderPlugin]]:
             continue
 
         plugin_class = getattr(module, "plugin")
+
+        if not hasattr(module, "name"):
+            logger.warn(
+                "python file has no declared plugin name",
+                filename=str(file_path),
+                plugin=type(plugin_class),
+            )
+            continue
+
         plugin_name = getattr(module, "name")
 
         if not issubclass(plugin_class, interface.UploaderPlugin):

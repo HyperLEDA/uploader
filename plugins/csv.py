@@ -1,3 +1,4 @@
+import pathlib
 from typing import final
 
 import hyperleda
@@ -16,7 +17,7 @@ type_map = {
 
 
 @final
-class CSVPlugin(app.UploaderPlugin):
+class CSVPlugin(app.UploaderPlugin, app.DefaultTableNamer):
     def __init__(self, filename: str) -> None:
         self.filename = filename
         self._chunk_size = 1000
@@ -71,6 +72,9 @@ class CSVPlugin(app.UploaderPlugin):
 
     def stop(self) -> None:
         pass
+
+    def get_table_name(self) -> str:
+        return pathlib.Path(self.filename).stem
 
 
 plugin = CSVPlugin
