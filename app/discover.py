@@ -6,10 +6,10 @@ import structlog
 from app import interface
 
 
-def discover_plugins(dir: str) -> dict[str, interface.UploaderPlugin]:
+def discover_plugins(dir: str) -> dict[str, type[interface.UploaderPlugin]]:
     logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
-    plugins: dict[str, interface.UploaderPlugin] = {}
+    plugins: dict[str, type[interface.UploaderPlugin]] = {}
 
     py_files = Path(dir).glob("*.py")
 
