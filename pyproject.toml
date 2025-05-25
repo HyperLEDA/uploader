@@ -8,7 +8,11 @@ dependencies = [
     "hyperleda",
     "pandas-stubs>=2.2.3.250308",
     "structlog>=25.3.0",
+    "pytest>=8.0.0",
 ]
 
 [tool.uv.sources]
 hyperleda = { git = "https://github.com/HyperLEDA/client.git" }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
