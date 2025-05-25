@@ -4,7 +4,6 @@ from typing import final
 import hyperleda
 import pandas
 import app
-import structlog
 
 type_map = {
     "object": hyperleda.DataType.string,
@@ -25,7 +24,6 @@ class CSVPlugin(app.UploaderPlugin, app.DefaultTableNamer):
         self._total_chunks = 0
         self._reader = None
         self._schema = None
-        self.logger = structlog.get_logger()
 
     def prepare(self) -> None:
         self._reader = pandas.read_csv(self.filename, chunksize=self._chunk_size)

@@ -1,9 +1,6 @@
 import click
 import hyperleda
-import structlog
-from app import interface
-
-logger: structlog.stdlib.BoundLogger = structlog.get_logger()
+from app import interface, log
 
 
 def upload(
@@ -17,7 +14,7 @@ def upload(
     try:
         _upload(plugin, client, *args, **kwargs)
     except Exception as e:
-        logger.error("Encountered an unrecoverable error", error=e)
+        log.logger.error("Encountered an unrecoverable error", error=e)
     finally:
         plugin.stop()
 
