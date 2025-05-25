@@ -26,10 +26,6 @@ class CSVPlugin(app.UploaderPlugin):
         self._schema = None
         self.logger = structlog.get_logger()
 
-    @classmethod
-    def name(cls) -> str:
-        return "csv"
-
     def prepare(self) -> None:
         self._reader = pandas.read_csv(self.filename, chunksize=self._chunk_size)
         first_chunk = next(self._reader)
@@ -78,3 +74,4 @@ class CSVPlugin(app.UploaderPlugin):
 
 
 plugin = CSVPlugin
+name = "csv"

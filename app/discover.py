@@ -28,6 +28,7 @@ def discover_plugins(dir: str) -> dict[str, type[interface.UploaderPlugin]]:
             continue
 
         plugin_class = getattr(module, "plugin")
+        plugin_name = getattr(module, "name")
 
         if not issubclass(plugin_class, interface.UploaderPlugin):
             logger.warn(
@@ -36,7 +37,6 @@ def discover_plugins(dir: str) -> dict[str, type[interface.UploaderPlugin]]:
             )
             continue
 
-        plugin_name = plugin_class.name()
         plugins[plugin_name] = plugin_class
 
         structlog.get_logger().info("discovered plugin", name=plugin_name)

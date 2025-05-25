@@ -5,15 +5,6 @@ import pandas
 
 
 class UploaderPlugin(abc.ABC):
-    @classmethod
-    @abc.abstractmethod
-    def name(cls) -> str:
-        """
-        Returns the name of the plugin.
-        It will be used to invoke the plugin from the CLI of the uploader.
-        """
-        pass
-
     @abc.abstractmethod
     def prepare(self) -> None:
         """

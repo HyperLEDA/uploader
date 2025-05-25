@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import Any
 import click
 import hyperleda
+import structlog
 
 import app
 
@@ -45,6 +46,7 @@ table_type_descr = "Type of the table to upload. Determines if the table is a co
 @click.option("--pub-authors", help=pub_authors_descr, default=[], multiple=True)
 @click.option("--pub-year", type=int, default=0)
 @click.option("--table-type", help=table_type_descr, default="")
+@click.option("--auto-proceed", default=False, is_flag=True)
 @click.argument("plugin-name", type=str)
 @click.pass_context
 def upload(
@@ -59,10 +61,15 @@ def upload(
     pub_authors: list[str],
     pub_year: int,
     table_type: str,
+    auto_proceed: bool,
     plugin_name: str,
 ) -> None:
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
+
     plugins = app.discover_plugins(plugin_dir)
     plugin = plugins[plugin_name](*ctx.args)
+
+    hyperleda_client = hyperleda.HyperLedaClient(endpoint)
 
     click.echo(
         "You will be prompted several questions about the table you want to upload. "
@@ -112,11 +119,15 @@ def upload(
         click.echo(parameter("Source year", str(pub_year)))
     click.echo(parameter("Table type", table_type))
 
-    proceed = question("Proceed? (y,n)", default="y")
+    if not auto_proceed:
+        auto_proceed = question(
+            "Proceed? (y,n)", default="y", transformer=lambda s: s == "y"
+        )
 
-    if proceed == "y":
+    if auto_proceed:
         app.upload(
             plugin,
+            hyperleda_client,
             table_name,
             table_description,
             bibcode,
