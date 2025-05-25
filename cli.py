@@ -33,9 +33,12 @@ def upload(ctx: click.Context, plugin_dir: str, plugin_name: str) -> None:
 
     schema = plugin.get_schema()
     structlog.get_logger().info("Got schema", schema=schema)
+    with click.progressbar(length=100, label="Upload") as bar:
+        while (res := plugin.get_data()) is not None:
+            data, progress = res
 
-    while (data := plugin.get_data()) is not None:
-        structlog.get_logger().info("Got data", data=data)
+            percents = int(progress * 100)
+            bar.update(percents)
 
     plugin.stop()
 
