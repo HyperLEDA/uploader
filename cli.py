@@ -71,7 +71,7 @@ auto_proceed_descr = "If set, will automatically accept all suggested defaults."
 @click.option("--pub-authors", help=pub_authors_descr, default=[], multiple=True)
 @click.option("--pub-year", type=int, default=0)
 @click.option("--table-type", help=table_type_descr, default="")
-@click.option("--auto-proceed", default=False, is_flag=True)
+@click.option("--auto-proceed", "-y", default=False, is_flag=True)
 @click.argument("plugin-name", type=str)
 @click.pass_context
 def upload(
@@ -235,15 +235,15 @@ def question[T: Any](
     transformer: Callable[[str], T] = str,
     skip_input: bool = False,
 ) -> T:
-    if description != "":
-        click.echo(f"\n{description}")
-
     if default is not None:
         question += f" [{default}]"
 
     if skip_input and default is not None:
         result = ""
     else:
+        if description != "":
+            click.echo(f"\n{description}")
+
         result = input(click.style(f"{question}: ", bold=True))
 
     if result == "":
