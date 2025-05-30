@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from dataclasses import dataclass
 import inspect
 from typing import Any
 import click
@@ -7,15 +8,40 @@ import structlog
 
 import app
 
+env_map = {
+    "dev": hyperleda.DEFAULT_ENDPOINT,
+    "test": hyperleda.TEST_ENDPOINT,
+    "prod": hyperleda.PROD_ENDPOINT,
+}
 
-@click.group()
-def cli() -> None:
-    pass
+@dataclass
+class CommandContext:
+    hyperleda_client: hyperleda.HyperLedaClient
+
+@click.group(
+    context_settings={
+        "show_default": True,
+    }
+)
+@click.option("--log-level", default="info", help="Log level")
+@click.option(
+    "--endpoint",
+    help="HyperLeda API endpoint",
+    type=click.Choice(env_map.keys()),
+    default="test",
+)
+@click.pass_context
+def cli(ctx, log_level: str, endpoint: str) -> None:
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
+    ctx.obj = CommandContext(hyperleda.HyperLedaClient(endpoint=env_map[endpoint]))
 
 
 @cli.command()
 @click.option("--plugin-dir", default="plugins", type=str)
 def discover(plugin_dir: str) -> None:
+    """
+    Loads and checks all plugins for uploading. Plugins are .py files in the directory from `--plugin-dir` option.
+    """
     app.discover_plugins(plugin_dir)
 
 
@@ -32,15 +58,10 @@ auto_proceed_descr = "If set, will automatically accept all suggested defaults."
     context_settings={
         "ignore_unknown_options": True,
         "allow_extra_args": True,
+        "show_default": True,
     }
 )
 @click.option("--plugin-dir", default="plugins", type=str)
-@click.option("--log-level", default="info", help="Log level")
-@click.option(
-    "--endpoint",
-    help="HyperLeda API endpoint. If not specified, will use the testing HyperLEDA API",
-    default=hyperleda.TEST_ENDPOINT,
-)
 @click.option("--table-name", help=table_name_descr, default="")
 @click.option("--table-description", help=table_description_descr, default="")
 @click.option("--bibcode", help=bibcode_descr, default="")
@@ -52,10 +73,8 @@ auto_proceed_descr = "If set, will automatically accept all suggested defaults."
 @click.argument("plugin-name", type=str)
 @click.pass_context
 def upload(
-    ctx: click.Context,
+    ctx,
     plugin_dir: str,
-    log_level: str,
-    endpoint: str,
     table_name: str,
     table_description: str,
     bibcode: str,
@@ -66,12 +85,8 @@ def upload(
     auto_proceed: bool,
     plugin_name: str,
 ) -> None:
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
-
     plugins = app.discover_plugins(plugin_dir)
     plugin = get_plugin_instance(plugin_name, plugins, ctx.args)
-
-    hyperleda_client = hyperleda.HyperLedaClient(endpoint)
 
     click.echo(
         "You will be prompted several questions about the table you want to upload. "
@@ -148,7 +163,7 @@ def upload(
     if auto_proceed:
         app.upload(
             plugin,
-            hyperleda_client,
+            ctx.obj.hyperleda_client,
             table_name,
             table_description,
             bibcode,
