@@ -16,7 +16,7 @@ VIZIER_URL = "https://vizier.cds.unistra.fr/viz-bin/votable/-tsv"
 
 
 @final
-class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
+class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvider):
     def __init__(
         self,
         catalog_name: str,
@@ -35,7 +35,7 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
         self, catalog_name: str, table_name: str
     ) -> astropy.table.Table:
         app.logger.info(
-            "Downloading table from Vizier",
+            "downloading table from Vizier",
             catalog_name=catalog_name,
             table_name=table_name,
         )
@@ -45,7 +45,7 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
 
         table = next((cat for cat in catalogs if cat.meta["name"] == table_name), None)
         if not table:
-            raise ValueError("Table not found in the catalog")
+            raise ValueError("table not found in the catalog")
 
         cache_filename = self._obtain_cache_path("tables", catalog_name, table_name)
         table.write(cache_filename, format="votable")
@@ -54,13 +54,13 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
 
     def _download_schema(self, catalog_name: str, table_name: str) -> tree.VOTableFile:
         vizier_client = vizier.VizierClass(row_limit=5)
-        columns = _get_columns(vizier_client, catalog_name)
+        columns = _get_columns(vizier_client, catalog_name, table_name)
         raw_header = _download_table(table_name, columns, max_rows=10)
 
         cache_filename = self._obtain_cache_path("schemas", catalog_name, table_name)
         cache_filename.write_text(raw_header)
 
-        app.logger.info("Wrote cache", location=str(cache_filename))
+        app.logger.debug("wrote cache", location=str(cache_filename))
 
         return votable.parse(cache_filename)
 
@@ -79,7 +79,7 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
         cache_filename = self._obtain_cache_path("schemas", catalog_name, table_name)
 
         if self.ignore_cache:
-            app.logger.info("Ignore cache flag is set")
+            app.logger.info("ignore cache flag is set")
             raise FileNotFoundError()
         return votable.parse(str(cache_filename))
 
@@ -96,7 +96,7 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
         try:
             schema = self._get_schema_from_cache(self.catalog_name, self.table_name)
             app.logger.debug(
-                "Hit cache for the schema, no downloading will be performed"
+                "hit cache for the schema, no downloading will be performed"
             )
         except FileNotFoundError:
             schema = self._download_schema(self.catalog_name, self.table_name)
@@ -117,16 +117,17 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
         try:
             table = self._get_table_from_cache(self.catalog_name, self.table_name)
             app.logger.debug(
-                "Hit cache for the table, no downloading will be performed"
+                "hit cache for the table, no downloading will be performed"
             )
         except Exception:
             table = self._download_table(self.catalog_name, self.table_name)
 
         total_rows = len(table)
+        app.logger.info("uploading table", total_rows=total_rows)
 
         table_rows = list(table)
         offset = 0
-        for batch in itertools.batched(table_rows, self.batch_size, strict=False):
+        for batch in itertools.batched(table_rows, self.batch_size):
             offset += len(batch)
 
             rows = []
@@ -142,6 +143,14 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
     def get_table_name(self) -> str:
         return _get_filename(self.catalog_name, self.table_name)
 
+    def get_bibcode(self) -> str:
+        self.get_schema()
+        schema = self._get_schema_from_cache(self.catalog_name, self.table_name)
+        bibcode_info = next(
+            filter(lambda info: info.name == "cites", schema.resources[0].infos)
+        )
+        return bibcode_info.value.split(":")[1]
+
 
 def _sanitize_filename(string: str) -> str:
     return string.replace("/", "_")
@@ -151,8 +160,19 @@ def _get_filename(catalog_name: str, table_name: str) -> str:
     return f"{_sanitize_filename(catalog_name)}_{_sanitize_filename(table_name)}"
 
 
-def _get_columns(client: vizier.VizierClass, catalog_name: str) -> list[str]:
-    meta: astropy.table.Table = client.get_catalogs(catalog_name)[0]  # type: ignore
+def _get_columns(
+    client: vizier.VizierClass, catalog_name: str, table_name: str
+) -> list[str]:
+    catalogs = client.get_catalogs(catalog_name)  # type: ignore
+
+    meta = None
+    for cat in catalogs:
+        if cat.meta["name"] == table_name:
+            meta = cat
+            break
+
+    if not meta:
+        raise ValueError("table not found in the catalog")
 
     return meta.colnames
 

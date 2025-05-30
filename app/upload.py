@@ -49,8 +49,11 @@ def _upload(
     log.logger.info("starting upload")
 
     with click.progressbar(length=100, label="Upload") as bar:
+        prev_percent = 0
         for data, progress in plugin.get_data():
             client.add_data(table_id, data)
 
-            percents = int(progress * 100)
-            bar.update(percents)
+            percent = int(progress * 100)
+            if percent != prev_percent:
+                bar.update(percent - prev_percent)
+                prev_percent = percent

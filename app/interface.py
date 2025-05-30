@@ -49,3 +49,9 @@ class DefaultTableNamer(abc.ABC):
     @abc.abstractmethod
     def get_table_name(self) -> str:
         pass
+
+
+class BibcodeProvider(abc.ABC):
+    @abc.abstractmethod
+    def get_bibcode(self) -> str:
+        pass

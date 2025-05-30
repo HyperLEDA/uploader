@@ -97,8 +97,13 @@ def upload(
 
     if table_name == "":
         default_table_name = None
-        if hasattr(plugin, "get_table_name"):
-            default_table_name = plugin.get_table_name()  # type: ignore
+        if isinstance(plugin, app.DefaultTableNamer):
+            try:
+                default_table_name = plugin.get_table_name()
+            except Exception:
+                app.logger.warning(
+                    "failed to get default table name from plugin", plugin=plugin
+                )
 
         table_name = question(
             "Enter table name",
@@ -117,11 +122,29 @@ def upload(
 
     if bibcode == "" and (pub_name == "" or len(pub_authors) == 0 or pub_year == 0):
         has_bibcode = question(
-            "Do you have a bibcode for the publication? (y,n)", default="y"
+            "Do you have a bibcode for the publication? (y,n)",
+            default="y",
+            description=bibcode_descr,
+            skip_input=auto_proceed,
         )
 
         if has_bibcode == "y":
-            bibcode = question("Enter bibcode", description=bibcode_descr)
+            default_bibcode = None
+            if isinstance(plugin, app.BibcodeProvider):
+                try:
+                    default_bibcode = plugin.get_bibcode()
+                except Exception as e:
+                    app.logger.warning(
+                        "failed to get default bibcode from plugin",
+                        plugin=plugin_name,
+                        error=e,
+                    )
+
+            bibcode = question(
+                "Enter bibcode",
+                default=default_bibcode,
+                skip_input=auto_proceed,
+            )
         else:
             if pub_name == "":
                 pub_name = question(
