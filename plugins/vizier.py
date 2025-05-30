@@ -22,18 +22,14 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvide
         catalog_name: str,
         table_name: str,
         cache_path: str = ".vizier_cache/",
-        ignore_cache: bool = False,
         batch_size: int = 500,
     ):
         self.cache_path = cache_path
-        self.ignore_cache = ignore_cache
         self.catalog_name = catalog_name
         self.table_name = table_name
         self.batch_size = batch_size
 
-    def _download_table(
-        self, catalog_name: str, table_name: str
-    ) -> astropy.table.Table:
+    def _write_table_cache(self, catalog_name: str, table_name: str):
         app.logger.info(
             "downloading table from Vizier",
             catalog_name=catalog_name,
@@ -50,9 +46,9 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvide
         cache_filename = self._obtain_cache_path("tables", catalog_name, table_name)
         table.write(cache_filename, format="votable")
 
-        return table
+        app.logger.debug("wrote table cache", location=str(cache_filename))
 
-    def _download_schema(self, catalog_name: str, table_name: str) -> tree.VOTableFile:
+    def _write_schema_cache(self, catalog_name: str, table_name: str):
         vizier_client = vizier.VizierClass(row_limit=5)
         columns = _get_columns(vizier_client, catalog_name, table_name)
         raw_header = _download_table(table_name, columns, max_rows=10)
@@ -61,8 +57,6 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvide
         cache_filename.write_text(raw_header)
 
         app.logger.debug("wrote cache", location=str(cache_filename))
-
-        return votable.parse(cache_filename)
 
     def _obtain_cache_path(
         self, type_path: str, catalog_name: str, table_name: str
@@ -77,10 +71,6 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvide
         self, catalog_name: str, table_name: str
     ) -> tree.VOTableFile:
         cache_filename = self._obtain_cache_path("schemas", catalog_name, table_name)
-
-        if self.ignore_cache:
-            app.logger.info("ignore cache flag is set")
-            raise FileNotFoundError()
         return votable.parse(str(cache_filename))
 
     def _get_table_from_cache(
@@ -93,13 +83,13 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvide
         pass
 
     def get_schema(self) -> list[hyperleda.ColumnDescription]:
-        try:
-            schema = self._get_schema_from_cache(self.catalog_name, self.table_name)
-            app.logger.debug(
-                "hit cache for the schema, no downloading will be performed"
-            )
-        except FileNotFoundError:
-            schema = self._download_schema(self.catalog_name, self.table_name)
+        if not self._obtain_cache_path(
+            "schemas", self.catalog_name, self.table_name
+        ).exists():
+            app.logger.debug("did not hit cache for the schema, downloading")
+            self._write_schema_cache(self.catalog_name, self.table_name)
+
+        schema = self._get_schema_from_cache(self.catalog_name, self.table_name)
 
         table = schema.get_first_table()
         return [
@@ -114,13 +104,13 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvide
         ]
 
     def get_data(self) -> Generator[tuple[pandas.DataFrame, float], None, None]:
-        try:
-            table = self._get_table_from_cache(self.catalog_name, self.table_name)
-            app.logger.debug(
-                "hit cache for the table, no downloading will be performed"
-            )
-        except Exception:
-            table = self._download_table(self.catalog_name, self.table_name)
+        if not self._obtain_cache_path(
+            "tables", self.catalog_name, self.table_name
+        ).exists():
+            app.logger.debug("did not hit cache for the table, downloading")
+            self._write_table_cache(self.catalog_name, self.table_name)
+
+        table = self._get_table_from_cache(self.catalog_name, self.table_name)
 
         total_rows = len(table)
         app.logger.info("uploading table", total_rows=total_rows)
