@@ -29,7 +29,7 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer):
         self.ignore_cache = ignore_cache
         self.catalog_name = catalog_name
         self.table_name = table_name
-        self.batch_size = 500
+        self.batch_size = batch_size
 
     def _download_table(
         self, catalog_name: str, table_name: str
