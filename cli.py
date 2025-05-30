@@ -1,4 +1,5 @@
 from collections.abc import Callable
+import inspect
 from typing import Any
 import click
 import hyperleda
@@ -24,6 +25,7 @@ bibcode_descr = "Bibcode is an identifier for the publication from the NASA ADS 
 pub_name_descr = "Name of the internal source. Can be a short description that represents where the data comes from."
 pub_authors_descr = "Comma-separated list of authors of the internal source."
 table_type_descr = "Type of the table to upload. Determines if the table is a compilation or the regular dataset. If unsure, leave blank."
+auto_proceed_descr = "If set, will automatically accept all suggested defaults."
 
 
 @cli.command(
@@ -67,7 +69,7 @@ def upload(
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
 
     plugins = app.discover_plugins(plugin_dir)
-    plugin = plugins[plugin_name](*ctx.args)
+    plugin = get_plugin_instance(plugin_name, plugins, ctx.args)
 
     hyperleda_client = hyperleda.HyperLedaClient(endpoint)
 
@@ -155,6 +157,30 @@ def upload(
             pub_year,
             table_type,
         )
+
+
+def get_plugin_instance(
+    plugin_name: str,
+    plugins: dict[str, type[app.UploaderPlugin]],
+    args: list[Any],
+) -> app.UploaderPlugin:
+    plugin_class = plugins[plugin_name]
+
+    try:
+        return plugin_class(*args)
+    except TypeError:
+        pass
+
+    s = inspect.signature(plugin_class)
+    required_args = []
+
+    for arg_name, arg in s.parameters.items():
+        if arg.default is inspect.Parameter.empty:
+            required_args.append(arg_name)
+
+    raise RuntimeError(
+        f"Plugin {plugin_name} has {len(required_args)} required arguments ({required_args}). {len(args)} were given."
+    )
 
 
 def parameter(name: str, value: str) -> str:
