@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock
 import hyperleda
 from app.upload import upload
-from plugins.csv import CSVPlugin
+from plugins.csv_batched import CSVPlugin
 from app.interface import UploaderPlugin
 import pandas
 
