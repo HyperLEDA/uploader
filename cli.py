@@ -14,9 +14,11 @@ env_map = {
     "prod": hyperleda.PROD_ENDPOINT,
 }
 
+
 @dataclass
 class CommandContext:
     hyperleda_client: hyperleda.HyperLedaClient
+
 
 @click.group(
     context_settings={
