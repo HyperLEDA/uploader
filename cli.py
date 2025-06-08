@@ -113,10 +113,19 @@ def upload(
         )
 
     if table_description == "":
+        default_description = None
+        if isinstance(plugin, app.DescriptionProvider):
+            try:
+                default_description = plugin.get_description()
+            except Exception:
+                app.logger.warning(
+                    "failed to get default table description from plugin", plugin=plugin
+                )
+
         table_description = question(
             "Enter description",
             description=table_description_descr,
-            default="",
+            default=default_description,
             skip_input=auto_proceed,
         )
 

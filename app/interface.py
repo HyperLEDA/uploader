@@ -55,3 +55,9 @@ class BibcodeProvider(abc.ABC):
     @abc.abstractmethod
     def get_bibcode(self) -> str:
         pass
+
+
+class DescriptionProvider(abc.ABC):
+    @abc.abstractmethod
+    def get_description(self) -> str:
+        pass
