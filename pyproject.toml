@@ -11,6 +11,7 @@ dependencies = [
     "pytest>=8.0.0",
     "astroquery>=0.4.10",
     "ruff>=0.11.12",
+    "astropy>=7.1.0",
 ]
 
 [tool.uv.sources]

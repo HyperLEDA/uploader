@@ -16,7 +16,12 @@ VIZIER_URL = "https://vizier.cds.unistra.fr/viz-bin/votable/-tsv"
 
 
 @final
-class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvider, app.DescriptionProvider):
+class VizierPlugin(
+    app.UploaderPlugin,
+    app.DefaultTableNamer,
+    app.BibcodeProvider,
+    app.DescriptionProvider,
+):
     def __init__(
         self,
         catalog_name: str,
@@ -145,7 +150,6 @@ class VizierPlugin(app.UploaderPlugin, app.DefaultTableNamer, app.BibcodeProvide
         self.get_schema()
         schema = self._get_schema_from_cache(self.catalog_name, self.table_name)
         return schema.resources[0].description
-
 
 
 def _sanitize_filename(string: str) -> str:
