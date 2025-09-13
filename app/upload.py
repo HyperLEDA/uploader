@@ -37,12 +37,12 @@ def _upload(
         log.logger.info("created internal source", id=bibcode)
 
     table_id = client.create_table(
-        hyperleda.CreateTableRequestSchema(
-            table_name,
-            schema,
-            bibcode,
-            hyperleda.Datatype[table_type],
-            table_description,
+        hyperleda.CreateTableRequest(
+            table_name=table_name,
+            columns=schema,
+            bibcode=bibcode,
+            datatype=hyperleda.Datatype[table_type],
+            description=table_description,
         )
     )
     log.logger.info("created table", table_id=table_id)
