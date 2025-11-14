@@ -27,19 +27,10 @@ def _map_votable_datatype(datatype: str) -> models.DatatypeEnum:
     return models.DatatypeEnum.STRING
 
 
-@final
-class VizierV2Plugin(
-    app.UploaderPlugin,
-    app.DefaultTableNamer,
-    app.BibcodeProvider,
-    app.DescriptionProvider,
-):
-    def __init__(self, cache_path: str = ".vizier_cache/", batch_size: int = 500):
-        self.catalog_name = "J/ApJ/788/39"
-        self.table_name = "J/ApJ/788/39/stars"
+class CachedVizierClient:
+    def __init__(self, cache_path: str = ".vizier_cache/"):
         self.cache_path = cache_path
-        self.batch_size = batch_size
-        self.client = vizier.Vizier()
+        self._client = vizier.Vizier()
 
     def _obtain_cache_path(self, catalog_name: str) -> pathlib.Path:
         filename = f"{_sanitize_filename(catalog_name)}.vot"
@@ -52,28 +43,45 @@ class VizierV2Plugin(
             "downloading catalog from Vizier",
             catalog_name=catalog_name,
         )
-        catalogs: utils.TableList = self.client.get_catalogs(catalog_name)  # pyright: ignore[reportAttributeAccessIssue]
+        catalogs: utils.TableList = self._client.get_catalogs(catalog_name)  # pyright: ignore[reportAttributeAccessIssue]
 
         if not catalogs:
             raise ValueError("catalog not found")
+
         cache_filename = self._obtain_cache_path(catalog_name)
         catalogs[0].write(str(cache_filename), format="votable")
         app.logger.debug("wrote catalog cache", location=str(cache_filename))
 
-    def _get_table_from_cache(self, catalog_name: str) -> tree.TableElement:
-        cache_filename = self._obtain_cache_path(catalog_name)
-        return votable.parse(str(cache_filename)).get_first_table()
+    def get_table(self, catalog_name: str) -> tree.TableElement:
+        cache_path = self._obtain_cache_path(catalog_name)
+        if not cache_path.exists():
+            app.logger.debug("did not hit cache for the catalog, downloading")
+            self._write_catalog_cache(catalog_name)
+
+        return votable.parse(str(cache_path)).get_first_table()
+
+    def get_catalog_metadata(self, catalog: str) -> dict:
+        return self._client.get_catalog_metadata(catalog=catalog)
+
+
+@final
+class VizierV2Plugin(
+    app.UploaderPlugin,
+    app.DefaultTableNamer,
+    app.BibcodeProvider,
+    app.DescriptionProvider,
+):
+    def __init__(self, cache_path: str = ".vizier_cache/", batch_size: int = 500):
+        self.catalog_name = "J/ApJ/788/39"
+        self.table_name = "J/ApJ/788/39/stars"
+        self.batch_size = batch_size
+        self.client = CachedVizierClient(cache_path=cache_path)
 
     def prepare(self) -> None:
         pass
 
     def get_table_name(self) -> str:
-        if not self._obtain_cache_path(self.table_name).exists():
-            app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(self.table_name)
-
-        t = self._get_table_from_cache(self.table_name)
-
+        t = self.client.get_table(self.table_name)
         return str(t.ID)
 
     def get_bibcode(self) -> str:
@@ -85,11 +93,7 @@ class VizierV2Plugin(
         return resp["title"][0]
 
     def get_schema(self) -> list[models.ColumnDescription]:
-        if not self._obtain_cache_path(self.table_name).exists():
-            app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(self.table_name)
-
-        t = self._get_table_from_cache(self.table_name)
+        t = self.client.get_table(self.table_name)
         return [
             models.ColumnDescription(
                 name=field.ID,
@@ -102,11 +106,7 @@ class VizierV2Plugin(
         ]
 
     def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
-        if not self._obtain_cache_path(self.table_name).exists():
-            app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(self.table_name)
-
-        t = self._get_table_from_cache(self.table_name)
+        t = self.client.get_table(self.table_name)
 
         total_rows = int(t.nrows)  # pyright: ignore[reportArgumentType]
         app.logger.info("uploading table", total_rows=total_rows)
