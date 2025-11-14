@@ -10,7 +10,7 @@ fix:
 	uvx ruff format .
 
 test:
-	uvx pytest tests
+	uv run pytest tests
 
 gen:
 	uv run openapi-python-client generate \
