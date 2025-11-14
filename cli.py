@@ -117,6 +117,7 @@ def upload(
             description=table_name_descr,
             default=default_table_name,
             skip_input=auto_proceed,
+            transformer=str,
         )
 
     if table_description == "":
@@ -132,6 +133,7 @@ def upload(
             description=table_description_descr,
             default=default_description,
             skip_input=auto_proceed,
+            transformer=str,
         )
 
     if bibcode == "" and (pub_name == "" or len(pub_authors) == 0 or pub_year == 0):
@@ -140,6 +142,7 @@ def upload(
             default="y",
             description=bibcode_descr,
             skip_input=auto_proceed,
+            transformer=str,
         )
 
         if has_bibcode == "y":
@@ -158,10 +161,15 @@ def upload(
                 "Enter bibcode",
                 default=default_bibcode,
                 skip_input=auto_proceed,
+                transformer=str,
             )
         else:
             if pub_name == "":
-                pub_name = question("Enter the name of the source", description=pub_name_descr)
+                pub_name = question(
+                    "Enter the name of the source",
+                    description=pub_name_descr,
+                    transformer=str,
+                )
 
             if len(pub_authors) == 0:
                 pub_authors = question(
@@ -179,6 +187,7 @@ def upload(
             description=table_type_descr,
             default="regular",
             skip_input=auto_proceed,
+            transformer=str,
         )
         table_type = table_type.upper()
 
@@ -240,10 +249,10 @@ def parameter(name: str, value: str) -> str:
 
 def question[T: Any](
     question: str,
+    transformer: Callable[[str], T],
     *,
     description: str = "",
     default: str | None = None,
-    transformer: Callable[[str], T] = str,
     skip_input: bool = False,
 ) -> T:
     if default is not None:
