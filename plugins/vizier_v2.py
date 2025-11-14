@@ -32,31 +32,37 @@ class CachedVizierClient:
         self.cache_path = cache_path
         self._client = vizier.Vizier()
 
-    def _obtain_cache_path(self, catalog_name: str) -> pathlib.Path:
+    def _obtain_cache_path(self, catalog_name: str, row_num: int | None = None) -> pathlib.Path:
         filename = f"{_sanitize_filename(catalog_name)}.vot"
+        if row_num is not None:
+            filename = f"{_sanitize_filename(catalog_name)}_rows_{row_num}.vot"
         path = pathlib.Path(self.cache_path) / "catalogs" / filename
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 
-    def _write_catalog_cache(self, catalog_name: str) -> None:
+    def _write_catalog_cache(self, catalog_name: str, row_num: int | None = None) -> None:
         app.logger.info(
             "downloading catalog from Vizier",
             catalog_name=catalog_name,
+            row_num=row_num,
         )
-        catalogs: utils.TableList = self._client.get_catalogs(catalog_name)  # pyright: ignore[reportAttributeAccessIssue]
+        client = self._client
+        if row_num is not None:
+            client = vizier.Vizier(row_limit=row_num)
+        catalogs: utils.TableList = client.get_catalogs(catalog_name)  # pyright: ignore[reportAttributeAccessIssue]
 
         if not catalogs:
             raise ValueError("catalog not found")
 
-        cache_filename = self._obtain_cache_path(catalog_name)
+        cache_filename = self._obtain_cache_path(catalog_name, row_num)
         catalogs[0].write(str(cache_filename), format="votable")
         app.logger.debug("wrote catalog cache", location=str(cache_filename))
 
-    def get_table(self, catalog_name: str) -> tree.TableElement:
-        cache_path = self._obtain_cache_path(catalog_name)
+    def get_table(self, catalog_name: str, row_num: int | None = None) -> tree.TableElement:
+        cache_path = self._obtain_cache_path(catalog_name, row_num)
         if not cache_path.exists():
             app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(catalog_name)
+            self._write_catalog_cache(catalog_name, row_num)
 
         return votable.parse(str(cache_path)).get_first_table()
 
@@ -81,7 +87,7 @@ class VizierV2Plugin(
         pass
 
     def get_table_name(self) -> str:
-        t = self.client.get_table(self.table_name)
+        t = self.client.get_table(self.table_name, row_num=1)
         return str(t.ID)
 
     def get_bibcode(self) -> str:
