@@ -175,3 +175,4 @@ pyrightconfig.json
 
 uv.lock
 .vizier_cache
+app/gen

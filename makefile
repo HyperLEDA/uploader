@@ -10,4 +10,12 @@ fix:
 	uvx ruff format .
 
 test:
-	pytest tests
+	uvx pytest tests
+
+gen:
+	uv run openapi-python-client generate \
+		--output-path app/gen/client \
+		--overwrite \
+		--meta uv \
+		--config openapigen.yaml \
+		--url https://leda.sao.ru/admin/api/openapi.json
