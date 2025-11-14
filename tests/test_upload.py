@@ -49,16 +49,24 @@ def mock_response[T: Any](resp: T) -> types.Response[T]:
 @patch("app.upload.create_source")
 @patch("app.upload.create_table")
 @patch("app.upload.add_data")
-def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_source, mock_client):
+def test_upload_with_csv_plugin(
+    mock_add_data, mock_create_table, mock_create_source, mock_client
+):
     mock_create_source_response = models.APIOkResponseCreateSourceResponse(
         data=models.CreateSourceResponse(code="test_bibcode")
     )
     mock_create_source.sync.return_value = mock_create_source_response
 
-    mock_create_table_response = models.APIOkResponseCreateTableResponse(data=models.CreateTableResponse(id=1))
-    mock_create_table.sync_detailed.return_value = mock_response(mock_create_table_response)
+    mock_create_table_response = models.APIOkResponseCreateTableResponse(
+        data=models.CreateTableResponse(id=1)
+    )
+    mock_create_table.sync_detailed.return_value = mock_response(
+        mock_create_table_response
+    )
 
-    mock_add_data_response = models.APIOkResponseAddDataResponse(data=models.AddDataResponse())
+    mock_add_data_response = models.APIOkResponseAddDataResponse(
+        data=models.AddDataResponse()
+    )
     mock_add_data.sync_detailed.return_value = mock_response(mock_add_data_response)
 
     plugin = CSVPlugin("tests/test_csv.csv")
@@ -82,14 +90,22 @@ def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_so
 
 @patch("app.upload.create_source")
 @patch("app.upload.create_table")
-def test_plugin_stop_called_on_error(mock_create_table, mock_create_source, mock_client):
+def test_plugin_stop_called_on_error(
+    mock_create_table, mock_create_source, mock_client
+):
     mock_create_source_response = models.APIOkResponseCreateSourceResponse(
         data=models.CreateSourceResponse(code="test_bibcode")
     )
-    mock_create_source.sync_detailed.return_value = mock_response(mock_create_source_response)
+    mock_create_source.sync_detailed.return_value = mock_response(
+        mock_create_source_response
+    )
 
-    mock_create_table_response = models.APIOkResponseCreateTableResponse(data=models.CreateTableResponse(id=1))
-    mock_create_table.sync_detailed.return_value = mock_response(mock_create_table_response)
+    mock_create_table_response = models.APIOkResponseCreateTableResponse(
+        data=models.CreateTableResponse(id=1)
+    )
+    mock_create_table.sync_detailed.return_value = mock_response(
+        mock_create_table_response
+    )
 
     plugin = StubPlugin(should_raise=True)
 

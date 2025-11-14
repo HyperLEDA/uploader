@@ -55,9 +55,7 @@ def discover(plugin_dir: str) -> None:
 
 
 table_name_descr = "Table name is a primary identifier of the table in HyperLEDA. It usually is a machine-readable string that will later be user to do any alterations to the table. Example: sdss_dr12."
-table_description_descr = (
-    "Description of the table is a human-readable string that can later be used for searching of viewing the table."
-)
+table_description_descr = "Description of the table is a human-readable string that can later be used for searching of viewing the table."
 bibcode_descr = "Bibcode is an identifier for the publication from the NASA ADS system https://ui.adsabs.harvard.edu/. It allows for easy search of the publication throughout a range of different sources."
 pub_name_descr = "Name of the internal source. Can be a short description that represents where the data comes from."
 pub_authors_descr = "Comma-separated list of authors of the internal source."
@@ -110,7 +108,9 @@ def upload(
             try:
                 default_table_name = plugin.get_table_name()
             except Exception:
-                app.logger.warning("failed to get default table name from plugin", plugin=plugin)
+                app.logger.warning(
+                    "failed to get default table name from plugin", plugin=plugin
+                )
 
         table_name = question(
             "Enter table name",
@@ -126,7 +126,11 @@ def upload(
             try:
                 default_description = plugin.get_description()
             except Exception as e:
-                app.logger.warning("failed to get default table description from plugin", plugin=plugin, error=e)
+                app.logger.warning(
+                    "failed to get default table description from plugin",
+                    plugin=plugin,
+                    error=e,
+                )
 
         table_description = question(
             "Enter description",
@@ -203,7 +207,9 @@ def upload(
     click.echo(parameter("Table type", table_type))
 
     if not auto_proceed:
-        auto_proceed = question("Proceed? (y,n)", default="y", transformer=lambda s: s == "y")
+        auto_proceed = question(
+            "Proceed? (y,n)", default="y", transformer=lambda s: s == "y"
+        )
 
     if auto_proceed:
         app.upload(

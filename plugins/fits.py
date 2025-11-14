@@ -38,7 +38,9 @@ class FITSPlugin(app.UploaderPlugin, app.DefaultTableNamer):
             raise ValueError(f"HDU {self.hdu_index} is not a binary table")
 
         self._schema = self._table.columns
-        self._total_batches = (len(self._table.data) + self._batch_size - 1) // self._batch_size
+        self._total_batches = (
+            len(self._table.data) + self._batch_size - 1
+        ) // self._batch_size
         self._current_batch = 0
 
     def get_schema(self) -> list[models.ColumnDescription]:

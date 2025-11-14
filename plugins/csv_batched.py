@@ -37,7 +37,9 @@ class CSVPlugin(app.UploaderPlugin, app.DefaultTableNamer):
         with open(self.filename) as f:
             self._total_chunks = sum(1 for _ in f) - 1
 
-        self._total_chunks = (self._total_chunks + self._chunk_size - 1) // self._chunk_size
+        self._total_chunks = (
+            self._total_chunks + self._chunk_size - 1
+        ) // self._chunk_size
         self._current_chunk = 0
 
     def get_schema(self) -> list[models.ColumnDescription]:
