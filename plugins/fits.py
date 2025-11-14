@@ -1,18 +1,20 @@
 import pathlib
-from typing import Generator, final
+from collections.abc import Generator
+from typing import final
 
-import hyperleda
 import pandas
 from astropy.io import fits
+
 import app
+from app.gen.client.adminapi import models
 
 type_map = {
-    "object": hyperleda.DataType.string,
-    "string": hyperleda.DataType.string,
-    "int64": hyperleda.DataType.integer,
-    "int32": hyperleda.DataType.integer,
-    "float64": hyperleda.DataType.double,
-    "float32": hyperleda.DataType.double,
+    "object": models.DatatypeEnum.STRING,
+    "string": models.DatatypeEnum.STRING,
+    "int64": models.DatatypeEnum.INTEGER,
+    "int32": models.DatatypeEnum.INTEGER,
+    "float64": models.DatatypeEnum.DOUBLE,
+    "float32": models.DatatypeEnum.DOUBLE,
 }
 
 
@@ -36,29 +38,27 @@ class FITSPlugin(app.UploaderPlugin, app.DefaultTableNamer):
             raise ValueError(f"HDU {self.hdu_index} is not a binary table")
 
         self._schema = self._table.columns
-        self._total_batches = (
-            len(self._table.data) + self._batch_size - 1
-        ) // self._batch_size
+        self._total_batches = (len(self._table.data) + self._batch_size - 1) // self._batch_size
         self._current_batch = 0
 
-    def get_schema(self) -> list[hyperleda.ColumnDescription]:
+    def get_schema(self) -> list[models.ColumnDescription]:
         if self._schema is None:
             raise RuntimeError("Plugin not prepared. Call prepare() first.")
 
         columns = []
         for col in self._schema:
-            data_type = type_map.get(str(col.format), hyperleda.DataType.string)
+            data_type = type_map.get(str(col.format), models.DatatypeEnum.STRING)
 
             columns.append(
-                hyperleda.ColumnDescription(
+                models.ColumnDescription(
                     name=str(col.name),
                     data_type=data_type,
                     unit=str(col.unit) if col.unit else None,
-                )
+                ),
             )
         return columns
 
-    def get_data(self) -> Generator[tuple[pandas.DataFrame, float], None, None]:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
         if self._table is None:
             raise RuntimeError("Plugin not prepared. Call prepare() first.")
 

@@ -1,18 +1,31 @@
 import http
 import itertools
 import pathlib
-from typing import Generator, final
+from collections.abc import Generator
+from typing import final
 
 import astropy
-import hyperleda
 import pandas
 import requests
-import app
-from astroquery import vizier
 from astropy.io import votable
 from astropy.io.votable import tree
+from astroquery import vizier
+
+import app
+from app.gen.client.adminapi import models
 
 VIZIER_URL = "https://vizier.cds.unistra.fr/viz-bin/votable/-tsv"
+
+
+def _map_votable_datatype(datatype: str) -> models.DatatypeEnum:
+    datatype_lower = datatype.lower() if datatype else ""
+    if datatype_lower in ("char", "unicodechar", "string", "text"):
+        return models.DatatypeEnum.STRING
+    if datatype_lower in ("short", "int", "long", "integer", "smallint"):
+        return models.DatatypeEnum.INTEGER
+    if datatype_lower in ("float", "double", "real", "doubleprecision"):
+        return models.DatatypeEnum.DOUBLE
+    return models.DatatypeEnum.STRING
 
 
 @final
@@ -63,34 +76,26 @@ class VizierPlugin(
 
         app.logger.debug("wrote cache", location=str(cache_filename))
 
-    def _obtain_cache_path(
-        self, type_path: str, catalog_name: str, table_name: str
-    ) -> pathlib.Path:
+    def _obtain_cache_path(self, type_path: str, catalog_name: str, table_name: str) -> pathlib.Path:
         filename = f"{_get_filename(catalog_name, table_name)}.vot"
         path = pathlib.Path(self.cache_path) / type_path / filename
 
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 
-    def _get_schema_from_cache(
-        self, catalog_name: str, table_name: str
-    ) -> tree.VOTableFile:
+    def _get_schema_from_cache(self, catalog_name: str, table_name: str) -> tree.VOTableFile:
         cache_filename = self._obtain_cache_path("schemas", catalog_name, table_name)
         return votable.parse(str(cache_filename))
 
-    def _get_table_from_cache(
-        self, catalog_name: str, table_name: str
-    ) -> astropy.table.Table:
+    def _get_table_from_cache(self, catalog_name: str, table_name: str) -> astropy.table.Table:
         cache_filename = self._obtain_cache_path("tables", catalog_name, table_name)
         return astropy.table.Table.read(cache_filename, format="votable")
 
     def prepare(self) -> None:
         pass
 
-    def get_schema(self) -> list[hyperleda.ColumnDescription]:
-        if not self._obtain_cache_path(
-            "schemas", self.catalog_name, self.table_name
-        ).exists():
+    def get_schema(self) -> list[models.ColumnDescription]:
+        if not self._obtain_cache_path("schemas", self.catalog_name, self.table_name).exists():
             app.logger.debug("did not hit cache for the schema, downloading")
             self._write_schema_cache(self.catalog_name, self.table_name)
 
@@ -98,9 +103,9 @@ class VizierPlugin(
 
         table = schema.get_first_table()
         return [
-            hyperleda.ColumnDescription(
+            models.ColumnDescription(
                 name=field.ID,
-                data_type=field.datatype,
+                data_type=_map_votable_datatype(str(field.datatype)),
                 ucd=field.ucd,
                 description=field.description,
                 unit=field.unit,
@@ -108,10 +113,8 @@ class VizierPlugin(
             for field in table.fields
         ]
 
-    def get_data(self) -> Generator[tuple[pandas.DataFrame, float], None, None]:
-        if not self._obtain_cache_path(
-            "tables", self.catalog_name, self.table_name
-        ).exists():
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
+        if not self._obtain_cache_path("tables", self.catalog_name, self.table_name).exists():
             app.logger.debug("did not hit cache for the table, downloading")
             self._write_table_cache(self.catalog_name, self.table_name)
 
@@ -122,7 +125,7 @@ class VizierPlugin(
 
         table_rows = list(table)
         offset = 0
-        for batch in itertools.batched(table_rows, self.batch_size):
+        for batch in itertools.batched(table_rows, self.batch_size, strict=False):
             offset += len(batch)
 
             rows = []
@@ -141,9 +144,7 @@ class VizierPlugin(
     def get_bibcode(self) -> str:
         self.get_schema()
         schema = self._get_schema_from_cache(self.catalog_name, self.table_name)
-        bibcode_info = next(
-            filter(lambda info: info.name == "cites", schema.resources[0].infos)
-        )
+        bibcode_info = next(filter(lambda info: info.name == "cites", schema.resources[0].infos))
         return bibcode_info.value.split(":")[1]
 
     def get_description(self) -> str:
@@ -160,9 +161,7 @@ def _get_filename(catalog_name: str, table_name: str) -> str:
     return f"{_sanitize_filename(catalog_name)}_{_sanitize_filename(table_name)}"
 
 
-def _get_columns(
-    client: vizier.VizierClass, catalog_name: str, table_name: str
-) -> list[str]:
+def _get_columns(client: vizier.VizierClass, catalog_name: str, table_name: str) -> list[str]:
     catalogs = client.get_catalogs(catalog_name)  # type: ignore
 
     meta = None
@@ -177,9 +176,7 @@ def _get_columns(
     return meta.colnames
 
 
-def _download_table(
-    table_name: str, columns: list[str], max_rows: int | None = None
-) -> str:
+def _download_table(table_name: str, columns: list[str], max_rows: int | None = None) -> str:
     out_max = "unlimited" if max_rows is None else max_rows
 
     payload = [
@@ -203,9 +200,7 @@ def _download_table(
         "Content-Type": "application/x-www-form-urlencoded",
     }
 
-    response = requests.request(
-        http.HTTPMethod.POST, VIZIER_URL, data=data, headers=headers
-    )
+    response = requests.request(http.HTTPMethod.POST, VIZIER_URL, data=data, headers=headers)
 
     return response.text
 
