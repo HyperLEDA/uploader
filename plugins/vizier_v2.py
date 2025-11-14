@@ -1,3 +1,4 @@
+import itertools
 import pathlib
 from collections.abc import Generator
 from typing import final
@@ -9,22 +10,36 @@ from astropy.io.votable import tree
 from astroquery import utils, vizier
 
 import app
-from app.gen.client.adminapi import models
+from app.gen.client.adminapi import models, types
 
 
 def _sanitize_filename(string: str) -> str:
     return string.replace("/", "_")
 
 
+def _map_votable_datatype(datatype: str) -> models.DatatypeEnum:
+    datatype_lower = datatype.lower() if datatype else ""
+    if datatype_lower in ("char", "unicodechar", "string", "text"):
+        return models.DatatypeEnum.STRING
+    if datatype_lower in ("short", "int", "long", "integer", "smallint"):
+        return models.DatatypeEnum.INTEGER
+    if datatype_lower in ("float", "double", "real", "doubleprecision"):
+        return models.DatatypeEnum.DOUBLE
+    return models.DatatypeEnum.STRING
+
+
 @final
 class VizierV2Plugin(
     app.UploaderPlugin,
     app.DefaultTableNamer,
+    app.BibcodeProvider,
     app.DescriptionProvider,
 ):
-    def __init__(self, cache_path: str = ".vizier_cache/"):
-        self.catalog_name = "J/ApJ/788/39/stars"
+    def __init__(self, cache_path: str = ".vizier_cache/", batch_size: int = 500):
+        self.catalog_name = "J/ApJ/788/39"
+        self.table_name = "J/ApJ/788/39/stars"
         self.cache_path = cache_path
+        self.batch_size = batch_size
         self.client = vizier.Vizier()
 
     def _obtain_cache_path(self, catalog_name: str) -> pathlib.Path:
@@ -58,37 +73,71 @@ class VizierV2Plugin(
         pass
 
     def get_table_name(self) -> str:
-        if not self._obtain_cache_path(self.catalog_name).exists():
+        if not self._obtain_cache_path(self.table_name).exists():
             app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(self.catalog_name)
+            self._write_catalog_cache(self.table_name)
 
-        t = self._get_catalog_from_cache(self.catalog_name)
+        t = self._get_catalog_from_cache(self.table_name)
 
         if hasattr(t, "meta") and t.meta is not None:
             return _sanitize_filename(t.meta["name"])
 
         raise RuntimeError("Unable to get table name")
 
-    def get_description(self) -> str:
-        if not self._obtain_cache_path(self.catalog_name).exists():
-            app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(self.catalog_name)
+    def get_bibcode(self) -> str:
+        resp = self.client.get_catalog_metadata(catalog=self.catalog_name)
+        return resp["origin_article"][0]
 
-        t = self._get_catalog_from_cache(self.catalog_name)
+    def get_description(self) -> str:
+        if not self._obtain_cache_path(self.table_name).exists():
+            app.logger.debug("did not hit cache for the catalog, downloading")
+            self._write_catalog_cache(self.table_name)
+
+        t = self._get_catalog_from_cache(self.table_name)
         if hasattr(t, "meta") and t.meta is not None:
             return str(t.meta["description"])
 
         raise RuntimeError("Unable to get table description")
 
     def get_schema(self) -> list[models.ColumnDescription]:
-        stars: utils.TableList = self.client.get_catalogs("J/ApJ/788/39/stars")  # pyright: ignore[reportAttributeAccessIssue]
+        if not self._obtain_cache_path(self.table_name).exists():
+            app.logger.debug("did not hit cache for the catalog, downloading")
+            self._write_catalog_cache(self.table_name)
 
-        print(stars)
-
-        return []
+        schema = self._get_votable_from_cache(self.table_name)
+        table = schema.get_first_table()
+        return [
+            models.ColumnDescription(
+                name=field.ID,
+                data_type=_map_votable_datatype(str(field.datatype)),
+                ucd=field.ucd,
+                description=field.description,
+                unit=str(field.unit) if field.unit else types.UNSET,
+            )
+            for field in table.fields
+        ]
 
     def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
-        yield pandas.DataFrame(), 1.0
+        if not self._obtain_cache_path(self.table_name).exists():
+            app.logger.debug("did not hit cache for the catalog, downloading")
+            self._write_catalog_cache(self.table_name)
+
+        table = self._get_catalog_from_cache(self.table_name)
+
+        total_rows = len(table)
+        app.logger.info("uploading table", total_rows=total_rows)
+
+        table_rows = list(table)  # pyright: ignore[reportArgumentType]
+        offset = 0
+        for batch in itertools.batched(table_rows, self.batch_size, strict=False):
+            offset += len(batch)
+
+            rows = []
+            for row in batch:
+                row_dict = {k: v for k, v in dict(row).items() if v != "--"}
+                rows.append(row_dict)
+
+            yield pandas.DataFrame(rows), offset / total_rows
 
     def stop(self) -> None:
         pass
