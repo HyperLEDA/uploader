@@ -32,7 +32,9 @@ class CachedVizierClient:
         self.cache_path = cache_path
         self._client = vizier.Vizier()
 
-    def _obtain_cache_path(self, catalog_name: str, row_num: int | None = None) -> pathlib.Path:
+    def _obtain_cache_path(
+        self, catalog_name: str, row_num: int | None = None
+    ) -> pathlib.Path:
         filename = f"{_sanitize_filename(catalog_name)}.vot"
         if row_num is not None:
             filename = f"{_sanitize_filename(catalog_name)}_rows_{row_num}.vot"
@@ -40,7 +42,9 @@ class CachedVizierClient:
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 
-    def _write_catalog_cache(self, catalog_name: str, row_num: int | None = None) -> None:
+    def _write_catalog_cache(
+        self, catalog_name: str, row_num: int | None = None
+    ) -> None:
         app.logger.info(
             "downloading catalog from Vizier",
             catalog_name=catalog_name,
@@ -58,7 +62,9 @@ class CachedVizierClient:
         catalogs[0].write(str(cache_filename), format="votable")
         app.logger.debug("wrote catalog cache", location=str(cache_filename))
 
-    def get_table(self, catalog_name: str, row_num: int | None = None) -> tree.TableElement:
+    def get_table(
+        self, catalog_name: str, row_num: int | None = None
+    ) -> tree.TableElement:
         cache_path = self._obtain_cache_path(catalog_name, row_num)
         if not cache_path.exists():
             app.logger.debug("did not hit cache for the catalog, downloading")
@@ -124,7 +130,9 @@ class VizierV2Plugin(
 
             rows = []
             for row in batch:
-                row_dict = {k.ID: v for k, v in zip(t.fields, row, strict=False) if v != "--"}
+                row_dict = {
+                    k.ID: v for k, v in zip(t.fields, row, strict=False) if v != "--"
+                }
                 rows.append(row_dict)
 
             yield pandas.DataFrame(rows), offset / total_rows
