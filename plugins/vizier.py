@@ -12,7 +12,7 @@ from astropy.io.votable import tree
 from astroquery import vizier
 
 import app
-from app.gen.client.adminapi import models
+from app.gen.client.adminapi import models, types
 
 VIZIER_URL = "https://vizier.cds.unistra.fr/viz-bin/votable/-tsv"
 
@@ -108,7 +108,7 @@ class VizierPlugin(
                 data_type=_map_votable_datatype(str(field.datatype)),
                 ucd=field.ucd,
                 description=field.description,
-                unit=field.unit,
+                unit=str(field.unit) if field.unit else types.UNSET,
             )
             for field in table.fields
         ]

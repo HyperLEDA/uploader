@@ -4,21 +4,21 @@ from dataclasses import dataclass
 from typing import Any
 
 import click
-import hyperleda
 import structlog
 
 import app
+from app.gen.client import adminapi
 
 env_map = {
-    "dev": hyperleda.DEFAULT_ENDPOINT,
-    "test": hyperleda.TEST_ENDPOINT,
-    "prod": hyperleda.PROD_ENDPOINT,
+    "dev": "http://localhost:8080",
+    "test": "https://leda.kraysent.dev",
+    "prod": "https://leda.sao.ru",
 }
 
 
 @dataclass
 class CommandContext:
-    hyperleda_client: hyperleda.HyperLedaClient
+    hyperleda_client: adminapi.AuthenticatedClient
 
 
 @click.group(
@@ -36,7 +36,13 @@ class CommandContext:
 @click.pass_context
 def cli(ctx, log_level: str, endpoint: str) -> None:
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
-    ctx.obj = CommandContext(hyperleda.HyperLedaClient(endpoint=env_map[endpoint]))
+
+    ctx.obj = CommandContext(
+        adminapi.AuthenticatedClient(
+            base_url=env_map[endpoint],
+            token="fake",  # TODO different for prod server
+        )
+    )
 
 
 @cli.command()
@@ -174,6 +180,7 @@ def upload(
             default="regular",
             skip_input=auto_proceed,
         )
+        table_type = table_type.upper()
 
     click.echo("\nThanks! The table will be uploaded with the following parameters: ")
     click.echo(parameter("Table name", table_name))

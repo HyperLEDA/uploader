@@ -71,8 +71,7 @@ def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_so
 
 @patch("app.upload.create_source")
 @patch("app.upload.create_table")
-@patch("app.upload.add_data")
-def test_plugin_stop_called_on_error(mock_add_data, mock_create_table, mock_create_source, mock_client):
+def test_plugin_stop_called_on_error(mock_create_table, mock_create_source, mock_client):
     mock_create_source_response = models.APIOkResponseCreateSourceResponse(
         data=models.CreateSourceResponse(code="test_bibcode")
     )

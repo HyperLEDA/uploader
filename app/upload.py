@@ -4,7 +4,7 @@ import click
 
 from app import interface, log
 from app.gen.client import adminapi
-from app.gen.client.adminapi import models
+from app.gen.client.adminapi import models, types
 from app.gen.client.adminapi.api.default import (
     add_data,
     create_source,
@@ -28,13 +28,13 @@ def upload(
         plugin.stop()
 
 
-def handle_call[T: Any](response: T | models.HTTPValidationError | None) -> T:
-    if isinstance(response, models.HTTPValidationError):
+def handle_call[T: Any](response: types.Response[T | models.HTTPValidationError]) -> T:
+    if isinstance(response.parsed, models.HTTPValidationError):
         raise RuntimeError(response)
-    if response is None:
-        raise RuntimeError("Unable to get create table response")
+    if response.parsed is None:
+        raise RuntimeError(f"Unable to get response: {response.content}")
 
-    return response
+    return response.parsed
 
 
 def _upload(
@@ -52,7 +52,7 @@ def _upload(
 
     if bibcode == "":
         resp = handle_call(
-            create_source.sync(
+            create_source.sync_detailed(
                 client=client,
                 body=models.CreateSourceRequest(
                     title=pub_name,
@@ -65,7 +65,7 @@ def _upload(
         log.logger.info("created internal source", id=bibcode)
 
     resp = handle_call(
-        create_table.sync(
+        create_table.sync_detailed(
             client=client,
             body=models.CreateTableRequest(
                 table_name=table_name,
@@ -92,7 +92,7 @@ def _upload(
                 request_data.append(item)
 
             _ = handle_call(
-                add_data.sync(
+                add_data.sync_detailed(
                     client=client,
                     body=models.AddDataRequest(
                         table_name=table_name,
