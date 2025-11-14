@@ -1,10 +1,12 @@
+import http
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pandas
 import pytest
 
 from app.gen.client import adminapi
-from app.gen.client.adminapi import models
+from app.gen.client.adminapi import models, types
 from app.interface import UploaderPlugin
 from app.upload import upload
 from plugins.csv_batched import CSVPlugin
@@ -35,6 +37,15 @@ def mock_client() -> Mock:
     return Mock(spec=adminapi.AuthenticatedClient)
 
 
+def mock_response[T: Any](resp: T) -> types.Response[T]:
+    return types.Response(
+        status_code=http.HTTPStatus.OK,
+        content=b"",
+        headers={},
+        parsed=resp,
+    )
+
+
 @patch("app.upload.create_source")
 @patch("app.upload.create_table")
 @patch("app.upload.add_data")
@@ -45,10 +56,10 @@ def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_so
     mock_create_source.sync.return_value = mock_create_source_response
 
     mock_create_table_response = models.APIOkResponseCreateTableResponse(data=models.CreateTableResponse(id=1))
-    mock_create_table.sync.return_value = mock_create_table_response
+    mock_create_table.sync_detailed.return_value = mock_response(mock_create_table_response)
 
     mock_add_data_response = models.APIOkResponseAddDataResponse(data=models.AddDataResponse())
-    mock_add_data.sync.return_value = mock_add_data_response
+    mock_add_data.sync_detailed.return_value = mock_response(mock_add_data_response)
 
     plugin = CSVPlugin("tests/test_csv.csv")
 
@@ -64,9 +75,9 @@ def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_so
         table_type="REGULAR",
     )
 
-    mock_create_source.sync.assert_called_once()
-    mock_create_table.sync.assert_called_once()
-    mock_add_data.sync.assert_called_once()
+    mock_create_source.sync_detailed.assert_called_once()
+    mock_create_table.sync_detailed.assert_called_once()
+    mock_add_data.sync_detailed.assert_called_once()
 
 
 @patch("app.upload.create_source")
@@ -75,10 +86,10 @@ def test_plugin_stop_called_on_error(mock_create_table, mock_create_source, mock
     mock_create_source_response = models.APIOkResponseCreateSourceResponse(
         data=models.CreateSourceResponse(code="test_bibcode")
     )
-    mock_create_source.sync.return_value = mock_create_source_response
+    mock_create_source.sync_detailed.return_value = mock_response(mock_create_source_response)
 
     mock_create_table_response = models.APIOkResponseCreateTableResponse(data=models.CreateTableResponse(id=1))
-    mock_create_table.sync.return_value = mock_create_table_response
+    mock_create_table.sync_detailed.return_value = mock_response(mock_create_table_response)
 
     plugin = StubPlugin(should_raise=True)
 
