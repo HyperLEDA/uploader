@@ -89,15 +89,8 @@ class VizierV2Plugin(
         return resp["origin_article"][0]
 
     def get_description(self) -> str:
-        if not self._obtain_cache_path(self.table_name).exists():
-            app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(self.table_name)
-
-        t = self._get_catalog_from_cache(self.table_name)
-        if hasattr(t, "meta") and t.meta is not None:
-            return str(t.meta["description"])
-
-        raise RuntimeError("Unable to get table description")
+        resp = self.client.get_catalog_metadata(catalog=self.catalog_name)
+        return resp["title"][0]
 
     def get_schema(self) -> list[models.ColumnDescription]:
         if not self._obtain_cache_path(self.table_name).exists():
