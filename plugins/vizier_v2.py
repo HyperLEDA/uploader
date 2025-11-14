@@ -4,7 +4,6 @@ from collections.abc import Generator
 from typing import final
 
 import pandas
-from astropy import table
 from astropy.io import votable
 from astropy.io.votable import tree
 from astroquery import utils, vizier
@@ -61,13 +60,9 @@ class VizierV2Plugin(
         catalogs[0].write(str(cache_filename), format="votable")
         app.logger.debug("wrote catalog cache", location=str(cache_filename))
 
-    def _get_catalog_from_cache(self, catalog_name: str) -> table.Table:
+    def _get_table_from_cache(self, catalog_name: str) -> tree.TableElement:
         cache_filename = self._obtain_cache_path(catalog_name)
-        return table.Table.read(str(cache_filename), format="votable")
-
-    def _get_votable_from_cache(self, catalog_name: str) -> tree.VOTableFile:
-        cache_filename = self._obtain_cache_path(catalog_name)
-        return votable.parse(str(cache_filename))
+        return votable.parse(str(cache_filename)).get_first_table()
 
     def prepare(self) -> None:
         pass
@@ -77,12 +72,9 @@ class VizierV2Plugin(
             app.logger.debug("did not hit cache for the catalog, downloading")
             self._write_catalog_cache(self.table_name)
 
-        t = self._get_catalog_from_cache(self.table_name)
+        t = self._get_table_from_cache(self.table_name)
 
-        if hasattr(t, "meta") and t.meta is not None:
-            return _sanitize_filename(t.meta["name"])
-
-        raise RuntimeError("Unable to get table name")
+        return str(t.ID)
 
     def get_bibcode(self) -> str:
         resp = self.client.get_catalog_metadata(catalog=self.catalog_name)
@@ -97,8 +89,7 @@ class VizierV2Plugin(
             app.logger.debug("did not hit cache for the catalog, downloading")
             self._write_catalog_cache(self.table_name)
 
-        schema = self._get_votable_from_cache(self.table_name)
-        table = schema.get_first_table()
+        t = self._get_table_from_cache(self.table_name)
         return [
             models.ColumnDescription(
                 name=field.ID,
@@ -107,7 +98,7 @@ class VizierV2Plugin(
                 description=field.description,
                 unit=str(field.unit) if field.unit else types.UNSET,
             )
-            for field in table.fields
+            for field in t.fields
         ]
 
     def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
@@ -115,19 +106,19 @@ class VizierV2Plugin(
             app.logger.debug("did not hit cache for the catalog, downloading")
             self._write_catalog_cache(self.table_name)
 
-        table = self._get_catalog_from_cache(self.table_name)
+        t = self._get_table_from_cache(self.table_name)
 
-        total_rows = len(table)
+        total_rows = int(t.nrows)  # pyright: ignore[reportArgumentType]
         app.logger.info("uploading table", total_rows=total_rows)
 
-        table_rows = list(table)  # pyright: ignore[reportArgumentType]
+        table_rows = list(t.array)
         offset = 0
         for batch in itertools.batched(table_rows, self.batch_size, strict=False):
             offset += len(batch)
 
             rows = []
             for row in batch:
-                row_dict = {k: v for k, v in dict(row).items() if v != "--"}
+                row_dict = {k.ID: v for k, v in zip(t.fields, row, strict=False) if v != "--"}
                 rows.append(row_dict)
 
             yield pandas.DataFrame(rows), offset / total_rows
