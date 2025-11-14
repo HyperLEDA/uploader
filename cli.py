@@ -1,23 +1,24 @@
+import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
-import inspect
 from typing import Any
+
 import click
-import hyperleda
 import structlog
 
 import app
+from app.gen.client import adminapi
 
 env_map = {
-    "dev": hyperleda.DEFAULT_ENDPOINT,
-    "test": hyperleda.TEST_ENDPOINT,
-    "prod": hyperleda.PROD_ENDPOINT,
+    "dev": "http://localhost:8080",
+    "test": "https://leda.kraysent.dev",
+    "prod": "https://leda.sao.ru",
 }
 
 
 @dataclass
 class CommandContext:
-    hyperleda_client: hyperleda.HyperLedaClient
+    hyperleda_client: adminapi.AuthenticatedClient
 
 
 @click.group(
@@ -35,7 +36,13 @@ class CommandContext:
 @click.pass_context
 def cli(ctx, log_level: str, endpoint: str) -> None:
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
-    ctx.obj = CommandContext(hyperleda.HyperLedaClient(endpoint=env_map[endpoint]))
+
+    ctx.obj = CommandContext(
+        adminapi.AuthenticatedClient(
+            base_url=env_map[endpoint],
+            token="fake",  # TODO different for prod server
+        )
+    )
 
 
 @cli.command()
@@ -110,6 +117,7 @@ def upload(
             description=table_name_descr,
             default=default_table_name,
             skip_input=auto_proceed,
+            transformer=str,
         )
 
     if table_description == "":
@@ -119,7 +127,9 @@ def upload(
                 default_description = plugin.get_description()
             except Exception as e:
                 app.logger.warning(
-                    "failed to get default table description from plugin", plugin=plugin, error=e
+                    "failed to get default table description from plugin",
+                    plugin=plugin,
+                    error=e,
                 )
 
         table_description = question(
@@ -127,6 +137,7 @@ def upload(
             description=table_description_descr,
             default=default_description,
             skip_input=auto_proceed,
+            transformer=str,
         )
 
     if bibcode == "" and (pub_name == "" or len(pub_authors) == 0 or pub_year == 0):
@@ -135,6 +146,7 @@ def upload(
             default="y",
             description=bibcode_descr,
             skip_input=auto_proceed,
+            transformer=str,
         )
 
         if has_bibcode == "y":
@@ -153,11 +165,14 @@ def upload(
                 "Enter bibcode",
                 default=default_bibcode,
                 skip_input=auto_proceed,
+                transformer=str,
             )
         else:
             if pub_name == "":
                 pub_name = question(
-                    "Enter the name of the source", description=pub_name_descr
+                    "Enter the name of the source",
+                    description=pub_name_descr,
+                    transformer=str,
                 )
 
             if len(pub_authors) == 0:
@@ -176,7 +191,9 @@ def upload(
             description=table_type_descr,
             default="regular",
             skip_input=auto_proceed,
+            transformer=str,
         )
+        table_type = table_type.upper()
 
     click.echo("\nThanks! The table will be uploaded with the following parameters: ")
     click.echo(parameter("Table name", table_name))
@@ -238,10 +255,10 @@ def parameter(name: str, value: str) -> str:
 
 def question[T: Any](
     question: str,
+    transformer: Callable[[str], T],
     *,
     description: str = "",
     default: str | None = None,
-    transformer: Callable[[str], T] = str,
     skip_input: bool = False,
 ) -> T:
     if default is not None:

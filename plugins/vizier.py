@@ -1,18 +1,31 @@
 import http
 import itertools
 import pathlib
-from typing import Generator, final
+from collections.abc import Generator
+from typing import final
 
 import astropy
-import hyperleda
 import pandas
 import requests
-import app
-from astroquery import vizier
 from astropy.io import votable
 from astropy.io.votable import tree
+from astroquery import vizier
+
+import app
+from app.gen.client.adminapi import models, types
 
 VIZIER_URL = "https://vizier.cds.unistra.fr/viz-bin/votable/-tsv"
+
+
+def _map_votable_datatype(datatype: str) -> models.DatatypeEnum:
+    datatype_lower = datatype.lower() if datatype else ""
+    if datatype_lower in ("char", "unicodechar", "string", "text"):
+        return models.DatatypeEnum.STRING
+    if datatype_lower in ("short", "int", "long", "integer", "smallint"):
+        return models.DatatypeEnum.INTEGER
+    if datatype_lower in ("float", "double", "real", "doubleprecision"):
+        return models.DatatypeEnum.DOUBLE
+    return models.DatatypeEnum.STRING
 
 
 @final
@@ -87,7 +100,7 @@ class VizierPlugin(
     def prepare(self) -> None:
         pass
 
-    def get_schema(self) -> list[hyperleda.ColumnDescription]:
+    def get_schema(self) -> list[models.ColumnDescription]:
         if not self._obtain_cache_path(
             "schemas", self.catalog_name, self.table_name
         ).exists():
@@ -98,17 +111,17 @@ class VizierPlugin(
 
         table = schema.get_first_table()
         return [
-            hyperleda.ColumnDescription(
+            models.ColumnDescription(
                 name=field.ID,
-                data_type=field.datatype,
+                data_type=_map_votable_datatype(str(field.datatype)),
                 ucd=field.ucd,
                 description=field.description,
-                unit=field.unit,
+                unit=str(field.unit) if field.unit else types.UNSET,
             )
             for field in table.fields
         ]
 
-    def get_data(self) -> Generator[tuple[pandas.DataFrame, float], None, None]:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
         if not self._obtain_cache_path(
             "tables", self.catalog_name, self.table_name
         ).exists():
@@ -122,7 +135,7 @@ class VizierPlugin(
 
         table_rows = list(table)
         offset = 0
-        for batch in itertools.batched(table_rows, self.batch_size):
+        for batch in itertools.batched(table_rows, self.batch_size, strict=False):
             offset += len(batch)
 
             rows = []

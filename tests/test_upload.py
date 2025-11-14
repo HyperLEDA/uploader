@@ -1,10 +1,15 @@
+import http
+from typing import Any
+from unittest.mock import Mock, patch
+
+import pandas
 import pytest
-from unittest.mock import Mock
-import hyperleda
+
+from app.gen.client import adminapi
+from app.gen.client.adminapi import models, types
+from app.interface import UploaderPlugin
 from app.upload import upload
 from plugins.csv_batched import CSVPlugin
-from app.interface import UploaderPlugin
-import pandas
 
 
 class StubPlugin(UploaderPlugin):
@@ -15,7 +20,7 @@ class StubPlugin(UploaderPlugin):
     def prepare(self) -> None:
         pass
 
-    def get_schema(self) -> list[hyperleda.ColumnDescription]:
+    def get_schema(self) -> list[models.ColumnDescription]:
         return []
 
     def get_data(self) -> tuple[pandas.DataFrame, float] | None:
@@ -29,13 +34,41 @@ class StubPlugin(UploaderPlugin):
 
 @pytest.fixture
 def mock_client() -> Mock:
-    client = Mock(spec=hyperleda.HyperLedaClient)
-    client.create_internal_source.return_value = "test_bibcode"
-    client.create_table.return_value = "test_table_id"
-    return client
+    return Mock(spec=adminapi.AuthenticatedClient)
 
 
-def test_upload_with_csv_plugin(mock_client):
+def mock_response[T: Any](resp: T) -> types.Response[T]:
+    return types.Response(
+        status_code=http.HTTPStatus.OK,
+        content=b"",
+        headers={},
+        parsed=resp,
+    )
+
+
+@patch("app.upload.create_source")
+@patch("app.upload.create_table")
+@patch("app.upload.add_data")
+def test_upload_with_csv_plugin(
+    mock_add_data, mock_create_table, mock_create_source, mock_client
+):
+    mock_create_source_response = models.APIOkResponseCreateSourceResponse(
+        data=models.CreateSourceResponse(code="test_bibcode")
+    )
+    mock_create_source.sync.return_value = mock_create_source_response
+
+    mock_create_table_response = models.APIOkResponseCreateTableResponse(
+        data=models.CreateTableResponse(id=1)
+    )
+    mock_create_table.sync_detailed.return_value = mock_response(
+        mock_create_table_response
+    )
+
+    mock_add_data_response = models.APIOkResponseAddDataResponse(
+        data=models.AddDataResponse()
+    )
+    mock_add_data.sync_detailed.return_value = mock_response(mock_add_data_response)
+
     plugin = CSVPlugin("tests/test_csv.csv")
 
     upload(
@@ -47,20 +80,35 @@ def test_upload_with_csv_plugin(mock_client):
         pub_name="Test Publication",
         pub_authors=["Test Author"],
         pub_year=2024,
-        table_type="regular",
+        table_type="REGULAR",
     )
 
-    mock_client.create_internal_source.assert_called_once_with(
-        "Test Publication", ["Test Author"], 2024
+    mock_create_source.sync_detailed.assert_called_once()
+    mock_create_table.sync_detailed.assert_called_once()
+    mock_add_data.sync_detailed.assert_called_once()
+
+
+@patch("app.upload.create_source")
+@patch("app.upload.create_table")
+def test_plugin_stop_called_on_error(
+    mock_create_table, mock_create_source, mock_client
+):
+    mock_create_source_response = models.APIOkResponseCreateSourceResponse(
+        data=models.CreateSourceResponse(code="test_bibcode")
     )
-    mock_client.create_table.assert_called_once()
-    mock_client.add_data.assert_called_once()
+    mock_create_source.sync_detailed.return_value = mock_response(
+        mock_create_source_response
+    )
 
+    mock_create_table_response = models.APIOkResponseCreateTableResponse(
+        data=models.CreateTableResponse(id=1)
+    )
+    mock_create_table.sync_detailed.return_value = mock_response(
+        mock_create_table_response
+    )
 
-def test_plugin_stop_called_on_error(mock_client):
     plugin = StubPlugin(should_raise=True)
 
-    # Call upload function
     upload(
         plugin=plugin,
         client=mock_client,
@@ -70,8 +118,7 @@ def test_plugin_stop_called_on_error(mock_client):
         pub_name="Test Publication",
         pub_authors=["Test Author"],
         pub_year=2024,
-        table_type="regular",
+        table_type="REGULAR",
     )
 
-    # Verify that stop was called despite the error
     assert plugin.stop_called
