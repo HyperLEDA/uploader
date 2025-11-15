@@ -8,6 +8,7 @@ check:
 
 fix:
 	uvx ruff format .
+	uvx ruff check --fix
 
 test:
 	uv run pytest tests
