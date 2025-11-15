@@ -49,15 +49,18 @@ def dtype_to_datatype(dtype: str | np.dtype) -> models.DatatypeEnum:
     return models.DatatypeEnum.STRING
 
 
-class CachedVizierClient:
+class CachedTAPRepository:
     def __init__(self, cache_path: str = ".vizier_cache/"):
         self.cache_path = cache_path
-        self.tap_repository = app.TAPRepository()
+        self.repo = app.TAPRepository()
 
-    def _constraints_to_tuples(self, constraints: list[app.Constraint] | None) -> list[tuple[str, str, str]] | None:
+    def _get_filename(self, catalog_name: str, constraints: list[app.Constraint] | None) -> str:
         if not constraints:
-            return None
-        return [(c.column, c.operator, c.value) for c in constraints]
+            return f"{catalog_name}.vot"
+
+        sorted_constraints = sorted([(c.column, c.operator, c.value) for c in constraints] or [])
+        constraint_str = "_".join(f"{col}_{sign}_{val}" for col, sign, val in sorted_constraints)
+        return f"{catalog_name}_constraints_{constraint_str}.vot"
 
     def _obtain_cache_path(
         self,
@@ -69,9 +72,7 @@ class CachedVizierClient:
         if row_num is not None:
             filename = f"{catalog_name}_rows_{row_num}.vot"
         if constraints:
-            sorted_constraints = sorted(self._constraints_to_tuples(constraints) or [])
-            constraint_str = "_".join(f"{col}_{sign}_{val}" for col, sign, val in sorted_constraints)
-            filename = f"{catalog_name}_constraints_{constraint_str}.vot"
+            filename = self._get_filename(catalog_name, constraints)
 
         filename = _sanitize_filename(filename)
         path = pathlib.Path(self.cache_path) / "catalogs" / filename
@@ -88,10 +89,9 @@ class CachedVizierClient:
             "downloading catalog from Vizier",
             catalog_name=catalog_name,
             row_num=row_num,
-            constraints=self._constraints_to_tuples(constraints),
         )
 
-        tbl: table.Table = self.tap_repository.query(catalog_name, constraints=constraints)
+        tbl: table.Table = self.repo.query(catalog_name, constraints=constraints)
 
         if row_num is not None:
             tbl = table.Table(tbl[:row_num])
@@ -112,9 +112,6 @@ class CachedVizierClient:
             self._write_catalog_cache(catalog_name, row_num, constraints)
 
         return table.Table.read(cache_path, format="votable")
-
-    def get_catalog_metadata(self, catalog: str) -> dict:
-        return vizier.Vizier().get_catalog_metadata(catalog=catalog)
 
 
 @final
@@ -142,7 +139,7 @@ class VizierV2Plugin(
         self.catalog_name = catalog_name
         self.table_name = table_name
         self.batch_size = batch_size
-        self.client = CachedVizierClient(cache_path=cache_path)
+        self.client = CachedTAPRepository(cache_path=cache_path)
 
     def prepare(self) -> None:
         pass
@@ -151,11 +148,11 @@ class VizierV2Plugin(
         return _sanitize_filename(self.table_name)
 
     def get_bibcode(self) -> str:
-        resp = self.client.get_catalog_metadata(catalog=self.catalog_name)
+        resp = vizier.Vizier().get_catalog_metadata(catalog=self.catalog_name)
         return resp["origin_article"][0]
 
     def get_description(self) -> str:
-        resp = self.client.get_catalog_metadata(catalog=self.catalog_name)
+        resp = vizier.Vizier().get_catalog_metadata(catalog=self.catalog_name)
         return resp["title"][0]
 
     def get_schema(self) -> list[models.ColumnDescription]:

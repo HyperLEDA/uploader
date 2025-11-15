@@ -5,6 +5,8 @@ from pyvo import registry
 
 import app
 
+TAP_ENDPOINT = "https://tapvizier.cds.unistra.fr/TAPVizieR/tap/sync"
+
 
 @dataclass
 class Constraint:
@@ -14,10 +16,8 @@ class Constraint:
 
 
 class TAPRepository:
-    TAP_ENDPOINT = "https://tapvizier.cds.unistra.fr/TAPVizieR/tap/sync"
-
-    def __init__(self, tap_endpoint: str = TAP_ENDPOINT):
-        self.tap_endpoint = tap_endpoint
+    def __init__(self, endpoint: str = TAP_ENDPOINT):
+        self.tap_endpoint = endpoint
 
     def _quote_column(self, column: str) -> str:
         if any(char in column for char in "()[]."):
