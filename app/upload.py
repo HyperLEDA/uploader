@@ -1,3 +1,4 @@
+import math
 from typing import Any
 
 import click
@@ -35,6 +36,12 @@ def handle_call[T: Any](response: types.Response[T | models.HTTPValidationError]
         raise RuntimeError(f"Unable to get response: {response.content}")
 
     return response.parsed
+
+
+def sanitize_value(val: Any) -> Any:
+    if isinstance(val, float) and math.isnan(val):
+        return None
+    return val
 
 
 def _upload(
@@ -88,7 +95,7 @@ def _upload(
             for _, row in data.iterrows():
                 item = models.AddDataRequestDataItem()
                 for col in data.columns:
-                    item[col] = row[col]
+                    item[col] = sanitize_value(row[col])
                 request_data.append(item)
 
             _ = handle_call(

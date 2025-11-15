@@ -10,6 +10,7 @@ dependencies = [
     "astropy>=7.1.0",
     "openapi-python-client>=0.27.1",
     "pandas>=2.3.3",
+    "numpy>=2.3.4",
 ]
 
 [tool.pytest.ini_options]
@@ -25,3 +26,6 @@ dev = [
     "pandas-stubs>=2.2.3.250308",
     "pytest>=8.4.2",
 ]
+
+[tool.ruff]
+line-length = 120
