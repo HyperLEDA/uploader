@@ -3,6 +3,7 @@ import pathlib
 from collections.abc import Generator
 from typing import final
 
+import numpy as np
 import pandas
 from astropy import table
 from astroquery import utils, vizier
@@ -15,35 +16,27 @@ def _sanitize_filename(string: str) -> str:
     return string.replace("/", "_")
 
 
-def dtype_to_datatype(dtype) -> models.DatatypeEnum:
-    # Accept both dtypes and strings
+def dtype_to_datatype(dtype: str | np.dtype) -> models.DatatypeEnum:
     dtype_str = str(dtype).lower()
-    # Typical mappings
-    if any(
-        dtype_str.startswith(x)
-        for x in ("str", "unicode", "<u", "|s", "<U", "object", "bytes")
-    ):
+
+    if any(dtype_str.startswith(x) for x in ("str", "unicode", "<u", "|s", "<U", "object", "bytes")):
         return models.DatatypeEnum.STRING
+
     if any(
         dtype_str.startswith(x)
         for x in (
-            "int",
             "int8",
             "int16",
-            "int32",
-            "int64",
-            "uint",
             "uint8",
             "uint16",
-            "uint32",
-            "uint64",
         )
     ):
         return models.DatatypeEnum.INTEGER
-    if any(
-        dtype_str.startswith(x)
-        for x in ("float", "float16", "float32", "float64", "double", "float128")
-    ):
+
+    if any(dtype_str.startswith(x) for x in ("int32", "int64", "uint32", "uint64")):
+        return models.DatatypeEnum.LONG
+
+    if any(dtype_str.startswith(x) for x in ("float", "float16", "float32", "float64", "double", "float128")):
         return models.DatatypeEnum.DOUBLE
     return models.DatatypeEnum.STRING
 
@@ -54,9 +47,7 @@ class CachedVizierClient:
         self._client = vizier.Vizier()
         self._client.ROW_LIMIT = -1
 
-    def _obtain_cache_path(
-        self, catalog_name: str, row_num: int | None = None
-    ) -> pathlib.Path:
+    def _obtain_cache_path(self, catalog_name: str, row_num: int | None = None) -> pathlib.Path:
         filename = f"{_sanitize_filename(catalog_name)}.vot"
         if row_num is not None:
             filename = f"{_sanitize_filename(catalog_name)}_rows_{row_num}.vot"
@@ -64,9 +55,7 @@ class CachedVizierClient:
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 
-    def _write_catalog_cache(
-        self, catalog_name: str, row_num: int | None = None
-    ) -> None:
+    def _write_catalog_cache(self, catalog_name: str, row_num: int | None = None) -> None:
         app.logger.info(
             "downloading catalog from Vizier",
             catalog_name=catalog_name,
@@ -76,7 +65,7 @@ class CachedVizierClient:
         if row_num is not None:
             client = vizier.Vizier()
             client.ROW_LIMIT = row_num
-        catalogs: utils.TableList = client.get_catalogs(catalog_name)  # pyright: ignore[reportAttributeAccessIssue]
+        catalogs: utils.TableList = client.query_constraints(catalog=catalog_name)  # pyright: ignore[reportAttributeAccessIssue]
 
         if not catalogs:
             raise ValueError("catalog not found")
@@ -109,7 +98,7 @@ class VizierV2Plugin(
         catalog_name: str,
         table_name: str,
         cache_path: str = ".vizier_cache/",
-        batch_size: int = 500,
+        batch_size: int = 100,
     ):
         self.catalog_name = catalog_name
         self.table_name = table_name

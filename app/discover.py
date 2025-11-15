@@ -21,9 +21,7 @@ def discover_plugins(dir: str) -> dict[str, type[interface.UploaderPlugin]]:
         spec.loader.exec_module(module)
 
         if not hasattr(module, "plugin"):
-            log.logger.warn(
-                "python file has no declared plugin", filename=str(file_path)
-            )
+            log.logger.warn("python file has no declared plugin", filename=str(file_path))
             continue
 
         plugin_class = getattr(module, "plugin")
