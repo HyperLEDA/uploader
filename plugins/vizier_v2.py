@@ -136,9 +136,8 @@ class VizierV2Plugin(
         total_rows = len(t)
         app.logger.info("uploading table", total_rows=total_rows)
 
-        table_rows = list(t)
         offset = 0
-        for batch in itertools.batched(table_rows, self.batch_size, strict=False):
+        for batch in itertools.batched(t, self.batch_size, strict=False):  # pyright: ignore[reportArgumentType]
             offset += len(batch)
 
             rows = []
