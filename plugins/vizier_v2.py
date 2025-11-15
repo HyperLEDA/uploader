@@ -139,11 +139,7 @@ class VizierV2Plugin(
         pass
 
     def get_table_name(self) -> str:
-        t = self.client.get_table(self.table_name, row_num=1)
-        if not hasattr(t, "meta") or t.meta is None:
-            raise RuntimeError("unable to get table name")
-
-        return str(t.meta["ID"])
+        return _sanitize_filename(self.table_name)
 
     def get_bibcode(self) -> str:
         resp = self.client.get_catalog_metadata(catalog=self.catalog_name)
