@@ -1,11 +1,9 @@
 import itertools
-import pathlib
 from collections.abc import Generator
 from typing import final
 
 import numpy as np
 import pandas
-from astropy import table
 from astroquery import vizier
 
 import app
