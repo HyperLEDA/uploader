@@ -70,7 +70,6 @@ class CachedVizierClient:
 
     def __init__(self, cache_path: str = ".vizier_cache/"):
         self.cache_path = cache_path
-        self._client = vizier.Vizier()
 
     def _obtain_cache_path(
         self, catalog_name: str, row_num: int | None = None, constraints: list[tuple[str, str, str]] | None = None
@@ -127,7 +126,7 @@ class CachedVizierClient:
         return table.Table.read(cache_path, format="votable")
 
     def get_catalog_metadata(self, catalog: str) -> dict:
-        return self._client.get_catalog_metadata(catalog=catalog)
+        return vizier.Vizier().get_catalog_metadata(catalog=catalog)
 
 
 @final
