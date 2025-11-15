@@ -64,8 +64,8 @@ wheels = [
 
 [[package]]
 name = "astroquery"
-version = "0.4.12.dev10369"
-source = { git = "https://github.com/Kraysent/astroquery.git#7a4138d1a9e83c266ad81bdf94d5110d6e9c2dd4" }
+version = "0.4.11"
+source = { git = "https://github.com/Kraysent/astroquery.git?branch=release-with-fix#ac87c3bc8c2a359108c1fbb7a63c81a176857636" }
 dependencies = [
     { name = "astropy" },
     { name = "beautifulsoup4" },
@@ -1031,7 +1031,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "astropy", specifier = ">=7.1.0" },
-    { name = "astroquery", git = "https://github.com/Kraysent/astroquery.git" },
+    { name = "astroquery", git = "https://github.com/Kraysent/astroquery.git?branch=release-with-fix" },
     { name = "openapi-python-client", specifier = ">=0.27.1" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "structlog", specifier = ">=25.3.0" },
