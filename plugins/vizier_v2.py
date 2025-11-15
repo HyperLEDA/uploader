@@ -49,71 +49,6 @@ def dtype_to_datatype(dtype: str | np.dtype) -> models.DatatypeEnum:
     return models.DatatypeEnum.STRING
 
 
-class CachedTAPRepository:
-    def __init__(self, cache_path: str = ".vizier_cache/"):
-        self.cache_path = cache_path
-        self.repo = app.TAPRepository()
-
-    def _get_filename(self, catalog_name: str, constraints: list[app.Constraint] | None) -> str:
-        if not constraints:
-            return f"{catalog_name}.vot"
-
-        sorted_constraints = sorted([(c.column, c.operator, c.value) for c in constraints] or [])
-        constraint_str = "_".join(f"{col}_{sign}_{val}" for col, sign, val in sorted_constraints)
-        return f"{catalog_name}_constraints_{constraint_str}.vot"
-
-    def _obtain_cache_path(
-        self,
-        catalog_name: str,
-        row_num: int | None = None,
-        constraints: list[app.Constraint] | None = None,
-    ) -> pathlib.Path:
-        filename = f"{catalog_name}.vot"
-        if row_num is not None:
-            filename = f"{catalog_name}_rows_{row_num}.vot"
-        if constraints:
-            filename = self._get_filename(catalog_name, constraints)
-
-        filename = _sanitize_filename(filename)
-        path = pathlib.Path(self.cache_path) / "catalogs" / filename
-        path.parent.mkdir(parents=True, exist_ok=True)
-        return path
-
-    def _write_catalog_cache(
-        self,
-        catalog_name: str,
-        row_num: int | None = None,
-        constraints: list[app.Constraint] | None = None,
-    ) -> None:
-        app.logger.info(
-            "downloading catalog from Vizier",
-            catalog_name=catalog_name,
-            row_num=row_num,
-        )
-
-        tbl: table.Table = self.repo.query(catalog_name, constraints=constraints)
-
-        if row_num is not None:
-            tbl = table.Table(tbl[:row_num])
-
-        cache_filename = self._obtain_cache_path(catalog_name, row_num, constraints)
-        tbl.write(str(cache_filename), format="votable")
-        app.logger.debug("wrote catalog cache", location=str(cache_filename))
-
-    def get_table(
-        self,
-        catalog_name: str,
-        row_num: int | None = None,
-        constraints: list[app.Constraint] | None = None,
-    ) -> table.Table:
-        cache_path = self._obtain_cache_path(catalog_name, row_num, constraints)
-        if not cache_path.exists():
-            app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(catalog_name, row_num, constraints)
-
-        return table.Table.read(cache_path, format="votable")
-
-
 @final
 class VizierV2Plugin(
     app.UploaderPlugin,
@@ -139,7 +74,7 @@ class VizierV2Plugin(
         self.catalog_name = catalog_name
         self.table_name = table_name
         self.batch_size = batch_size
-        self.client = CachedTAPRepository(cache_path=cache_path)
+        self.repo = app.TAPRepository()
 
     def prepare(self) -> None:
         pass
@@ -156,7 +91,7 @@ class VizierV2Plugin(
         return resp["title"][0]
 
     def get_schema(self) -> list[models.ColumnDescription]:
-        t = self.client.get_table(self.table_name)
+        t = self.repo.query(self.table_name, limit=1)
         result = []
 
         for _, col in t.columns.items():
@@ -174,7 +109,7 @@ class VizierV2Plugin(
 
     def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
         constraints = self.constraints if self.constraints else None
-        t = self.client.get_table(self.table_name, constraints=constraints)
+        t = self.repo.query(self.table_name, constraints=constraints)
 
         total_rows = len(t)
         app.logger.info("uploading table", total_rows=total_rows)

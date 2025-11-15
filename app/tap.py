@@ -45,11 +45,13 @@ class TAPRepository:
         table_name: str,
         constraints: list[Constraint] | None = None,
         order_by: str | None = None,
+        limit: int | None = None,
     ) -> table.Table:
         where_clause = self._build_where_clause(constraints) if constraints else ""
         order_by_clause = self._build_order_by_clause(order_by)
+        limit_clause = f" TOP {limit}" if limit else ""
 
-        query = f'SELECT *\nFROM "{table_name}"{where_clause}{order_by_clause}'
+        query = f'SELECT{limit_clause} *\nFROM "{table_name}"{where_clause}{order_by_clause}'
 
         app.logger.info("Running TAP query", query=query)
         data = registry.regtap.RegistryQuery(self.tap_endpoint, query)
