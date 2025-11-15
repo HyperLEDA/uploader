@@ -1,12 +1,13 @@
-from app.interface import (
-    UploaderPlugin,
-    DefaultTableNamer,
-    BibcodeProvider,
-    DescriptionProvider,
-)
 from app.discover import discover_plugins
-from app.upload import upload
+from app.interface import (
+    BibcodeProvider,
+    DefaultTableNamer,
+    DescriptionProvider,
+    UploaderPlugin,
+)
 from app.log import logger
+from app.tap import Constraint, TAPRepository
+from app.upload import upload
 
 __all__ = [
     "UploaderPlugin",
@@ -16,4 +17,6 @@ __all__ = [
     "discover_plugins",
     "upload",
     "logger",
+    "TAPRepository",
+    "Constraint",
 ]

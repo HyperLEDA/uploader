@@ -7,7 +7,6 @@ import numpy as np
 import pandas
 from astropy import table
 from astroquery import vizier
-from pyvo import registry
 
 import app
 from app.gen.client.adminapi import models, types
@@ -23,21 +22,6 @@ def _sanitize_filename(string: str) -> str:
         .replace(" ", "_")
         .replace("!", "_not_")
     )
-
-
-def _build_where_clause(constraints: list[tuple[str, str, str]]) -> str:
-    if not constraints:
-        return ""
-
-    conditions = []
-    for column, sign, value in constraints:
-        if any(char in column for char in "()[]."):
-            quoted_column = f'"{column}"'
-        else:
-            quoted_column = column
-        conditions.append(f"{quoted_column} {sign} {value}")
-
-    return " WHERE " + " AND ".join(conditions)
 
 
 def dtype_to_datatype(dtype: str | np.dtype) -> models.DatatypeEnum:
@@ -66,19 +50,26 @@ def dtype_to_datatype(dtype: str | np.dtype) -> models.DatatypeEnum:
 
 
 class CachedVizierClient:
-    TAP_ENDPOINT = "https://tapvizier.cds.unistra.fr/TAPVizieR/tap/sync"
-
     def __init__(self, cache_path: str = ".vizier_cache/"):
         self.cache_path = cache_path
+        self.tap_repository = app.TAPRepository()
+
+    def _constraints_to_tuples(self, constraints: list[app.Constraint] | None) -> list[tuple[str, str, str]] | None:
+        if not constraints:
+            return None
+        return [(c.column, c.operator, c.value) for c in constraints]
 
     def _obtain_cache_path(
-        self, catalog_name: str, row_num: int | None = None, constraints: list[tuple[str, str, str]] | None = None
+        self,
+        catalog_name: str,
+        row_num: int | None = None,
+        constraints: list[app.Constraint] | None = None,
     ) -> pathlib.Path:
         filename = f"{catalog_name}.vot"
         if row_num is not None:
             filename = f"{catalog_name}_rows_{row_num}.vot"
         if constraints:
-            sorted_constraints = sorted(constraints)
+            sorted_constraints = sorted(self._constraints_to_tuples(constraints) or [])
             constraint_str = "_".join(f"{col}_{sign}_{val}" for col, sign, val in sorted_constraints)
             filename = f"{catalog_name}_constraints_{constraint_str}.vot"
 
@@ -88,35 +79,32 @@ class CachedVizierClient:
         return path
 
     def _write_catalog_cache(
-        self, catalog_name: str, row_num: int | None = None, constraints: list[tuple[str, str, str]] | None = None
+        self,
+        catalog_name: str,
+        row_num: int | None = None,
+        constraints: list[app.Constraint] | None = None,
     ) -> None:
         app.logger.info(
             "downloading catalog from Vizier",
             catalog_name=catalog_name,
             row_num=row_num,
-            constraints=constraints,
+            constraints=self._constraints_to_tuples(constraints),
         )
 
-        where_clause = _build_where_clause(constraints) if constraints else ""
+        tbl: table.Table = self.tap_repository.query(catalog_name, constraints=constraints)
 
         if row_num is not None:
-            select_clause = f"SELECT TOP {row_num} *"
-        else:
-            select_clause = "SELECT *"
-
-        query = f'{select_clause}\nFROM "{catalog_name}"{where_clause}'
-
-        app.logger.info("Running query", query=query)
-        data = registry.regtap.RegistryQuery(self.TAP_ENDPOINT, query)
-        result = data.execute()
-        tbl = result.to_table()
+            tbl = table.Table(tbl[:row_num])
 
         cache_filename = self._obtain_cache_path(catalog_name, row_num, constraints)
         tbl.write(str(cache_filename), format="votable")
         app.logger.debug("wrote catalog cache", location=str(cache_filename))
 
     def get_table(
-        self, catalog_name: str, row_num: int | None = None, constraints: list[tuple[str, str, str]] | None = None
+        self,
+        catalog_name: str,
+        row_num: int | None = None,
+        constraints: list[app.Constraint] | None = None,
     ) -> table.Table:
         cache_path = self._obtain_cache_path(catalog_name, row_num, constraints)
         if not cache_path.exists():
@@ -146,9 +134,11 @@ class VizierV2Plugin(
     ):
         if len(constraints) % 3 != 0:
             raise ValueError("constraints must be provided in groups of three (column, sign, value)")
-        self.constraints: list[tuple[str, str, str]] = []
+        self.constraints: list[app.Constraint] = []
         for i in range(0, len(constraints), 3):
-            self.constraints.append((constraints[i], constraints[i + 1], constraints[i + 2]))
+            self.constraints.append(
+                app.Constraint(column=constraints[i], operator=constraints[i + 1], value=constraints[i + 2])
+            )
         self.catalog_name = catalog_name
         self.table_name = table_name
         self.batch_size = batch_size
