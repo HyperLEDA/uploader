@@ -13,7 +13,15 @@ from app.gen.client.adminapi import models, types
 
 
 def _sanitize_filename(string: str) -> str:
-    return string.replace("/", "_")
+    return (
+        string.replace("/", "_")
+        .replace("&", "_and_")
+        .replace(">", "_gt_")
+        .replace("<", "_lt_")
+        .replace("=", "_eq_")
+        .replace(" ", "_")
+        .replace("!", "_not_")
+    )
 
 
 def dtype_to_datatype(dtype: str | np.dtype) -> models.DatatypeEnum:
@@ -47,38 +55,54 @@ class CachedVizierClient:
         self._client = vizier.Vizier()
         self._client.ROW_LIMIT = -1
 
-    def _obtain_cache_path(self, catalog_name: str, row_num: int | None = None) -> pathlib.Path:
-        filename = f"{_sanitize_filename(catalog_name)}.vot"
+    def _obtain_cache_path(
+        self, catalog_name: str, row_num: int | None = None, constraints: dict[str, str] | None = None
+    ) -> pathlib.Path:
+        filename = f"{catalog_name}.vot"
         if row_num is not None:
-            filename = f"{_sanitize_filename(catalog_name)}_rows_{row_num}.vot"
+            filename = f"{catalog_name}_rows_{row_num}.vot"
+        if constraints:
+            sorted_constraints = sorted(constraints.items())
+            constraint_str = "_".join(f"{k}_{v}" for k, v in sorted_constraints)
+            filename = f"{catalog_name}_constraints_{constraint_str}.vot"
+
+        filename = _sanitize_filename(filename)
         path = pathlib.Path(self.cache_path) / "catalogs" / filename
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 
-    def _write_catalog_cache(self, catalog_name: str, row_num: int | None = None) -> None:
+    def _write_catalog_cache(
+        self, catalog_name: str, row_num: int | None = None, constraints: dict[str, str] | None = None
+    ) -> None:
         app.logger.info(
             "downloading catalog from Vizier",
             catalog_name=catalog_name,
             row_num=row_num,
+            constraints=constraints,
         )
         client = self._client
         if row_num is not None:
             client = vizier.Vizier()
             client.ROW_LIMIT = row_num
-        catalogs: utils.TableList = client.query_constraints(catalog=catalog_name)  # pyright: ignore[reportAttributeAccessIssue]
+        query_kwargs = {"catalog": catalog_name}
+        if constraints:
+            query_kwargs.update(constraints)
+        catalogs: utils.TableList = client.query_constraints(**query_kwargs)  # pyright: ignore[reportAttributeAccessIssue]
 
         if not catalogs:
             raise ValueError("catalog not found")
 
-        cache_filename = self._obtain_cache_path(catalog_name, row_num)
+        cache_filename = self._obtain_cache_path(catalog_name, row_num, constraints)
         catalogs[0].write(str(cache_filename), format="votable")
         app.logger.debug("wrote catalog cache", location=str(cache_filename))
 
-    def get_table(self, catalog_name: str, row_num: int | None = None) -> table.Table:
-        cache_path = self._obtain_cache_path(catalog_name, row_num)
+    def get_table(
+        self, catalog_name: str, row_num: int | None = None, constraints: dict[str, str] | None = None
+    ) -> table.Table:
+        cache_path = self._obtain_cache_path(catalog_name, row_num, constraints)
         if not cache_path.exists():
             app.logger.debug("did not hit cache for the catalog, downloading")
-            self._write_catalog_cache(catalog_name, row_num)
+            self._write_catalog_cache(catalog_name, row_num, constraints)
 
         return table.Table.read(cache_path, format="votable")
 
@@ -97,9 +121,15 @@ class VizierV2Plugin(
         self,
         catalog_name: str,
         table_name: str,
+        *constraints: str,
         cache_path: str = ".vizier_cache/",
-        batch_size: int = 100,
+        batch_size: int = 10,
     ):
+        if len(constraints) % 2 != 0:
+            raise ValueError("constraints must be provided in pairs (column, constraint_value)")
+        self.constraints: dict[str, str] = {}
+        for i in range(0, len(constraints), 2):
+            self.constraints[constraints[i]] = constraints[i + 1]
         self.catalog_name = catalog_name
         self.table_name = table_name
         self.batch_size = batch_size
@@ -141,7 +171,8 @@ class VizierV2Plugin(
         return result
 
     def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
-        t = self.client.get_table(self.table_name)
+        constraints = self.constraints if self.constraints else None
+        t = self.client.get_table(self.table_name, constraints=constraints)
 
         total_rows = len(t)
         app.logger.info("uploading table", total_rows=total_rows)
