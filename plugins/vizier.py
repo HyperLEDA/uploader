@@ -54,7 +54,7 @@ class VizierPlugin(
             table_name=table_name,
         )
 
-        vizier_client = vizier.VizierClass(row_limit=-1)
+        vizier_client = vizier.VizierClass(row_limit=-1, columns=["**"])
         catalogs = vizier_client.get_catalogs(catalog_name)  # type: ignore
 
         table = next((cat for cat in catalogs if cat.meta["name"] == table_name), None)
@@ -67,7 +67,7 @@ class VizierPlugin(
         app.logger.debug("wrote table cache", location=str(cache_filename))
 
     def _write_schema_cache(self, catalog_name: str, table_name: str):
-        vizier_client = vizier.VizierClass(row_limit=5)
+        vizier_client = vizier.VizierClass(row_limit=5, columns=["**"])
         columns = _get_columns(vizier_client, catalog_name, table_name)
         raw_header = _download_table(table_name, columns, max_rows=10)
 
