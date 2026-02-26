@@ -59,12 +59,11 @@ def run_checker(
                     if print_unmatched:
                         click.echo(name_str)
             batch_size_actual = len(rows)
-            total_so_far = sum(rule_counts[r.name] for r in RULES) + unmatched
+            total_matched_so_far = sum(rule_counts.values())
+            total_so_far = total_matched_so_far + unmatched
 
             def total_pct(n: int) -> float:
                 return (100.0 * n / total_so_far) if total_so_far else 0.0
-
-            total_matched_so_far = sum(rule_counts[r.name] for r in RULES)
             log.logger.debug(
                 "processed batch",
                 rows=batch_size_actual,
@@ -76,15 +75,15 @@ def run_checker(
                 unmatched_pct=round(total_pct(unmatched), 1),
             )
 
-    total = sum(rule_counts[r.name] for r in RULES) + unmatched
+    total = sum(rule_counts.values()) + unmatched
 
     def pct(n: int) -> float:
         return (100.0 * n / total) if total else 0.0
 
     click.echo(f"Total names: {total}")
     click.echo("Rule match counts (absolute / %):")
-    for r in RULES:
-        n = rule_counts[r.name]
+    for name in sorted(rule_counts.keys(), key=lambda n: (-rule_counts[n], n)):
+        n = rule_counts[name]
         if n > 0:
-            click.echo(f"  {r.name}: {n} ({pct(n):.1f}%)")
+            click.echo(f"  {name}: {n} ({pct(n):.1f}%)")
     click.echo(f"  (no rule matched): {unmatched} ({pct(unmatched):.1f}%)")
