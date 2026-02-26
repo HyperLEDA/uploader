@@ -1,17 +1,48 @@
-upgrade:
-	uv sync --all-extras --upgrade
+install:
+	uv sync
+
+install-dev:
+	uv sync --all-extras
 
 check:
-	uvx ruff check
-	uvx ruff format --check . 
-	uv run pytest --config-file=pyproject.toml
+	@find . \
+		-name "*.py" \
+		-not -path "./.venv/*" \
+		-not -path "./.git/*" \
+		-exec uv run python -m py_compile {} +
+	@uvx ruff format \
+		--quiet \
+		--config=pyproject.toml \
+		--check
+	@uvx ruff check \
+		--quiet \
+		--config=pyproject.toml
+	@uv run pytest \
+		--quiet \
+		--config-file=pyproject.toml
 
 fix:
-	uvx ruff format .
-	uvx ruff check --fix
+	@uvx ruff format \
+		--quiet \
+		--config=pyproject.toml
+	@uvx ruff check \
+		--quiet \
+		--config=pyproject.toml \
+		--fix
 
-test:
-	uv run pytest tests
+# only for mac as this is faster
+build:
+	docker build . \
+		--platform linux/arm64
+
+update-template:
+	copier update \
+		--skip-answered \
+		--conflict inline \
+		--answers-file .template.yaml
+
+upgrade:
+	uv sync --all-extras --upgrade
 
 gen:
 	uv run openapi-python-client generate \

@@ -1,5 +1,5 @@
 import click
-from psycopg import sql
+from psycopg import connect, sql
 
 from app import log
 from app.name_checker.rules import RULES
@@ -13,8 +13,6 @@ def run_checker(
     *,
     print_unmatched: bool = False,
 ) -> None:
-    from psycopg import connect
-
     table_parts = table_name.split(".", 1)
     quoted_table = (
         sql.SQL(".").join(sql.Identifier(p) for p in table_parts)
@@ -64,8 +62,8 @@ def run_checker(
             total_matched_so_far = sum(rule_counts.values())
             total_so_far = total_matched_so_far + unmatched
 
-            def total_pct(n: int) -> float:
-                return (100.0 * n / total_so_far) if total_so_far else 0.0
+            def total_pct(n: int, total: int = total_so_far) -> float:
+                return (100.0 * n / total) if total else 0.0
 
             log.logger.debug(
                 "processed batch",

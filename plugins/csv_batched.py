@@ -34,7 +34,7 @@ class CSVPlugin(app.UploaderPlugin, app.DefaultTableNamer):
 
         self._reader = pandas.read_csv(self.filename, chunksize=self._chunk_size)
 
-        with open(self.filename) as f:
+        with pathlib.Path(self.filename).open() as f:
             self._total_chunks = sum(1 for _ in f) - 1
 
         self._total_chunks = (self._total_chunks + self._chunk_size - 1) // self._chunk_size

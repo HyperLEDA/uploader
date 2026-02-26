@@ -1,15 +1,16 @@
 import inspect
 import os
 from collections.abc import Callable
-from urllib.parse import quote_plus
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote_plus
 
 import click
 import structlog
 
 import app
 from app.gen.client import adminapi
+from app.name_checker import run_checker
 
 env_map = {
     "dev": "http://localhost:8080",
@@ -70,8 +71,6 @@ def name_checker(
     batch_size: int,
     print_unmatched: bool,
 ) -> None:
-    from app.name_checker import run_checker
-
     endpoint = ctx.obj.endpoint
     user_quoted = quote_plus(user)
     password = quote_plus(os.environ.get("DB_PASSWORD", ""))
@@ -88,14 +87,24 @@ def discover(plugin_dir: str) -> None:
     app.discover_plugins(plugin_dir)
 
 
-table_name_descr = "Table name is a primary identifier of the table in HyperLEDA. It usually is a machine-readable string that will later be used to do any alterations to the table. Example: sdss_dr12."
+table_name_descr = (
+    "Table name is a primary identifier of the table in HyperLEDA. "
+    "It usually is a machine-readable string that will later be used to do any alterations to the table. "
+    "Example: sdss_dr12."
+)
 table_description_descr = (
     "Description of the table is a human-readable string that can later be used for searching of viewing the table."
 )
-bibcode_descr = "Bibcode is an identifier for the publication from the NASA ADS system https://ui.adsabs.harvard.edu/. It allows for easy search of the publication throughout a range of different sources."
+bibcode_descr = (
+    "Bibcode is an identifier for the publication from the NASA ADS system https://ui.adsabs.harvard.edu/. "
+    "It allows for easy search of the publication throughout a range of different sources."
+)
 pub_name_descr = "Name of the internal source. Can be a short description that represents where the data comes from."
 pub_authors_descr = "Comma-separated list of authors of the internal source."
-table_type_descr = "Type of the table to upload. Determines if the table is a compilation or the regular dataset. If unsure, leave blank."
+table_type_descr = (
+    "Type of the table to upload. Determines if the table is a compilation or the regular dataset. "
+    "If unsure, leave blank."
+)
 auto_proceed_descr = "If set, will automatically accept all suggested defaults."
 
 
@@ -135,7 +144,8 @@ def upload(
 
     click.echo(
         "You will be prompted several questions about the table you want to upload. "
-        "If there are square brackets before the colon ([example]), the question is not required and, if skipped, the default value from the brackets will be used as an answer.\n"
+        "If there are square brackets before the colon ([example]), the question is not required and, if skipped, "
+        "the default value from the brackets will be used as an answer.\n"
     )
 
     if table_name == "":

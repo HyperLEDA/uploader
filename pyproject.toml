@@ -15,18 +15,53 @@ dependencies = [
     "psycopg[binary]>=3.2.0",
 ]
 
-[tool.pytest.ini_options]
-pythonpath = ["."]
-
-[tool.uv.sources]
-astroquery = { git = "https://github.com/astropy/astroquery.git", branch = "main" }
-
 [dependency-groups]
 dev = [
-    "ruff>=0.11.12",
+    "ruff~=0.15.0",
     "pandas-stubs>=2.2.3.250308",
     "pytest>=8.4.2",
 ]
 
 [tool.ruff]
 line-length = 120
+src = ["."]
+
+[tool.ruff.lint]
+ignore = [
+    "N818", # ignore SomeException -> SomeError rule
+    "B024", # abstract class without abstract methods
+    "B017", # ignore assertRaises(Exception)
+    "B027", # empty method without abstract decorator
+]
+# see https://docs.astral.sh/ruff/rules/ for description of each rule set.
+select = [
+    "E",
+    "F",
+    "I",
+    "N",
+    "UP",
+    "YTT",
+    "B",
+    "A",
+    "C4",
+    "DTZ",
+    "PIE",
+    "RET",
+    "SLF",
+    "PTH",
+    "PLE",
+    "FLY",
+    "NPY201",
+    "PLC0415",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = [
+    "F403", # ignore star imports warning in __init__ files
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.uv.sources]
+astroquery = { git = "https://github.com/astropy/astroquery.git", branch = "main" }

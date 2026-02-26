@@ -5,10 +5,10 @@ from pathlib import Path
 from app import interface, log
 
 
-def discover_plugins(dir: str) -> dict[str, type[interface.UploaderPlugin]]:
+def discover_plugins(plugin_dir: str) -> dict[str, type[interface.UploaderPlugin]]:
     plugins: dict[str, type[interface.UploaderPlugin]] = {}
 
-    py_files = Path(dir).glob("*.py")
+    py_files = Path(plugin_dir).glob("*.py")
 
     for file_path in py_files:
         module_name = file_path.stem
@@ -24,7 +24,7 @@ def discover_plugins(dir: str) -> dict[str, type[interface.UploaderPlugin]]:
             log.logger.warn("python file has no declared plugin", filename=str(file_path))
             continue
 
-        plugin_class = getattr(module, "plugin")
+        plugin_class = module.plugin
 
         if not hasattr(module, "name"):
             log.logger.warn(
@@ -34,7 +34,7 @@ def discover_plugins(dir: str) -> dict[str, type[interface.UploaderPlugin]]:
             )
             continue
 
-        plugin_name = getattr(module, "name")
+        plugin_name = module.name
 
         if not issubclass(plugin_class, interface.UploaderPlugin):
             log.logger.warn(
