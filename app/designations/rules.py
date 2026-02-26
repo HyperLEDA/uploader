@@ -83,6 +83,14 @@ RULES: list[NameRule] = [
         replacement="WINGS J{0}{1}{2}{3}{4}{5}{6}",
     ),
     NameRule(
+        name="J",
+        pattern=re.compile(
+            r"^J\s*(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
+            re.IGNORECASE,
+        ),
+        replacement="J{0}{1}{2}{3}{4}{5}{6}",
+    ),
+    NameRule(
         name="SMDG",
         pattern=re.compile(r"^SMDG\s*(\d{7})([+-])(\d{6})$", re.IGNORECASE),
         replacement="SMDG {0}{1}{2}",
