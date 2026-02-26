@@ -24,7 +24,9 @@ def run_checker(
     id_col = sql.Identifier("hyperleda_internal_id")
     name_col = sql.Identifier(column_name)
 
-    query = sql.SQL("SELECT {id_col}, {name_col} FROM rawdata.{t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
+    query = sql.SQL(
+        "SELECT {id_col}, {name_col} FROM rawdata.{t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s"
+    ).format(
         id_col=id_col,
         name_col=name_col,
         t=quoted_table,
@@ -64,6 +66,7 @@ def run_checker(
 
             def total_pct(n: int) -> float:
                 return (100.0 * n / total_so_far) if total_so_far else 0.0
+
             log.logger.debug(
                 "processed batch",
                 rows=batch_size_actual,

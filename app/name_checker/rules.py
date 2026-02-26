@@ -346,9 +346,7 @@ RULES: list[NameRule] = [
     ),
     NameRule(
         name="ABELL",
-        pattern=re.compile(
-            r"^ABELL\s*0*(\d+)_(\d+):\[([^\]]+)\](\d+)$", re.IGNORECASE
-        ),
+        pattern=re.compile(r"^ABELL\s*0*(\d+)_(\d+):\[([^\]]+)\](\d+)$", re.IGNORECASE),
         replacement="ABELL {0}_{1} [{2}] {3}",
         replacer=lambda m: f"ABELL {int(m.group(1))}_{int(m.group(2))} [{m.group(3)}] {m.group(4)}",
     ),
@@ -410,8 +408,7 @@ RULES: list[NameRule] = [
         ),
         replacement="CL J{0}{1}{2}",
         replacer=lambda m: (
-            f"CL J{m.group(1)}{m.group(2)}{m.group(3)}"
-            + (f" [{m.group(4)}] {m.group(5)}" if m.group(4) else "")
+            f"CL J{m.group(1)}{m.group(2)}{m.group(3)}" + (f" [{m.group(4)}] {m.group(5)}" if m.group(4) else "")
         ),
     ),
     NameRule(

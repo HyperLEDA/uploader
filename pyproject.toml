@@ -19,8 +19,7 @@ dependencies = [
 pythonpath = ["."]
 
 [tool.uv.sources]
-# this is needed until the PR is merged: https://github.com/astropy/astroquery/pull/3458
-astroquery = { git = "https://github.com/Kraysent/astroquery.git", branch = "release-with-fix" }
+astroquery = { git = "https://github.com/astropy/astroquery.git", branch = "main" }
 
 [dependency-groups]
 dev = [
