@@ -60,15 +60,23 @@ def cli(ctx, log_level: str, endpoint: str) -> None:
 @click.option("--table-name", required=True, help="Rawdata table name")
 @click.option("--column-name", required=True, help="Column containing the name")
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
+@click.option("--print-unmatched", is_flag=True, help="Print each unmatched object name")
 @click.pass_context
-def name_checker(ctx: click.Context, user: str, table_name: str, column_name: str, batch_size: int) -> None:
+def name_checker(
+    ctx: click.Context,
+    user: str,
+    table_name: str,
+    column_name: str,
+    batch_size: int,
+    print_unmatched: bool,
+) -> None:
     from app.name_checker import run_checker
 
     endpoint = ctx.obj.endpoint
     user_quoted = quote_plus(user)
     password = quote_plus(os.environ.get("DB_PASSWORD", ""))
     dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
-    run_checker(dsn, table_name, column_name, batch_size)
+    run_checker(dsn, table_name, column_name, batch_size, print_unmatched=print_unmatched)
 
 
 @cli.command()

@@ -10,6 +10,8 @@ def run_checker(
     table_name: str,
     column_name: str,
     batch_size: int,
+    *,
+    print_unmatched: bool = False,
 ) -> None:
     from psycopg import connect
 
@@ -54,6 +56,8 @@ def run_checker(
                         break
                 if not matched:
                     unmatched += 1
+                    if print_unmatched:
+                        click.echo(name_str)
             batch_size_actual = len(rows)
             total_so_far = sum(rule_counts[r.name] for r in RULES) + unmatched
 
