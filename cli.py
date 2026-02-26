@@ -1,5 +1,7 @@
 import inspect
+import os
 from collections.abc import Callable
+from urllib.parse import quote_plus
 from dataclasses import dataclass
 from typing import Any
 
@@ -15,10 +17,17 @@ env_map = {
     "prod": "https://leda.sao.ru",
 }
 
+db_dsn_map = {
+    "dev": "postgresql://{user}:{password}@localhost:5432/hyperleda",
+    "test": "postgresql://{user}:{password}@leda.kraysent.dev:5433/hyperleda",
+    "prod": "postgresql://{user}:{password}@database.leda.sao.ru:5432/hyperleda",
+}
+
 
 @dataclass
 class CommandContext:
     hyperleda_client: adminapi.AuthenticatedClient
+    endpoint: str
 
 
 @click.group(
@@ -31,18 +40,35 @@ class CommandContext:
     "--endpoint",
     help="HyperLeda API endpoint",
     type=click.Choice(env_map.keys()),
-    default="test",
+    default="prod",
 )
 @click.pass_context
 def cli(ctx, log_level: str, endpoint: str) -> None:
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
 
     ctx.obj = CommandContext(
-        adminapi.AuthenticatedClient(
+        hyperleda_client=adminapi.AuthenticatedClient(
             base_url=env_map[endpoint],
             token="fake",  # TODO different for prod server
-        )
+        ),
+        endpoint=endpoint,
     )
+
+
+@cli.command("name-checker")
+@click.option("--user", required=True, help="Database user for the connection")
+@click.option("--table-name", required=True, help="Rawdata table name")
+@click.option("--column-name", required=True, help="Column containing the name")
+@click.option("--batch-size", default=10000, type=int, help="Rows per batch")
+@click.pass_context
+def name_checker(ctx: click.Context, user: str, table_name: str, column_name: str, batch_size: int) -> None:
+    from app.name_checker import run_checker
+
+    endpoint = ctx.obj.endpoint
+    user_quoted = quote_plus(user)
+    password = quote_plus(os.environ.get("DB_PASSWORD", ""))
+    dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
+    run_checker(dsn, table_name, column_name, batch_size)
 
 
 @cli.command()
