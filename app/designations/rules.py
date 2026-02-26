@@ -42,6 +42,16 @@ RULES: list[NameRule] = [
         replacement="NGC {0}{1}",
     ),
     NameRule(
+        name="NGC",
+        pattern=re.compile(r"^N\s*0*(\d+)$", re.IGNORECASE),
+        replacement="NGC {0}",
+    ),
+    NameRule(
+        name="NGC",
+        pattern=re.compile(r"^N\s*0*(\d+)([a-zA-Z]{1,3})$", re.IGNORECASE),
+        replacement="NGC {0}{1}",
+    ),
+    NameRule(
         name="SDSS",
         pattern=re.compile(
             r"^SDSSJ\s*(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
