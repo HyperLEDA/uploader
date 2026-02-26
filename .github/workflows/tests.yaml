@@ -17,5 +17,8 @@ jobs:
       - name: Install deps
         run: make install-dev
 
+      - name: Run codegen
+        run: make gen
+
       - name: Run checks
         run: make check
