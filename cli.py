@@ -54,7 +54,7 @@ def discover(plugin_dir: str) -> None:
     app.discover_plugins(plugin_dir)
 
 
-table_name_descr = "Table name is a primary identifier of the table in HyperLEDA. It usually is a machine-readable string that will later be user to do any alterations to the table. Example: sdss_dr12."
+table_name_descr = "Table name is a primary identifier of the table in HyperLEDA. It usually is a machine-readable string that will later be used to do any alterations to the table. Example: sdss_dr12."
 table_description_descr = (
     "Description of the table is a human-readable string that can later be used for searching of viewing the table."
 )
