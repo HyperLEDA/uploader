@@ -2,15 +2,23 @@ import click
 from psycopg import connect, sql
 
 from app import log
-from app.name_checker.rules import RULES
+from app.designations.rules import RULES
+from app.gen.client import adminapi
+from app.gen.client.adminapi.api.default import save_structured_data
+from app.gen.client.adminapi.models.save_structured_data_request import (
+    SaveStructuredDataRequest,
+)
+from app.upload import handle_call
 
 
-def run_checker(
+def upload_designations(
     dsn: str,
     table_name: str,
     column_name: str,
     batch_size: int,
+    client: adminapi.AuthenticatedClient,
     *,
+    dry_run: bool = False,
     print_unmatched: bool = False,
 ) -> None:
     table_parts = table_name.split(".", 1)
@@ -41,6 +49,10 @@ def run_checker(
                 rows = cur.fetchall()
             if not rows:
                 break
+
+            batch_ids: list[str] = []
+            batch_names: list[list[str]] = []
+
             for row in rows:
                 internal_id, name_val = row
                 last_id = internal_id
@@ -48,16 +60,33 @@ def run_checker(
                     unmatched += 1
                     continue
                 name_str = str(name_val).strip()
-                matched = False
+                transformed: str | None = None
                 for rule in RULES:
-                    if rule.match(name_str) is not None:
+                    transformed = rule.match(name_str)
+                    if transformed is not None:
                         rule_counts[rule.name] += 1
-                        matched = True
                         break
-                if not matched:
+                if transformed is None:
                     unmatched += 1
+                    transformed = name_str
                     if print_unmatched:
                         click.echo(name_str)
+                batch_ids.append(internal_id)
+                batch_names.append([transformed])
+
+            if not dry_run and batch_ids:
+                handle_call(
+                    save_structured_data.sync_detailed(
+                        client=client,
+                        body=SaveStructuredDataRequest(
+                            catalog="designation",
+                            columns=["design"],
+                            ids=batch_ids,
+                            data=batch_names,
+                        ),
+                    )
+                )
+
             batch_size_actual = len(rows)
             total_matched_so_far = sum(rule_counts.values())
             total_so_far = total_matched_so_far + unmatched

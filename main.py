@@ -9,8 +9,8 @@ import click
 import structlog
 
 import app
+from app.designations import upload_designations as run_upload_designations
 from app.gen.client import adminapi
-from app.name_checker import run_checker
 
 env_map = {
     "dev": "http://localhost:8080",
@@ -56,26 +56,36 @@ def cli(ctx, log_level: str, endpoint: str) -> None:
     )
 
 
-@cli.command("name-checker")
+@cli.command("upload-designations")
 @click.option("--user", required=True, help="Database user for the connection")
 @click.option("--table-name", required=True, help="Rawdata table name")
 @click.option("--column-name", required=True, help="Column containing the name")
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
+@click.option("--dry-run", is_flag=True, help="Do not upload; only print results and statistics")
 @click.option("--print-unmatched", is_flag=True, help="Print each unmatched object name")
 @click.pass_context
-def name_checker(
+def upload_designations(
     ctx: click.Context,
     user: str,
     table_name: str,
     column_name: str,
     batch_size: int,
+    dry_run: bool,
     print_unmatched: bool,
 ) -> None:
     endpoint = ctx.obj.endpoint
     user_quoted = quote_plus(user)
     password = quote_plus(os.environ.get("DB_PASSWORD", ""))
     dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
-    run_checker(dsn, table_name, column_name, batch_size, print_unmatched=print_unmatched)
+    run_upload_designations(
+        dsn,
+        table_name,
+        column_name,
+        batch_size,
+        ctx.obj.hyperleda_client,
+        dry_run=dry_run,
+        print_unmatched=print_unmatched,
+    )
 
 
 @cli.command()

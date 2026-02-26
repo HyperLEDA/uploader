@@ -1,6 +1,6 @@
 import pytest
 
-from app.name_checker.rules import RULES
+from app.designations.rules import RULES
 
 RULE_CASES: list[tuple[str, str, str | None]] = [
     ("NGC", "NGC 905", "NGC 905"),
