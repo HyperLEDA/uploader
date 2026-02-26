@@ -85,5 +85,6 @@ def run_checker(
     click.echo("Rule match counts (absolute / %):")
     for r in RULES:
         n = rule_counts[r.name]
-        click.echo(f"  {r.name}: {n} ({pct(n):.1f}%)")
+        if n > 0:
+            click.echo(f"  {r.name}: {n} ({pct(n):.1f}%)")
     click.echo(f"  (no rule matched): {unmatched} ({pct(unmatched):.1f}%)")
