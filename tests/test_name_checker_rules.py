@@ -394,3 +394,190 @@ def test_dw_rule(input_name: str, expected: str | None) -> None:
         assert rule.match(input_name) is None
     else:
         assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("LSBC D640-12", "LSBC D640-12"),
+        ("LSBC D565-06", "LSBC D565-6"),
+        ("lsbc d640-12", "LSBC D640-12"),
+        ("LSBC D640", None),
+        ("", None),
+    ],
+)
+def test_lsbc_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "LSBC")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("LV J1235-1104", "LV J1235-1104"),
+        ("LV J1052+3628", "LV J1052+3628"),
+        ("lv j1235-1104", "LV J1235-1104"),
+        ("LV 1235-1104", None),
+        ("", None),
+    ],
+)
+def test_lv_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "LV")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("MCG -04-31-038", "MCG -04-31-38"),
+        ("MCG -04-31-38", "MCG -04-31-38"),
+        ("mcg -04-31-038", "MCG -04-31-38"),
+        ("MCG 04-31-038", "MCG 04-31-38"),
+        ("MCG", None),
+        ("", None),
+    ],
+)
+def test_mcg_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "MCG")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("KDG056", "KDG 56"),
+        ("KDG162", "KDG 162"),
+        ("KDG 216", "KDG 216"),
+        ("kdg056", "KDG 56"),
+        ("KDG", None),
+        ("", None),
+    ],
+)
+def test_kdg_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "KDG")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("KKSG37", "KKSG 37"),
+        ("KKSG34", "KKSG 34"),
+        ("kksg37", "KKSG 37"),
+        ("KKSG", None),
+        ("", None),
+    ],
+)
+def test_kksg_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "KKSG")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("KKH69", "KKH 69"),
+        ("KKH 69", "KKH 69"),
+        ("kkh69", "KKH 69"),
+        ("KK69", None),
+        ("KKH", None),
+        ("", None),
+    ],
+)
+def test_kkh_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "KKH")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("KKR18", "KKR 18"),
+        ("KKR 18", "KKR 18"),
+        ("kkr18", "KKR 18"),
+        ("KKR", None),
+        ("", None),
+    ],
+)
+def test_kkr_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "KKR")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("KK203", "KK 203"),
+        ("KK242", "KK 242"),
+        ("KK 203", "KK 203"),
+        ("kk242", "KK 242"),
+        ("KKH69", None),
+        ("KKR18", None),
+        ("KK", None),
+        ("", None),
+    ],
+)
+def test_kk_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "KK")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("BTS132", "BTS 132"),
+        ("BTS157", "BTS 157"),
+        ("BTS 132", "BTS 132"),
+        ("bts132", "BTS 132"),
+        ("BTS", None),
+        ("", None),
+    ],
+)
+def test_bts_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "BTS")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected
+
+
+@pytest.mark.parametrize(
+    "input_name,expected",
+    [
+        ("JKB129", "JKB 129"),
+        ("JKB 129", "JKB 129"),
+        ("jkb129", "JKB 129"),
+        ("JKB", None),
+        ("", None),
+    ],
+)
+def test_jkb_rule(input_name: str, expected: str | None) -> None:
+    rule = next(r for r in RULES if r.name == "JKB")
+    if expected is None:
+        assert rule.match(input_name) is None
+    else:
+        assert rule.match(input_name) == expected

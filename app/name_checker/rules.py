@@ -138,4 +138,54 @@ RULES: list[NameRule] = [
         pattern=re.compile(r"^Dw\s*(\d{4})([+-])(\d{4})$", re.IGNORECASE),
         replacement="Dw {0}{1}{2}",
     ),
+    NameRule(
+        name="LSBC",
+        pattern=re.compile(r"^LSBC\s*D\s*0*(\d+)-0*(\d+)$", re.IGNORECASE),
+        replacement="LSBC D{0}-{1}",
+    ),
+    NameRule(
+        name="LV",
+        pattern=re.compile(r"^LV\s*J\s*(\d{4})([+-])(\d{4})$", re.IGNORECASE),
+        replacement="LV J{0}{1}{2}",
+    ),
+    NameRule(
+        name="MCG",
+        pattern=re.compile(r"^MCG\s*([+-]?\d+)-0*(\d+)-0*(\d+)$", re.IGNORECASE),
+        replacement="MCG {0}-{1}-{2}",
+    ),
+    NameRule(
+        name="KDG",
+        pattern=re.compile(r"^KDG\s*0*(\d+)$", re.IGNORECASE),
+        replacement="KDG {0}",
+    ),
+    NameRule(
+        name="KKSG",
+        pattern=re.compile(r"^KKSG\s*0*(\d+)$", re.IGNORECASE),
+        replacement="KKSG {0}",
+    ),
+    NameRule(
+        name="KKH",
+        pattern=re.compile(r"^KKH\s*0*(\d+)$", re.IGNORECASE),
+        replacement="KKH {0}",
+    ),
+    NameRule(
+        name="KKR",
+        pattern=re.compile(r"^KKR\s*0*(\d+)$", re.IGNORECASE),
+        replacement="KKR {0}",
+    ),
+    NameRule(
+        name="KK",
+        pattern=re.compile(r"^KK\s*0*(\d+)$", re.IGNORECASE),
+        replacement="KK {0}",
+    ),
+    NameRule(
+        name="BTS",
+        pattern=re.compile(r"^BTS\s*0*(\d+)$", re.IGNORECASE),
+        replacement="BTS {0}",
+    ),
+    NameRule(
+        name="JKB",
+        pattern=re.compile(r"^JKB\s*0*(\d+)$", re.IGNORECASE),
+        replacement="JKB {0}",
+    ),
 ]
