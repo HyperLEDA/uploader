@@ -1,7 +1,39 @@
+"""Crossmatch decision tree.
+
+Overview:
+
+  - "Neighbors" = layer2 objects within the search radius (after angular-distance
+    post-filter). "Preferred" = neighbor matches by PGC (record_pgc == neighbor.pgc)
+    or by designation (record_designation matches neighbor.design).
+
+  - ONE NEIGHBOR
+    - PGC mismatch (record has claimed PGC and it differs from neighbor)
+      → EXISTING, PENDING (PGC_MISMATCH).
+    - Preferred (PGC or name match) or no PGC column
+      → EXISTING, RESOLVED.
+    - Else (one neighbor, no identity match, PGC column used)
+      → EXISTING, PENDING (SINGLE_NEIGHBOR_NO_IDENTITY_MATCH).
+
+  - MULTIPLE NEIGHBORS
+    - Exactly one preferred neighbor
+      - PGC match or no PGC column → EXISTING, RESOLVED.
+      - PGC mismatch → EXISTING, PENDING (PGC_MISMATCH).
+    - Zero or more-than-one preferred
+      → COLLIDING, PENDING (MULTIPLE_OBJECTS_MATCHED).
+
+  - ZERO NEIGHBORS
+    - Exactly one PGC elsewhere (by name and/or claimed PGC in layer2)
+      → EXISTING, PENDING (MATCHED_NAME_OUTSIDE_CIRCLE or
+        MATCHED_PGC_OUTSIDE_CIRCLE).
+    - Else
+      → NEW, RESOLVED.
+"""
+
 from app.crossmatch.models import (
     CrossmatchResult,
     CrossmatchStatus,
     Neighbor,
+    PendingReason,
     RecordEvidence,
     TriageStatus,
 )
@@ -37,6 +69,7 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
                 status=CrossmatchStatus.EXISTING,
                 triage_status=TriageStatus.PENDING,
                 matched_pgc=n.pgc,
+                pending_reason=PendingReason.PGC_MISMATCH,
             )
 
         if _preferred_neighbor(evidence, n) or record_pgc is None:
@@ -52,6 +85,7 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
             status=CrossmatchStatus.EXISTING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=n.pgc,
+            pending_reason=PendingReason.SINGLE_NEIGHBOR_NO_IDENTITY_MATCH,
         )
 
     if len(neighbors) > 1:
@@ -65,6 +99,7 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
                 status=CrossmatchStatus.EXISTING,
                 triage_status=triage,
                 matched_pgc=p.pgc,
+                pending_reason=PendingReason.PGC_MISMATCH if triage == TriageStatus.PENDING else None,
             )
 
         return CrossmatchResult(
@@ -73,6 +108,7 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
             triage_status=TriageStatus.PENDING,
             matched_pgc=None,
             colliding_pgcs=[n.pgc for n in neighbors],
+            pending_reason=PendingReason.MULTIPLE_OBJECTS_MATCHED,
         )
 
     pgcs_elsewhere = set(global_pgcs)
@@ -81,11 +117,18 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
         pgcs_elsewhere.add(record_pgc)
 
     if len(pgcs_elsewhere) == 1:
+        matched_pgc = next(iter(pgcs_elsewhere))
+        reason = (
+            PendingReason.MATCHED_NAME_OUTSIDE_CIRCLE
+            if matched_pgc in global_pgcs
+            else PendingReason.MATCHED_PGC_OUTSIDE_CIRCLE
+        )
         return CrossmatchResult(
             record_id=evidence.record_id,
             status=CrossmatchStatus.EXISTING,
             triage_status=TriageStatus.PENDING,
-            matched_pgc=next(iter(pgcs_elsewhere)),
+            matched_pgc=matched_pgc,
+            pending_reason=reason,
         )
 
     return CrossmatchResult(

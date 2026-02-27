@@ -32,6 +32,14 @@ class TriageStatus(enum.Enum):
     PENDING = "pending"
 
 
+class PendingReason(enum.Enum):
+    PGC_MISMATCH = "PGC_MISMATCH"
+    MULTIPLE_OBJECTS_MATCHED = "MULTIPLE_OBJECTS_MATCHED"
+    MATCHED_NAME_OUTSIDE_CIRCLE = "MATCHED_NAME_OUTSIDE_CIRCLE"
+    MATCHED_PGC_OUTSIDE_CIRCLE = "MATCHED_PGC_OUTSIDE_CIRCLE"
+    SINGLE_NEIGHBOR_NO_IDENTITY_MATCH = "SINGLE_NEIGHBOR_NO_IDENTITY_MATCH"
+
+
 @dataclass
 class CrossmatchResult:
     record_id: str
@@ -39,3 +47,4 @@ class CrossmatchResult:
     triage_status: TriageStatus
     matched_pgc: int | None
     colliding_pgcs: list[int] | None = None
+    pending_reason: PendingReason | None = None

@@ -1,6 +1,7 @@
 from app.crossmatch.models import (
     CrossmatchStatus,
     Neighbor,
+    PendingReason,
     RecordEvidence,
     TriageStatus,
 )
@@ -42,6 +43,7 @@ def test_resolve_multiple_neighbors() -> None:
     assert result.triage_status == TriageStatus.PENDING
     assert result.matched_pgc is None
     assert result.colliding_pgcs == [1, 2]
+    assert result.pending_reason == PendingReason.MULTIPLE_OBJECTS_MATCHED
 
 
 def test_resolve_name_match_in_circle() -> None:
@@ -71,6 +73,7 @@ def test_resolve_name_match_outside_circle() -> None:
     assert result.status == CrossmatchStatus.EXISTING
     assert result.triage_status == TriageStatus.PENDING
     assert result.matched_pgc == 100
+    assert result.pending_reason == PendingReason.MATCHED_NAME_OUTSIDE_CIRCLE
 
 
 def test_resolve_name_match_in_circle_ambiguous_two_matching() -> None:
@@ -127,6 +130,7 @@ def test_resolve_one_neighbor_different_pgc() -> None:
     assert result.status == CrossmatchStatus.EXISTING
     assert result.triage_status == TriageStatus.PENDING
     assert result.matched_pgc == 100
+    assert result.pending_reason == PendingReason.PGC_MISMATCH
 
 
 def test_resolve_no_neighbors_claimed_pgc_exists() -> None:
@@ -140,6 +144,7 @@ def test_resolve_no_neighbors_claimed_pgc_exists() -> None:
     assert result.status == CrossmatchStatus.EXISTING
     assert result.triage_status == TriageStatus.PENDING
     assert result.matched_pgc == 42
+    assert result.pending_reason == PendingReason.MATCHED_PGC_OUTSIDE_CIRCLE
 
 
 def test_resolve_one_neighbor_name_match_pgc_mismatch() -> None:
@@ -154,3 +159,4 @@ def test_resolve_one_neighbor_name_match_pgc_mismatch() -> None:
     assert result.status == CrossmatchStatus.EXISTING
     assert result.triage_status == TriageStatus.PENDING
     assert result.matched_pgc == 100
+    assert result.pending_reason == PendingReason.PGC_MISMATCH

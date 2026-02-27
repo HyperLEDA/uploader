@@ -9,6 +9,7 @@ from app.crossmatch.models import (
     CrossmatchResult,
     CrossmatchStatus,
     Neighbor,
+    PendingReason,
     RecordEvidence,
     TriageStatus,
 )
@@ -74,7 +75,7 @@ def run_crossmatch(
                 raise RuntimeError(f"Table not found: {table_name}")
             table_id = row[0]
 
-        counts: dict[tuple[CrossmatchStatus, TriageStatus], int] = defaultdict(int)
+        counts: dict[tuple[CrossmatchStatus, TriageStatus, PendingReason | None], int] = defaultdict(int)
         total = 0
         last_id = ""
 
@@ -195,10 +196,12 @@ def run_crossmatch(
                     claimed_pgc_exists_in_layer2=claimed_pgc_exists,
                 )
                 result: CrossmatchResult = resolve(evidence)
-                counts[(result.status, result.triage_status)] += 1
+                counts[(result.status, result.triage_status, result.pending_reason)] += 1
                 total += 1
                 if print_pending and result.triage_status == TriageStatus.PENDING:
                     line = record_id
+                    if result.pending_reason is not None:
+                        line += " " + result.pending_reason.value
                     if result.colliding_pgcs:
                         line += " pgcs: " + ",".join(str(p) for p in sorted(result.colliding_pgcs))
                     elif result.matched_pgc is not None:
@@ -217,21 +220,37 @@ def run_crossmatch(
 
         click.echo(f"Total records: {total}\n")
         rows = [
-            (status.value, triage.value, counts[(status, triage)], pct(counts[(status, triage)]))
-            for status, triage in sorted(
-                counts.keys(),
-                key=lambda k: (-counts[k], k[0].value, k[1].value),
+            (
+                status.value,
+                triage.value,
+                reason.value if reason is not None else "",
+                counts[(status, triage, reason)],
+                pct(counts[(status, triage, reason)]),
             )
-            if counts[(status, triage)] > 0
+            for status, triage, reason in sorted(
+                counts.keys(),
+                key=lambda k: (-counts[k], k[0].value, k[1].value, k[2].value if k[2] is not None else ""),
+            )
+            if counts[(status, triage, reason)] > 0
         ]
         if not rows:
-            click.echo("Status   Triage   Count      %")
-            click.echo("-" * 26)
+            click.echo("Status   Triage   Reason                        Count      %")
+            click.echo("-" * 50)
             return
         col_status = max(len(r[0]) for r in rows)
         col_triage = max(len(r[1]) for r in rows)
-        col_count = max(len(str(r[2])) for r in rows)
-        click.echo(f"{'Status':<{col_status}}  {'Triage':<{col_triage}}  {'Count':>{col_count}}  {'%':>6}")
-        click.echo("-" * (col_status + col_triage + col_count + 14))
-        for status, triage, n, p in rows:
-            click.echo(f"{status:<{col_status}}  {triage:<{col_triage}}  {n:>{col_count}}  {p:>5.1f}%")
+        col_reason = max(len(r[2]) for r in rows) if rows else 0
+        col_reason = max(col_reason, len("Reason"))
+        col_count = max(len(str(r[3])) for r in rows)
+        header = (
+            f"{'Status':<{col_status}}  {'Triage':<{col_triage}}  "
+            f"{'Reason':<{col_reason}}  {'Count':>{col_count}}  {'%':>6}"
+        )
+        click.echo(header)
+        click.echo("-" * (col_status + col_triage + col_reason + col_count + 18))
+        for status, triage, reason_str, n, p in rows:
+            line = (
+                f"{status:<{col_status}}  {triage:<{col_triage}}  "
+                f"{reason_str:<{col_reason}}  {n:>{col_count}}  {p:>5.1f}%"
+            )
+            click.echo(line)
