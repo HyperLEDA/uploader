@@ -8,12 +8,15 @@ class Neighbor:
     ra: float
     dec: float
     distance_deg: float
+    design: str | None = None
 
 
 @dataclass
 class RecordEvidence:
     record_id: str
     neighbors: list[Neighbor]
+    record_designation: str | None = None
+    global_pgcs_with_same_design: frozenset[int] | None = None
 
 
 class CrossmatchStatus(enum.Enum):
@@ -33,3 +36,4 @@ class CrossmatchResult:
     status: CrossmatchStatus
     triage_status: TriageStatus
     matched_pgc: int | None
+    colliding_pgcs: list[int] | None = None

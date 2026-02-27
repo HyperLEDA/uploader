@@ -96,6 +96,7 @@ def upload_designations(
 @click.option("--table-name", required=True, help="Layer 0 table name")
 @click.option("--radius", required=True, type=float, help="Search radius in arcseconds")
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
+@click.option("--print-pending", is_flag=True, help="Print each record_id with pending triage status")
 @click.pass_context
 def crossmatch(
     ctx: click.Context,
@@ -103,12 +104,13 @@ def crossmatch(
     table_name: str,
     radius: float,
     batch_size: int,
+    print_pending: bool,
 ) -> None:
     endpoint = ctx.obj.endpoint
     user_quoted = quote_plus(user)
     password = quote_plus(os.environ.get("DB_PASSWORD", ""))
     dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
-    run_crossmatch_cmd(dsn, table_name, radius, batch_size)
+    run_crossmatch_cmd(dsn, table_name, radius, batch_size, print_pending=print_pending)
 
 
 @cli.command()
