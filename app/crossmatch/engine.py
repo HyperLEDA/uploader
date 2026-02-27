@@ -1,5 +1,6 @@
 import math
 from collections import defaultdict
+from typing import cast
 
 import click
 from psycopg import connect, sql
@@ -14,6 +15,18 @@ from app.crossmatch.models import (
     TriageStatus,
 )
 from app.crossmatch.resolver import resolve
+from app.gen.client import adminapi
+from app.gen.client.adminapi.api.default import set_crossmatch_results
+from app.gen.client.adminapi.models.collided_status_payload import CollidedStatusPayload
+from app.gen.client.adminapi.models.existing_status_payload import ExistingStatusPayload
+from app.gen.client.adminapi.models.new_status_payload import NewStatusPayload
+from app.gen.client.adminapi.models.record_triage_status import RecordTriageStatus
+from app.gen.client.adminapi.models.set_crossmatch_results_request import (
+    SetCrossmatchResultsRequest,
+)
+from app.gen.client.adminapi.models.statuses_payload import StatusesPayload
+from app.gen.client.adminapi.types import UNSET, Unset
+from app.upload import handle_call
 
 
 def angular_distance_deg(ra1: float, dec1: float, ra2: float, dec2: float) -> float:
@@ -27,9 +40,11 @@ def run_crossmatch(
     table_name: str,
     radius_arcsec: float,
     batch_size: int,
+    client: adminapi.AuthenticatedClient,
     *,
     pgc_column: str | None = None,
     print_pending: bool = False,
+    write: bool = False,
 ) -> None:
     radius_deg = radius_arcsec / 3600.0
 
@@ -161,6 +176,7 @@ def run_crossmatch(
                     if design not in design_to_pgcs:
                         design_to_pgcs[design] = frozenset()
 
+            batch_results: list[CrossmatchResult] = []
             for record_id, rec_data in by_record.items():
                 new_ra = rec_data["new_ra"]
                 new_dec = rec_data["new_dec"]
@@ -196,6 +212,7 @@ def run_crossmatch(
                     claimed_pgc_exists_in_layer2=claimed_pgc_exists,
                 )
                 result: CrossmatchResult = resolve(evidence)
+                batch_results.append(result)
                 counts[(result.status, result.triage_status, result.pending_reason)] += 1
                 total += 1
                 if print_pending and result.triage_status == TriageStatus.PENDING:
@@ -207,6 +224,68 @@ def run_crossmatch(
                     elif result.matched_pgc is not None:
                         line += " pgc: " + str(result.matched_pgc)
                     click.echo(line)
+
+            if write and client and batch_results:
+                new_record_ids_list: list[str] = []
+                new_triage_list: list[RecordTriageStatus] = []
+                existing_record_ids_list: list[str] = []
+                existing_pgc_list: list[int] = []
+                existing_triage_list: list[RecordTriageStatus] = []
+                collided_record_ids_list: list[str] = []
+                collided_matches_list: list[list[int]] = []
+                collided_triage_list: list[RecordTriageStatus] = []
+                for r in batch_results:
+                    triage = RecordTriageStatus(r.triage_status.value)
+                    if r.status == CrossmatchStatus.NEW:
+                        new_record_ids_list.append(r.record_id)
+                        new_triage_list.append(triage)
+                    elif r.status == CrossmatchStatus.EXISTING and r.matched_pgc is not None:
+                        existing_record_ids_list.append(r.record_id)
+                        existing_pgc_list.append(r.matched_pgc)
+                        existing_triage_list.append(triage)
+                    elif r.status == CrossmatchStatus.COLLIDING and r.colliding_pgcs is not None:
+                        collided_record_ids_list.append(r.record_id)
+                        collided_matches_list.append(sorted(r.colliding_pgcs))
+                        collided_triage_list.append(triage)
+                new_pl = (
+                    NewStatusPayload(
+                        record_ids=new_record_ids_list,
+                        triage_statuses=cast("list[RecordTriageStatus | None] | Unset", new_triage_list),
+                    )
+                    if new_record_ids_list
+                    else None
+                )
+                existing_pl = (
+                    ExistingStatusPayload(
+                        record_ids=existing_record_ids_list,
+                        pgcs=existing_pgc_list,
+                        triage_statuses=cast("list[RecordTriageStatus | None] | Unset", existing_triage_list),
+                    )
+                    if existing_record_ids_list
+                    else None
+                )
+                collided_pl = (
+                    CollidedStatusPayload(
+                        record_ids=collided_record_ids_list,
+                        possible_matches=collided_matches_list,
+                        triage_statuses=cast("list[RecordTriageStatus | None] | Unset", collided_triage_list),
+                    )
+                    if collided_record_ids_list
+                    else None
+                )
+                if new_pl is not None or existing_pl is not None or collided_pl is not None:
+                    handle_call(
+                        set_crossmatch_results.sync_detailed(
+                            client=client,
+                            body=SetCrossmatchResultsRequest(
+                                statuses=StatusesPayload(
+                                    new=new_pl if new_pl is not None else UNSET,
+                                    existing=existing_pl if existing_pl is not None else UNSET,
+                                    collided=collided_pl if collided_pl is not None else UNSET,
+                                ),
+                            ),
+                        )
+                    )
 
             log.logger.debug(
                 "processed batch",

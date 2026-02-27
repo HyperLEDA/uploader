@@ -102,6 +102,11 @@ def upload_designations(
     help="Column in the raw data table containing the claimed PGC; if omitted, PGC matching is disabled",
 )
 @click.option("--print-pending", is_flag=True, help="Print each record_id with pending triage status")
+@click.option(
+    "--write",
+    is_flag=True,
+    help="Write crossmatch results to the API; default is to only print statistics",
+)
 @click.pass_context
 def crossmatch(
     ctx: click.Context,
@@ -111,6 +116,7 @@ def crossmatch(
     batch_size: int,
     pgc_column: str | None,
     print_pending: bool,
+    write: bool,
 ) -> None:
     endpoint = ctx.obj.endpoint
     user_quoted = quote_plus(user)
@@ -121,8 +127,10 @@ def crossmatch(
         table_name,
         radius,
         batch_size,
+        ctx.obj.hyperleda_client,
         pgc_column=pgc_column,
         print_pending=print_pending,
+        write=write,
     )
 
 
