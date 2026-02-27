@@ -27,6 +27,7 @@ def run_crossmatch(
     radius_arcsec: float,
     batch_size: int,
     *,
+    pgc_column: str | None = None,
     print_pending: bool = False,
 ) -> None:
     radius_deg = radius_arcsec / 3600.0
@@ -117,6 +118,30 @@ def run_crossmatch(
                 if existing_pgc is not None and existing_ra is not None and existing_dec is not None:
                     rec_data["candidates"].append((existing_ra, existing_dec, existing_pgc, existing_design))
 
+            record_pgc_by_id: dict[str, int | None] = {}
+            if pgc_column is not None:
+                raw_pgc_query = sql.SQL(
+                    "SELECT hyperleda_internal_id, {col} FROM rawdata.{t} WHERE hyperleda_internal_id = ANY(%s)"
+                ).format(
+                    col=sql.Identifier(pgc_column),
+                    t=sql.Identifier(table_name),
+                )
+                batch_ids = list(by_record.keys())
+                with conn.cursor() as cur:
+                    cur.execute(raw_pgc_query, (batch_ids,))
+                    for record_id, pgc_val in cur.fetchall():
+                        record_pgc_by_id[record_id] = int(pgc_val) if pgc_val is not None else None
+
+            claimed_pgcs = {p for p in record_pgc_by_id.values() if p is not None}
+            existing_pgcs: set[int] = set()
+            if claimed_pgcs:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pgc FROM layer2.icrs WHERE pgc = ANY(%s)",
+                        (list(claimed_pgcs),),
+                    )
+                    existing_pgcs = {row[0] for row in cur.fetchall()}
+
             designations_in_batch = {
                 rec_data["new_design"] for rec_data in by_record.values() if rec_data["new_design"] is not None
             }
@@ -159,11 +184,15 @@ def run_crossmatch(
                                     design=existing_design,
                                 ),
                             )
+                record_pgc = record_pgc_by_id.get(record_id) if record_pgc_by_id else None
+                claimed_pgc_exists = record_pgc is not None and record_pgc in existing_pgcs
                 evidence = RecordEvidence(
                     record_id=record_id,
                     neighbors=neighbors,
                     record_designation=record_designation,
                     global_pgcs_with_same_design=global_pgcs or None,
+                    record_pgc=record_pgc,
+                    claimed_pgc_exists_in_layer2=claimed_pgc_exists,
                 )
                 result: CrossmatchResult = resolve(evidence)
                 counts[(result.status, result.triage_status)] += 1

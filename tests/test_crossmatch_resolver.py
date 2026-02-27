@@ -101,3 +101,56 @@ def test_resolve_name_match_outside_circle_ambiguous_multiple_pgcs() -> None:
     assert result.status == CrossmatchStatus.NEW
     assert result.triage_status == TriageStatus.RESOLVED
     assert result.matched_pgc is None
+
+
+def test_resolve_one_neighbor_matching_pgc() -> None:
+    evidence = RecordEvidence(
+        record_id="rec-8",
+        neighbors=[Neighbor(pgc=42, ra=10.0, dec=20.0, distance_deg=0.001)],
+        record_pgc=42,
+        claimed_pgc_exists_in_layer2=True,
+    )
+    result = resolve(evidence)
+    assert result.status == CrossmatchStatus.EXISTING
+    assert result.triage_status == TriageStatus.RESOLVED
+    assert result.matched_pgc == 42
+
+
+def test_resolve_one_neighbor_different_pgc() -> None:
+    evidence = RecordEvidence(
+        record_id="rec-9",
+        neighbors=[Neighbor(pgc=100, ra=10.0, dec=20.0, distance_deg=0.001)],
+        record_pgc=42,
+        claimed_pgc_exists_in_layer2=True,
+    )
+    result = resolve(evidence)
+    assert result.status == CrossmatchStatus.EXISTING
+    assert result.triage_status == TriageStatus.PENDING
+    assert result.matched_pgc == 100
+
+
+def test_resolve_no_neighbors_claimed_pgc_exists() -> None:
+    evidence = RecordEvidence(
+        record_id="rec-10",
+        neighbors=[],
+        record_pgc=42,
+        claimed_pgc_exists_in_layer2=True,
+    )
+    result = resolve(evidence)
+    assert result.status == CrossmatchStatus.EXISTING
+    assert result.triage_status == TriageStatus.PENDING
+    assert result.matched_pgc == 42
+
+
+def test_resolve_one_neighbor_name_match_pgc_mismatch() -> None:
+    evidence = RecordEvidence(
+        record_id="rec-11",
+        neighbors=[Neighbor(pgc=100, ra=10.0, dec=20.0, distance_deg=0.001, design="NGC 123")],
+        record_designation="NGC 123",
+        record_pgc=42,
+        claimed_pgc_exists_in_layer2=True,
+    )
+    result = resolve(evidence)
+    assert result.status == CrossmatchStatus.EXISTING
+    assert result.triage_status == TriageStatus.PENDING
+    assert result.matched_pgc == 100
