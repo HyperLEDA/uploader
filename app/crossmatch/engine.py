@@ -56,7 +56,7 @@ def run_crossmatch(
             AND ST_DWithin(
                 ST_MakePoint(nc.dec, nc.ra - 180),
                 ST_MakePoint(l2.dec, l2.ra - 180),
-                %s
+                %s / GREATEST(COS(RADIANS(nc.dec)), 0.01)
             )
         LEFT JOIN layer2.designation l2_desig ON l2.pgc = l2_desig.pgc
         ORDER BY b.id ASC
