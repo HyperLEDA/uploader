@@ -9,6 +9,7 @@ import click
 import structlog
 
 import app
+from app.crossmatch import run_crossmatch as run_crossmatch_cmd
 from app.designations import upload_designations as run_upload_designations
 from app.gen.client import adminapi
 
@@ -61,7 +62,9 @@ def cli(ctx, log_level: str, endpoint: str) -> None:
 @click.option("--table-name", required=True, help="Rawdata table name")
 @click.option("--column-name", required=True, help="Column containing the name")
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
-@click.option("--dry-run", is_flag=True, help="Do not upload; only print results and statistics")
+@click.option(
+    "--write", is_flag=True, help="Upload results to the API; default is to only print results and statistics"
+)
 @click.option("--print-unmatched", is_flag=True, help="Print each unmatched object name")
 @click.pass_context
 def upload_designations(
@@ -70,7 +73,7 @@ def upload_designations(
     table_name: str,
     column_name: str,
     batch_size: int,
-    dry_run: bool,
+    write: bool,
     print_unmatched: bool,
 ) -> None:
     endpoint = ctx.obj.endpoint
@@ -83,9 +86,29 @@ def upload_designations(
         column_name,
         batch_size,
         ctx.obj.hyperleda_client,
-        dry_run=dry_run,
+        write=write,
         print_unmatched=print_unmatched,
     )
+
+
+@cli.command("crossmatch")
+@click.option("--user", required=True, help="Database user for the connection")
+@click.option("--table-name", required=True, help="Layer 0 table name")
+@click.option("--radius", required=True, type=float, help="Search radius in arcseconds")
+@click.option("--batch-size", default=10000, type=int, help="Rows per batch")
+@click.pass_context
+def crossmatch(
+    ctx: click.Context,
+    user: str,
+    table_name: str,
+    radius: float,
+    batch_size: int,
+) -> None:
+    endpoint = ctx.obj.endpoint
+    user_quoted = quote_plus(user)
+    password = quote_plus(os.environ.get("DB_PASSWORD", ""))
+    dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
+    run_crossmatch_cmd(dsn, table_name, radius, batch_size)
 
 
 @cli.command()

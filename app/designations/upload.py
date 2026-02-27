@@ -18,7 +18,7 @@ def upload_designations(
     batch_size: int,
     client: adminapi.AuthenticatedClient,
     *,
-    dry_run: bool = False,
+    write: bool = False,
     print_unmatched: bool = False,
 ) -> None:
     table_parts = table_name.split(".", 1)
@@ -74,7 +74,7 @@ def upload_designations(
                 batch_ids.append(internal_id)
                 batch_names.append([transformed])
 
-            if not dry_run and batch_ids:
+            if write and batch_ids:
                 handle_call(
                     save_structured_data.sync_detailed(
                         client=client,
@@ -110,10 +110,16 @@ def upload_designations(
     def pct(n: int) -> float:
         return (100.0 * n / total) if total else 0.0
 
-    click.echo(f"Total names: {total}")
-    click.echo("Rule match counts (absolute / %):")
-    for name in sorted(rule_counts.keys(), key=lambda n: (-rule_counts[n], n)):
-        n = rule_counts[name]
-        if n > 0:
-            click.echo(f"  {name}: {n} ({pct(n):.1f}%)")
-    click.echo(f"  (no rule matched): {unmatched} ({pct(unmatched):.1f}%)")
+    click.echo(f"Total names: {total}\n")
+    rows = [
+        (name, rule_counts[name], pct(rule_counts[name]))
+        for name in sorted(rule_counts.keys(), key=lambda n: (-rule_counts[n], n))
+        if rule_counts[name] > 0
+    ]
+    rows.append(("(no rule matched)", unmatched, pct(unmatched)))
+    col_rule = max(len(r[0]) for r in rows)
+    col_count = max(len(str(r[1])) for r in rows)
+    click.echo(f"{'Rule':<{col_rule}}  {'Count':>{col_count}}  {'%':>6}")
+    click.echo("-" * (col_rule + col_count + 11))
+    for name, n, p in rows:
+        click.echo(f"{name:<{col_rule}}  {n:>{col_count}}  {p:>5.1f}%")
