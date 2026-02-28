@@ -180,6 +180,7 @@ auto_proceed_descr = "If set, will automatically accept all suggested defaults."
 @click.option("--pub-year", type=int, default=0)
 @click.option("--table-type", help=table_type_descr, default="")
 @click.option("--auto-proceed", "-y", default=False, is_flag=True)
+@click.option("--dry-run", is_flag=True, help="Show table schema and row count without uploading")
 @click.argument("plugin-name", type=str)
 @click.pass_context
 def upload(
@@ -193,6 +194,7 @@ def upload(
     pub_year: int,
     table_type: str,
     auto_proceed: bool,
+    dry_run: bool,
     plugin_name: str,
 ) -> None:
     plugins = app.discover_plugins(plugin_dir)
@@ -320,6 +322,7 @@ def upload(
             pub_authors,
             pub_year,
             table_type,
+            dry_run=dry_run,
         )
 
 
