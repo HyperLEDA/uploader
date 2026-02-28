@@ -3,6 +3,7 @@ from psycopg import connect, sql
 
 from app import log
 from app.designations.rules import RULES
+from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
@@ -110,16 +111,14 @@ def upload_designations(
     def pct(n: int) -> float:
         return (100.0 * n / total) if total else 0.0
 
-    click.echo(f"Total names: {total}\n")
-    rows = [
+    table_rows = [
         (name, rule_counts[name], pct(rule_counts[name]))
         for name in sorted(rule_counts.keys(), key=lambda n: (-rule_counts[n], n))
         if rule_counts[name] > 0
     ]
-    rows.append(("(no rule matched)", unmatched, pct(unmatched)))
-    col_rule = max(len(r[0]) for r in rows)
-    col_count = max(len(str(r[1])) for r in rows)
-    click.echo(f"{'Rule':<{col_rule}}  {'Count':>{col_count}}  {'%':>6}")
-    click.echo("-" * (col_rule + col_count + 11))
-    for name, n, p in rows:
-        click.echo(f"{name:<{col_rule}}  {n:>{col_count}}  {p:>5.1f}%")
+    table_rows.append(("(no rule matched)", unmatched, pct(unmatched)))
+    print_table(
+        ("Rule", "Count", "%"),
+        table_rows,
+        title=f"Total names: {total}\n",
+    )
