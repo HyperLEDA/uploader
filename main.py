@@ -12,6 +12,7 @@ import app
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
 from app.designations import upload_designations as run_upload_designations
 from app.gen.client import adminapi
+from app.icrs import upload_icrs as run_upload_icrs
 
 env_map = {
     "dev": "http://localhost:8080",
@@ -88,6 +89,71 @@ def upload_designations(
         ctx.obj.hyperleda_client,
         write=write,
         print_unmatched=print_unmatched,
+    )
+
+
+@cli.command("upload-icrs")
+@click.option("--user", required=True, help="Database user for the connection")
+@click.option("--table-name", required=True, help="Rawdata table name")
+@click.option("--ra-column", required=True, help="Column containing right ascension")
+@click.option("--dec-column", required=True, help="Column containing declination")
+@click.option("--e-ra-column", help="Column containing RA error (omit if using --ra-error)")
+@click.option("--e-dec-column", help="Column containing Dec error (omit if using --dec-error)")
+@click.option("--ra-error", type=float, help="Single RA error for all rows (requires --ra-error-unit)")
+@click.option("--ra-error-unit", help="Unit for --ra-error (e.g. arcsec)")
+@click.option("--dec-error", type=float, help="Single Dec error for all rows (requires --dec-error-unit)")
+@click.option("--dec-error-unit", help="Unit for --dec-error (e.g. arcsec)")
+@click.option("--batch-size", default=10000, type=int, help="Rows per batch")
+@click.option(
+    "--write",
+    is_flag=True,
+    help="Upload results to the API; default is to only print statistics (dry-run)",
+)
+@click.pass_context
+def upload_icrs(
+    ctx: click.Context,
+    user: str,
+    table_name: str,
+    ra_column: str,
+    dec_column: str,
+    e_ra_column: str | None,
+    e_dec_column: str | None,
+    ra_error: float | None,
+    ra_error_unit: str | None,
+    dec_error: float | None,
+    dec_error_unit: str | None,
+    batch_size: int,
+    write: bool,
+) -> None:
+    use_cli_errors = (ra_error is not None, ra_error_unit, dec_error is not None, dec_error_unit)
+    if all(use_cli_errors):
+        if e_ra_column or e_dec_column:
+            raise click.UsageError("Do not set --e-ra-column/--e-dec-column when using --ra-error/--dec-error")
+    elif any(use_cli_errors):
+        raise click.UsageError(
+            "Set all of --ra-error, --ra-error-unit, --dec-error, --dec-error-unit to use fixed errors"
+        )
+    else:
+        if not e_ra_column or not e_dec_column:
+            raise click.UsageError("Set --e-ra-column and --e-dec-column, or use --ra-error/--dec-error")
+    endpoint = ctx.obj.endpoint
+    user_quoted = quote_plus(user)
+    password = quote_plus(os.environ.get("DB_PASSWORD", ""))
+    dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
+    run_upload_icrs(
+        dsn,
+        table_name,
+        ra_column,
+        dec_column,
+        batch_size,
+        ctx.obj.hyperleda_client,
+        write=write,
+        e_ra_column=e_ra_column,
+        e_dec_column=e_dec_column,
+        ra_error=ra_error,
+        ra_error_unit=ra_error_unit,
+        dec_error=dec_error,
+        dec_error_unit=dec_error_unit,
     )
 
 

@@ -22,21 +22,14 @@ def upload_designations(
     write: bool = False,
     print_unmatched: bool = False,
 ) -> None:
-    table_parts = table_name.split(".", 1)
-    quoted_table = (
-        sql.SQL(".").join(sql.Identifier(p) for p in table_parts)
-        if len(table_parts) > 1
-        else sql.Identifier(table_name)
-    )
     id_col = sql.Identifier("hyperleda_internal_id")
     name_col = sql.Identifier(column_name)
+    table = sql.SQL("rawdata.") + sql.Identifier(table_name)
 
-    query = sql.SQL(
-        "SELECT {id_col}, {name_col} FROM rawdata.{t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s"
-    ).format(
+    query = sql.SQL("SELECT {id_col}, {name_col} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
         id_col=id_col,
         name_col=name_col,
-        t=quoted_table,
+        t=table,
     )
 
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}
