@@ -14,7 +14,7 @@ from app.crossmatch.models import (
     RecordEvidence,
     TriageStatus,
 )
-from app.crossmatch.resolver import resolve
+from app.crossmatch.resolver import Resolver
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import set_crossmatch_results
@@ -172,10 +172,11 @@ def _resolve_batch(
     record_pgc_by_id: dict[str, int | None],
     existing_pgcs: set[int],
     design_to_pgcs: dict[str, frozenset[int]],
-    radius_deg: float,
+    resolver: Resolver,
     print_pending: bool,
 ) -> list[CrossmatchResult]:
     results: list[CrossmatchResult] = []
+    radius_deg = resolver.search_radius_deg
     for record_id, rec_data in by_record.items():
         new_ra = rec_data["new_ra"]
         new_dec = rec_data["new_dec"]
@@ -208,7 +209,7 @@ def _resolve_batch(
             record_pgc=record_pgc,
             claimed_pgc_exists_in_layer2=claimed_pgc_exists,
         )
-        result = resolve(evidence)
+        result = resolver.resolve(evidence)
         results.append(result)
         if print_pending and result.triage_status == TriageStatus.PENDING:
             line = record_id
@@ -291,15 +292,15 @@ def _write_crossmatch_results(
 def run_crossmatch(
     dsn: str,
     table_name: str,
-    radius_arcsec: float,
     batch_size: int,
     client: adminapi.AuthenticatedClient,
+    resolver: Resolver,
     *,
-    pgc_column: str | None = None,
     print_pending: bool = False,
     write: bool = False,
 ) -> None:
-    radius_deg = radius_arcsec / 3600.0
+    radius_deg = resolver.search_radius_deg
+    pgc_column = resolver.pgc_column
 
     with connect(dsn) as conn:
         with conn.cursor() as cur:
@@ -327,7 +328,7 @@ def run_crossmatch(
                 record_pgc_by_id,
                 existing_pgcs,
                 design_to_pgcs,
-                radius_deg,
+                resolver,
                 print_pending,
             )
 

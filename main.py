@@ -10,6 +10,7 @@ import structlog
 
 import app
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
+from app.crossmatch.resolver import DefaultResolver, TwoRadiiResolver
 from app.designations import upload_designations as run_upload_designations
 from app.gen.client import adminapi
 from app.icrs import upload_icrs as run_upload_icrs
@@ -157,16 +158,10 @@ def upload_icrs(
     )
 
 
-@cli.command("crossmatch")
+@cli.group("crossmatch")
 @click.option("--user", required=True, help="Database user for the connection")
 @click.option("--table-name", required=True, help="Layer 0 table name")
-@click.option("--radius", required=True, type=float, help="Search radius in arcseconds")
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
-@click.option(
-    "--pgc-column",
-    default=None,
-    help="Column in the raw data table containing the claimed PGC; if omitted, PGC matching is disabled",
-)
 @click.option("--print-pending", is_flag=True, help="Print each record_id with pending triage status")
 @click.option(
     "--write",
@@ -178,9 +173,7 @@ def crossmatch(
     ctx: click.Context,
     user: str,
     table_name: str,
-    radius: float,
     batch_size: int,
-    pgc_column: str | None,
     print_pending: bool,
     write: bool,
 ) -> None:
@@ -188,16 +181,44 @@ def crossmatch(
     user_quoted = quote_plus(user)
     password = quote_plus(os.environ.get("DB_PASSWORD", ""))
     dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
-    run_crossmatch_cmd(
-        dsn,
-        table_name,
-        radius,
-        batch_size,
-        ctx.obj.hyperleda_client,
-        pgc_column=pgc_column,
-        print_pending=print_pending,
-        write=write,
-    )
+    ctx.obj.crossmatch_common = {
+        "dsn": dsn,
+        "table_name": table_name,
+        "batch_size": batch_size,
+        "client": ctx.obj.hyperleda_client,
+        "print_pending": print_pending,
+        "write": write,
+    }
+
+
+@crossmatch.command("default")
+@click.option("--radius", required=True, type=float, help="Search radius in arcseconds")
+@click.option(
+    "--pgc-column",
+    default=None,
+    help="Column in the raw data table containing the claimed PGC; if omitted, PGC matching is disabled",
+)
+@click.pass_context
+def crossmatch_default(
+    ctx: click.Context,
+    radius: float,
+    pgc_column: str | None,
+) -> None:
+    resolver = DefaultResolver(radius_deg=radius / 3600.0, pgc_column=pgc_column)
+    run_crossmatch_cmd(**ctx.obj.crossmatch_common, resolver=resolver)
+
+
+@crossmatch.command("two-radii")
+@click.option("--r1", required=True, type=float, help="Inner radius in arcseconds")
+@click.option("--r2", required=True, type=float, help="Outer radius in arcseconds")
+@click.pass_context
+def crossmatch_two_radii(
+    ctx: click.Context,
+    r1: float,
+    r2: float,
+) -> None:
+    resolver = TwoRadiiResolver(r1_deg=r1 / 3600.0, r2_deg=r2 / 3600.0)
+    run_crossmatch_cmd(**ctx.obj.crossmatch_common, resolver=resolver)
 
 
 @cli.command()

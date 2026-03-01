@@ -29,6 +29,8 @@ Overview:
       → NEW, RESOLVED.
 """
 
+from typing import Protocol
+
 from app.crossmatch.models import (
     CrossmatchResult,
     CrossmatchStatus,
@@ -137,3 +139,113 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
         triage_status=TriageStatus.RESOLVED,
         matched_pgc=None,
     )
+
+
+def resolve_by_radius(
+    evidence: RecordEvidence,
+    r1_deg: float,
+    r2_deg: float,
+) -> CrossmatchResult:
+    """Coordinate-only resolver with two radii r1 < r2.
+
+    Caller must supply neighbors filtered to distance <= r2_deg.
+    - Multiple in inner (<= r1) → collided, manual (PENDING).
+    - Single in inner, others in outer (r1, r2] → existing, manual (PENDING).
+    - Single in inner, none in outer → existing, resolved.
+    - Single in outer only → existing, manual (PENDING).
+    - No objects in outer circle → new, resolved.
+    """
+    inner = [n for n in evidence.neighbors if n.distance_deg <= r1_deg]
+    outer = [n for n in evidence.neighbors if r1_deg < n.distance_deg <= r2_deg]
+
+    if len(inner) > 1:
+        return CrossmatchResult(
+            record_id=evidence.record_id,
+            status=CrossmatchStatus.COLLIDING,
+            triage_status=TriageStatus.PENDING,
+            matched_pgc=None,
+            colliding_pgcs=[n.pgc for n in inner],
+            pending_reason=PendingReason.MULTIPLE_IN_INNER_RADIUS,
+        )
+    if len(inner) == 1 and len(outer) >= 1:
+        return CrossmatchResult(
+            record_id=evidence.record_id,
+            status=CrossmatchStatus.EXISTING,
+            triage_status=TriageStatus.PENDING,
+            matched_pgc=inner[0].pgc,
+            pending_reason=PendingReason.SINGLE_IN_INNER_WITH_OUTER_NEIGHBORS,
+        )
+    if len(inner) == 1 and len(outer) == 0:
+        return CrossmatchResult(
+            record_id=evidence.record_id,
+            status=CrossmatchStatus.EXISTING,
+            triage_status=TriageStatus.RESOLVED,
+            matched_pgc=inner[0].pgc,
+        )
+    if len(inner) == 0 and len(outer) == 1:
+        return CrossmatchResult(
+            record_id=evidence.record_id,
+            status=CrossmatchStatus.EXISTING,
+            triage_status=TriageStatus.PENDING,
+            matched_pgc=outer[0].pgc,
+            pending_reason=PendingReason.SINGLE_IN_OUTER_RADIUS_ONLY,
+        )
+    if len(inner) == 0 and len(outer) > 1:
+        return CrossmatchResult(
+            record_id=evidence.record_id,
+            status=CrossmatchStatus.COLLIDING,
+            triage_status=TriageStatus.PENDING,
+            matched_pgc=None,
+            colliding_pgcs=[n.pgc for n in outer],
+            pending_reason=PendingReason.MULTIPLE_IN_OUTER_RADIUS,
+        )
+    return CrossmatchResult(
+        record_id=evidence.record_id,
+        status=CrossmatchStatus.NEW,
+        triage_status=TriageStatus.RESOLVED,
+        matched_pgc=None,
+    )
+
+
+class Resolver(Protocol):
+    @property
+    def search_radius_deg(self) -> float: ...
+
+    @property
+    def pgc_column(self) -> str | None: ...
+
+    def resolve(self, evidence: RecordEvidence) -> CrossmatchResult: ...
+
+
+class DefaultResolver:
+    def __init__(self, radius_deg: float, pgc_column: str | None = None) -> None:
+        self._radius_deg = radius_deg
+        self._pgc_column = pgc_column
+
+    @property
+    def search_radius_deg(self) -> float:
+        return self._radius_deg
+
+    @property
+    def pgc_column(self) -> str | None:
+        return self._pgc_column
+
+    def resolve(self, evidence: RecordEvidence) -> CrossmatchResult:
+        return resolve(evidence)
+
+
+class TwoRadiiResolver:
+    def __init__(self, r1_deg: float, r2_deg: float) -> None:
+        self._r1_deg = r1_deg
+        self._r2_deg = r2_deg
+
+    @property
+    def search_radius_deg(self) -> float:
+        return self._r2_deg
+
+    @property
+    def pgc_column(self) -> str | None:
+        return None
+
+    def resolve(self, evidence: RecordEvidence) -> CrossmatchResult:
+        return resolve_by_radius(evidence, self._r1_deg, self._r2_deg)
