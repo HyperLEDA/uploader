@@ -61,7 +61,9 @@ def cli(ctx, log_level: str, endpoint: str) -> None:
     )
 
 
-@cli.group("upload-structured")
+@cli.group(
+    "upload-structured", help="Normalize data from a raw table and upload it to the structured level of HyperLEDA."
+)
 @click.option("--user", required=True, help="Database user for the connection")
 @click.option("--table-name", required=True, help="Rawdata table name")
 @click.pass_context
@@ -81,7 +83,7 @@ def upload_structured(ctx: click.Context, user: str, table_name: str) -> None:
     }
 
 
-@upload_structured.command("designation")
+@upload_structured.command("designation", help="Upload object designations (names) to the structured level.")
 @click.option("--column-name", required=True, help="Column containing the name")
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
 @click.option(
@@ -108,7 +110,7 @@ def upload_structured_designation(
     )
 
 
-@upload_structured.command("icrs")
+@upload_structured.command("icrs", help="Upload ICRS coordinates to the structured level.")
 @click.option("--ra-column", required=True, help="Column containing right ascension")
 @click.option("--dec-column", required=True, help="Column containing declination")
 @click.option("--ra-error", required=True, type=float, help="RA error for all rows")
@@ -149,7 +151,7 @@ def upload_structured_icrs(
     )
 
 
-@upload_structured.command("redshift")
+@upload_structured.command("redshift", help="Upload redshift measurements to the structured level.")
 @click.option(
     "--z-column",
     required=True,
@@ -187,7 +189,7 @@ def upload_structured_redshift(
     )
 
 
-@cli.group("crossmatch")
+@cli.group("crossmatch", help="Cross-identify objects in a raw table against existing entries in the database.")
 @click.option("--user", required=True, help="Database user for the connection")
 @click.option("--table-name", required=True, help="Layer 0 table name")
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
@@ -220,7 +222,7 @@ def crossmatch(
     }
 
 
-@crossmatch.command("default")
+@crossmatch.command("default", help="Cross-identify using a single search radius.")
 @click.option("--radius", required=True, type=float, help="Search radius in arcseconds")
 @click.option(
     "--pgc-column",
@@ -237,7 +239,7 @@ def crossmatch_default(
     run_crossmatch_cmd(**ctx.obj.crossmatch_common, resolver=resolver)
 
 
-@crossmatch.command("two-radii")
+@crossmatch.command("two-radii", help="Cross-identify using inner and outer search radii.")
 @click.option("--r1", required=True, type=float, help="Inner radius in arcseconds")
 @click.option("--r2", required=True, type=float, help="Outer radius in arcseconds")
 @click.pass_context
@@ -250,12 +252,9 @@ def crossmatch_two_radii(
     run_crossmatch_cmd(**ctx.obj.crossmatch_common, resolver=resolver)
 
 
-@cli.command()
+@cli.command(help="Load and validate all upload plugins from the plugin directory.")
 @click.option("--plugin-dir", default="plugins", type=str)
 def discover(plugin_dir: str) -> None:
-    """
-    Loads and checks all plugins for uploading. Plugins are .py files in the directory from `--plugin-dir` option.
-    """
     app.discover_plugins(plugin_dir)
 
 
@@ -281,11 +280,12 @@ auto_proceed_descr = "If set, will automatically accept all suggested defaults."
 
 
 @cli.command(
+    help="Upload a raw data table to HyperLEDA using a plugin.",
     context_settings={
         "ignore_unknown_options": True,
         "allow_extra_args": True,
         "show_default": True,
-    }
+    },
 )
 @click.option("--plugin-dir", default="plugins", type=str)
 @click.option("--table-name", help=table_name_descr, default="")
