@@ -1,3 +1,4 @@
+import getpass
 import inspect
 import os
 from collections.abc import Callable
@@ -14,6 +15,7 @@ from app.crossmatch.resolver import DefaultResolver, TwoRadiiResolver
 from app.designations import upload_designations as run_upload_designations
 from app.gen.client import adminapi
 from app.icrs import upload_icrs as run_upload_icrs
+from app.redshift import upload_redshift as run_upload_redshift
 
 env_map = {
     "dev": "http://localhost:8080",
@@ -59,9 +61,27 @@ def cli(ctx, log_level: str, endpoint: str) -> None:
     )
 
 
-@cli.command("upload-designations")
+@cli.group("upload-structured")
 @click.option("--user", required=True, help="Database user for the connection")
 @click.option("--table-name", required=True, help="Rawdata table name")
+@click.pass_context
+def upload_structured(ctx: click.Context, user: str, table_name: str) -> None:
+    endpoint = ctx.obj.endpoint
+    user_quoted = quote_plus(user)
+    password_raw = os.environ.get("DB_PASSWORD")
+    if not password_raw:
+        password_raw = getpass.getpass("Database password: ")
+    password = quote_plus(password_raw)
+
+    dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
+    ctx.obj.upload_structured_common = {
+        "dsn": dsn,
+        "table_name": table_name,
+        "client": ctx.obj.hyperleda_client,
+    }
+
+
+@upload_structured.command("designation")
 @click.option("--column-name", required=True, help="Column containing the name")
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
 @click.option(
@@ -69,33 +89,26 @@ def cli(ctx, log_level: str, endpoint: str) -> None:
 )
 @click.option("--print-unmatched", is_flag=True, help="Print each unmatched object name")
 @click.pass_context
-def upload_designations(
+def upload_structured_designation(
     ctx: click.Context,
-    user: str,
-    table_name: str,
     column_name: str,
     batch_size: int,
     write: bool,
     print_unmatched: bool,
 ) -> None:
-    endpoint = ctx.obj.endpoint
-    user_quoted = quote_plus(user)
-    password = quote_plus(os.environ.get("DB_PASSWORD", ""))
-    dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
+    common = ctx.obj.upload_structured_common
     run_upload_designations(
-        dsn,
-        table_name,
+        common["dsn"],
+        common["table_name"],
         column_name,
         batch_size,
-        ctx.obj.hyperleda_client,
+        common["client"],
         write=write,
         print_unmatched=print_unmatched,
     )
 
 
-@cli.command("upload-icrs")
-@click.option("--user", required=True, help="Database user for the connection")
-@click.option("--table-name", required=True, help="Rawdata table name")
+@upload_structured.command("icrs")
 @click.option("--ra-column", required=True, help="Column containing right ascension")
 @click.option("--dec-column", required=True, help="Column containing declination")
 @click.option("--ra-error", required=True, type=float, help="RA error for all rows")
@@ -109,10 +122,8 @@ def upload_designations(
     help="Upload results to the API; default is to only print statistics (dry-run)",
 )
 @click.pass_context
-def upload_icrs(
+def upload_structured_icrs(
     ctx: click.Context,
-    user: str,
-    table_name: str,
     ra_column: str,
     dec_column: str,
     ra_error: float,
@@ -122,22 +133,57 @@ def upload_icrs(
     batch_size: int,
     write: bool,
 ) -> None:
-    endpoint = ctx.obj.endpoint
-    user_quoted = quote_plus(user)
-    password = quote_plus(os.environ.get("DB_PASSWORD", ""))
-    dsn = db_dsn_map[endpoint].format(user=user_quoted, password=password)
+    common = ctx.obj.upload_structured_common
     run_upload_icrs(
-        dsn,
-        table_name,
+        common["dsn"],
+        common["table_name"],
         ra_column,
         dec_column,
         batch_size,
-        ctx.obj.hyperleda_client,
+        common["client"],
         write=write,
         ra_error=ra_error,
         ra_error_unit=ra_error_unit,
         dec_error=dec_error,
         dec_error_unit=dec_error_unit,
+    )
+
+
+@upload_structured.command("redshift")
+@click.option(
+    "--z-column",
+    required=True,
+    help="Column with redshift z",
+)
+@click.option(
+    "--z-error",
+    required=True,
+    type=float,
+    help="Fixed error for z",
+)
+@click.option("--batch-size", default=10000, type=int, help="Rows per batch")
+@click.option(
+    "--write",
+    is_flag=True,
+    help="Upload results to the API; default is to only print statistics (dry-run)",
+)
+@click.pass_context
+def upload_structured_redshift(
+    ctx: click.Context,
+    z_column: str,
+    z_error: float,
+    batch_size: int,
+    write: bool,
+) -> None:
+    common = ctx.obj.upload_structured_common
+    run_upload_redshift(
+        common["dsn"],
+        common["table_name"],
+        z_column,
+        batch_size,
+        common["client"],
+        write=write,
+        z_error=z_error,
     )
 
 

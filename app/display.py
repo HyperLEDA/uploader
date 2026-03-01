@@ -16,7 +16,7 @@ def print_table(
         return
 
     def cell_str(val: str | int | float, col_index: int) -> str:
-        if percent_last_column and col_index == ncols - 1:
+        if percent_last_column and col_index == ncols - 1 and not isinstance(val, str):
             return f"{float(val):>5.1f}%"
         return str(val)
 
