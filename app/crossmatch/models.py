@@ -9,6 +9,7 @@ class Neighbor:
     dec: float
     distance_deg: float
     design: str | None = None
+    redshift: float | None = None
 
 
 @dataclass
@@ -19,6 +20,7 @@ class RecordEvidence:
     global_pgcs_with_same_design: frozenset[int] | None = None
     record_pgc: int | None = None
     claimed_pgc_exists_in_layer2: bool = False
+    record_redshift: float | None = None
 
 
 class CrossmatchStatus(enum.Enum):
@@ -45,6 +47,7 @@ class PendingReason(enum.Enum):
     MULTIPLE_IN_OUTER_RADIUS = "MULTIPLE_IN_OUTER_RADIUS"
     SINGLE_IN_INNER_WITH_OUTER_NEIGHBORS = "SINGLE_IN_INNER_WITH_OUTER_NEIGHBORS"
     SINGLE_IN_OUTER_RADIUS_ONLY = "SINGLE_IN_OUTER_RADIUS_ONLY"
+    REDSHIFT_MISMATCH = "REDSHIFT_MISMATCH"
 
 
 @dataclass

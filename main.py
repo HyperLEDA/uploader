@@ -242,13 +242,23 @@ def crossmatch_default(
 @crossmatch.command("two-radii", help="Cross-identify using inner and outer search radii.")
 @click.option("--r1", required=True, type=float, help="Inner radius in arcseconds")
 @click.option("--r2", required=True, type=float, help="Outer radius in arcseconds")
+@click.option(
+    "--redshift-tolerance",
+    type=float,
+    help="Redshift z tolerance for crossmatching",
+)
 @click.pass_context
 def crossmatch_two_radii(
     ctx: click.Context,
     r1: float,
     r2: float,
+    redshift_tolerance: float,
 ) -> None:
-    resolver = TwoRadiiResolver(r1_deg=r1 / 3600.0, r2_deg=r2 / 3600.0)
+    resolver = TwoRadiiResolver(
+        r1_deg=r1 / 3600.0,
+        r2_deg=r2 / 3600.0,
+        redshift_tolerance=redshift_tolerance,
+    )
     run_crossmatch_cmd(**ctx.obj.crossmatch_common, resolver=resolver)
 
 

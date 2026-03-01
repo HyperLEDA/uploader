@@ -141,20 +141,12 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
     )
 
 
-def resolve_by_radius(
+def _resolve_by_radius_coordinate(
     evidence: RecordEvidence,
     r1_deg: float,
     r2_deg: float,
 ) -> CrossmatchResult:
-    """Coordinate-only resolver with two radii r1 < r2.
-
-    Caller must supply neighbors filtered to distance <= r2_deg.
-    - Multiple in inner (<= r1) → collided, manual (PENDING).
-    - Single in inner, others in outer (r1, r2] → existing, manual (PENDING).
-    - Single in inner, none in outer → existing, resolved.
-    - Single in outer only → existing, manual (PENDING).
-    - No objects in outer circle → new, resolved.
-    """
+    """Coordinate-only two-radii check. No redshift. Same rules as doc below."""
     inner = [n for n in evidence.neighbors if n.distance_deg <= r1_deg]
     outer = [n for n in evidence.neighbors if r1_deg < n.distance_deg <= r2_deg]
 
@@ -167,14 +159,16 @@ def resolve_by_radius(
             colliding_pgcs=[n.pgc for n in inner],
             pending_reason=PendingReason.MULTIPLE_IN_INNER_RADIUS,
         )
+
     if len(inner) == 1 and len(outer) >= 1:
         return CrossmatchResult(
             record_id=evidence.record_id,
-            status=CrossmatchStatus.EXISTING,
+            status=CrossmatchStatus.COLLIDING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=inner[0].pgc,
             pending_reason=PendingReason.SINGLE_IN_INNER_WITH_OUTER_NEIGHBORS,
         )
+
     if len(inner) == 1 and len(outer) == 0:
         return CrossmatchResult(
             record_id=evidence.record_id,
@@ -182,6 +176,7 @@ def resolve_by_radius(
             triage_status=TriageStatus.RESOLVED,
             matched_pgc=inner[0].pgc,
         )
+
     if len(inner) == 0 and len(outer) == 1:
         return CrossmatchResult(
             record_id=evidence.record_id,
@@ -190,6 +185,7 @@ def resolve_by_radius(
             matched_pgc=outer[0].pgc,
             pending_reason=PendingReason.SINGLE_IN_OUTER_RADIUS_ONLY,
         )
+
     if len(inner) == 0 and len(outer) > 1:
         return CrossmatchResult(
             record_id=evidence.record_id,
@@ -199,12 +195,89 @@ def resolve_by_radius(
             colliding_pgcs=[n.pgc for n in outer],
             pending_reason=PendingReason.MULTIPLE_IN_OUTER_RADIUS,
         )
+
     return CrossmatchResult(
         record_id=evidence.record_id,
         status=CrossmatchStatus.NEW,
         triage_status=TriageStatus.RESOLVED,
         matched_pgc=None,
     )
+
+
+def _redshift_close(record_z: float, neighbor_z: float | None, tolerance: float) -> bool:
+    if neighbor_z is None:
+        return False
+    return abs(neighbor_z - record_z) < tolerance
+
+
+def _apply_redshift_check(
+    coord_result: CrossmatchResult,
+    evidence: RecordEvidence,
+    redshift_tolerance: float,
+) -> CrossmatchResult:
+    """Refine coordinate result using redshift when record and involved neighbors have redshift."""
+    record_id = coord_result.record_id
+    record_z = evidence.record_redshift
+
+    if record_z is None:
+        return coord_result
+
+    if coord_result.status == CrossmatchStatus.NEW:
+        return coord_result
+
+    if coord_result.status == CrossmatchStatus.EXISTING:
+        matched_pgc = coord_result.matched_pgc
+        if matched_pgc is None:
+            return coord_result
+
+        neighbor = next((n for n in evidence.neighbors if n.pgc == matched_pgc), None)
+        if neighbor is None or neighbor.redshift is None:
+            return coord_result
+
+        if _redshift_close(record_z, neighbor.redshift, redshift_tolerance):
+            return CrossmatchResult(
+                record_id=record_id,
+                status=CrossmatchStatus.EXISTING,
+                triage_status=TriageStatus.RESOLVED,
+                matched_pgc=matched_pgc,
+            )
+
+        return CrossmatchResult(
+            record_id=record_id,
+            status=CrossmatchStatus.EXISTING,
+            triage_status=TriageStatus.PENDING,
+            matched_pgc=matched_pgc,
+            pending_reason=PendingReason.REDSHIFT_MISMATCH,
+        )
+
+    if coord_result.status == CrossmatchStatus.COLLIDING:
+        involved_pgcs = (
+            coord_result.colliding_pgcs if coord_result.colliding_pgcs else [n.pgc for n in evidence.neighbors]
+        )
+        neighbors_involved = [n for n in evidence.neighbors if n.pgc in involved_pgcs]
+        if any(n.redshift is None for n in neighbors_involved):
+            return coord_result
+        close = [n for n in neighbors_involved if _redshift_close(record_z, n.redshift, redshift_tolerance)]
+        if len(close) == 1:
+            return CrossmatchResult(
+                record_id=record_id,
+                status=CrossmatchStatus.EXISTING,
+                triage_status=TriageStatus.RESOLVED,
+                matched_pgc=close[0].pgc,
+            )
+        return coord_result
+
+    return coord_result
+
+
+def resolve_by_radius(
+    evidence: RecordEvidence,
+    r1_deg: float,
+    r2_deg: float,
+    redshift_tolerance: float,
+) -> CrossmatchResult:
+    coord_result = _resolve_by_radius_coordinate(evidence, r1_deg, r2_deg)
+    return _apply_redshift_check(coord_result, evidence, redshift_tolerance)
 
 
 class Resolver(Protocol):
@@ -235,9 +308,15 @@ class DefaultResolver:
 
 
 class TwoRadiiResolver:
-    def __init__(self, r1_deg: float, r2_deg: float) -> None:
+    def __init__(
+        self,
+        r1_deg: float,
+        r2_deg: float,
+        redshift_tolerance: float = 0.0003,
+    ) -> None:
         self._r1_deg = r1_deg
         self._r2_deg = r2_deg
+        self._redshift_tolerance = redshift_tolerance
 
     @property
     def search_radius_deg(self) -> float:
@@ -248,4 +327,9 @@ class TwoRadiiResolver:
         return None
 
     def resolve(self, evidence: RecordEvidence) -> CrossmatchResult:
-        return resolve_by_radius(evidence, self._r1_deg, self._r2_deg)
+        return resolve_by_radius(
+            evidence,
+            self._r1_deg,
+            self._r2_deg,
+            self._redshift_tolerance,
+        )
