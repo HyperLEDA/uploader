@@ -73,7 +73,7 @@ def upload_redshift(
                     save_structured_data.sync_detailed(
                         client=client,
                         body=SaveStructuredDataRequest(
-                            catalog="cz",
+                            catalog="redshift",
                             columns=REDSHIFT_COLUMNS,
                             ids=batch_ids,
                             data=batch_data,
