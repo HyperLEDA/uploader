@@ -255,8 +255,10 @@ def _apply_redshift_check(
             coord_result.colliding_pgcs if coord_result.colliding_pgcs else [n.pgc for n in evidence.neighbors]
         )
         neighbors_involved = [n for n in evidence.neighbors if n.pgc in involved_pgcs]
+
         if any(n.redshift is None for n in neighbors_involved):
             return coord_result
+
         close = [n for n in neighbors_involved if _redshift_close(record_z, n.redshift, redshift_tolerance)]
         if len(close) == 1:
             return CrossmatchResult(

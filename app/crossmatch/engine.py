@@ -29,7 +29,7 @@ from app.gen.client.adminapi.models.statuses_payload import StatusesPayload
 from app.gen.client.adminapi.types import UNSET, Unset
 from app.upload import handle_call
 
-C_KM_S = 299792.458
+C_M_S = 299792458
 
 BATCH_QUERY = sql.SQL("""
     WITH batch AS (
@@ -120,9 +120,9 @@ def _fetch_batch(
         if new_design is not None:
             rec_data["new_design"] = new_design
         if new_cz is not None:
-            rec_data["new_redshift"] = float(new_cz) / C_KM_S
+            rec_data["new_redshift"] = float(new_cz) / C_M_S
         if existing_pgc is not None and existing_ra is not None and existing_dec is not None:
-            existing_redshift = float(existing_cz) / C_KM_S if existing_cz is not None else None
+            existing_redshift = float(existing_cz) / C_M_S if existing_cz is not None else None
             rec_data["candidates"].append((existing_ra, existing_dec, existing_pgc, existing_design, existing_redshift))
 
     return by_record, last_id
@@ -227,7 +227,7 @@ def _resolve_batch(
         result = resolver.resolve(evidence)
         results.append(result)
         if print_pending and result.triage_status == TriageStatus.PENDING:
-            line = record_id
+            line = record_id + f"({result.status})"
             if result.pending_reason is not None:
                 line += " " + result.pending_reason.value
             if result.colliding_pgcs:
