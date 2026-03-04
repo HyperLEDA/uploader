@@ -191,18 +191,18 @@ def upload_structured_redshift(
 
 
 @upload_structured.command("nature", help="Upload object nature/type to the structured level.")
-@click.option("--column-name", required=True, help="Column containing the object type/class")
+@click.option("--column-name", required=True, help="Column containing the object type")
 @click.option(
     "--map",
     "mappings",
     multiple=True,
-    help="Mapping from raw value to LEDA class (format: raw_value:leda_class)",
+    help="Mapping from raw value to LEDA type (format: raw_value:type_name)",
 )
 @click.option(
     "--default",
-    "default_class",
+    "default_type",
     default="?",
-    help="Default LEDA class for unmapped values (default: ?)",
+    help="Default LEDA type for unmapped values (default: ?)",
 )
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
 @click.option(
@@ -215,25 +215,26 @@ def upload_structured_nature(
     ctx: click.Context,
     column_name: str,
     mappings: tuple[str, ...],
-    default_class: str,
+    default_type: str,
     batch_size: int,
     write: bool,
 ) -> None:
-    class_mapping: dict[str, str] = {}
+    type_mapping: dict[str, str] = {}
     for s in mappings:
         if ":" not in s:
             raise click.BadParameter(f"Invalid mapping (expected raw_value:leda_class): {s!r}")
         raw, _, leda = s.partition(":")
-        if raw in class_mapping:
+        if raw in type_mapping:
             raise click.BadParameter(f"Duplicate mapping for raw value: {raw!r}")
-        class_mapping[raw] = leda
+        type_mapping[raw] = leda
+
     common = ctx.obj.upload_structured_common
     run_upload_nature(
         common["dsn"],
         common["table_name"],
         column_name,
-        class_mapping,
-        default_class,
+        type_mapping,
+        default_type,
         batch_size,
         common["client"],
         write=write,

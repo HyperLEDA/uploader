@@ -18,8 +18,8 @@ def upload_nature(
     dsn: str,
     table_name: str,
     column_name: str,
-    class_mapping: dict[str, str],
-    default_class: str,
+    type_mapping: dict[str, str],
+    default_type: str,
     batch_size: int,
     client: adminapi.AuthenticatedClient,
     *,
@@ -51,7 +51,7 @@ def upload_nature(
                 last_id = row[0]
                 raw_val = row[1]
                 raw_key = (str(raw_val).strip() if raw_val is not None else "")
-                leda_class = class_mapping.get(raw_key, default_class)
+                leda_class = type_mapping.get(raw_key, default_type)
                 batch_ids.append(last_id)
                 batch_data.append([leda_class])
                 class_counts[leda_class] += 1
