@@ -15,6 +15,7 @@ from app.crossmatch.resolver import DefaultResolver, TwoRadiiResolver
 from app.designations import upload_designations as run_upload_designations
 from app.gen.client import adminapi
 from app.icrs import upload_icrs as run_upload_icrs
+from app.nature import upload_nature as run_upload_nature
 from app.redshift import upload_redshift as run_upload_redshift
 
 env_map = {
@@ -186,6 +187,56 @@ def upload_structured_redshift(
         common["client"],
         write=write,
         z_error=z_error,
+    )
+
+
+@upload_structured.command("nature", help="Upload object nature/type to the structured level.")
+@click.option("--column-name", required=True, help="Column containing the object type/class")
+@click.option(
+    "--map",
+    "mappings",
+    multiple=True,
+    help="Mapping from raw value to LEDA class (format: raw_value:leda_class)",
+)
+@click.option(
+    "--default",
+    "default_class",
+    default="?",
+    help="Default LEDA class for unmapped values (default: ?)",
+)
+@click.option("--batch-size", default=10000, type=int, help="Rows per batch")
+@click.option(
+    "--write",
+    is_flag=True,
+    help="Upload results to the API; default is to only print statistics (dry-run)",
+)
+@click.pass_context
+def upload_structured_nature(
+    ctx: click.Context,
+    column_name: str,
+    mappings: tuple[str, ...],
+    default_class: str,
+    batch_size: int,
+    write: bool,
+) -> None:
+    class_mapping: dict[str, str] = {}
+    for s in mappings:
+        if ":" not in s:
+            raise click.BadParameter(f"Invalid mapping (expected raw_value:leda_class): {s!r}")
+        raw, _, leda = s.partition(":")
+        if raw in class_mapping:
+            raise click.BadParameter(f"Duplicate mapping for raw value: {raw!r}")
+        class_mapping[raw] = leda
+    common = ctx.obj.upload_structured_common
+    run_upload_nature(
+        common["dsn"],
+        common["table_name"],
+        column_name,
+        class_mapping,
+        default_class,
+        batch_size,
+        common["client"],
+        write=write,
     )
 
 
