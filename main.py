@@ -191,7 +191,11 @@ def upload_structured_redshift(
 
 
 @upload_structured.command("nature", help="Upload object nature/type to the structured level.")
-@click.option("--column-name", required=True, help="Column containing the object type")
+@click.option(
+    "--column-name",
+    default=None,
+    help="Column containing the object type; required unless --default is set (then all rows get that value)",
+)
 @click.option(
     "--map",
     "mappings",
@@ -201,8 +205,8 @@ def upload_structured_redshift(
 @click.option(
     "--default",
     "default_type",
-    default="?",
-    help="Default LEDA type for unmapped values (default: ?)",
+    default=None,
+    help="LEDA type for unmapped values; if omitted, use the original raw value as-is",
 )
 @click.option("--batch-size", default=10000, type=int, help="Rows per batch")
 @click.option(
@@ -213,12 +217,14 @@ def upload_structured_redshift(
 @click.pass_context
 def upload_structured_nature(
     ctx: click.Context,
-    column_name: str,
+    column_name: str | None,
     mappings: tuple[str, ...],
-    default_type: str,
+    default_type: str | None,
     batch_size: int,
     write: bool,
 ) -> None:
+    if column_name is None and default_type is None:
+        raise click.UsageError("Either --column-name or --default must be specified (or both).")
     type_mapping: dict[str, str] = {}
     for s in mappings:
         if ":" not in s:

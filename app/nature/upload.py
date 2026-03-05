@@ -17,9 +17,9 @@ NATURE_COLUMNS = ["type_name"]
 def upload_nature(
     dsn: str,
     table_name: str,
-    column_name: str,
+    column_name: str | None,
     type_mapping: dict[str, str],
-    default_type: str,
+    default_type: str | None,
     batch_size: int,
     client: adminapi.AuthenticatedClient,
     *,
@@ -27,13 +27,20 @@ def upload_nature(
 ) -> None:
     id_col = sql.Identifier("hyperleda_internal_id")
     table = sql.SQL("rawdata.") + sql.Identifier(table_name)
-    col = sql.Identifier(column_name)
-    query = sql.SQL("SELECT {id_col}, {col} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
-        id_col=id_col, col=col, t=table
-    )
+
+    constant_type = column_name is None
+    if constant_type:
+        query = sql.SQL("SELECT {id_col} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
+            id_col=id_col, t=table
+        )
+    else:
+        col = sql.Identifier(column_name)
+        query = sql.SQL("SELECT {id_col}, {col} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
+            id_col=id_col, col=col, t=table
+        )
 
     total_uploaded = 0
-    class_counts: Counter[str] = Counter()
+    type_counts: Counter[str] = Counter()
 
     with connect(dsn) as conn:
         last_id = ""
@@ -49,12 +56,16 @@ def upload_nature(
 
             for row in rows:
                 last_id = row[0]
-                raw_val = row[1]
-                raw_key = (str(raw_val).strip() if raw_val is not None else "")
-                leda_class = type_mapping.get(raw_key, default_type)
+                leda_type: str | None = default_type
+                if not constant_type:
+                    raw_val = row[1]
+                    raw_key = str(raw_val).strip() if raw_val is not None else ""
+                    leda_type = type_mapping.get(raw_key, default_type if default_type is not None else raw_key)
+
+                assert leda_type is not None
                 batch_ids.append(last_id)
-                batch_data.append([leda_class])
-                class_counts[leda_class] += 1
+                batch_data.append([leda_type])
+                type_counts[leda_type] += 1
                 total_uploaded += 1
 
             if write and batch_ids:
@@ -79,14 +90,14 @@ def upload_nature(
 
     table_rows: list[tuple[str, int, str]] = [
         (
-            leda_class,
+            leda_type,
             count,
             f"{100.0 * count / total_uploaded:.1f}%" if total_uploaded else "-",
         )
-        for leda_class, count in sorted(class_counts.items())
+        for leda_type, count in sorted(type_counts.items())
     ]
     print_table(
-        ("LEDA class", "Count", "%"),
+        ("LEDA type", "Count", "%"),
         table_rows,
         title=f"Total rows: {total_uploaded}\n",
         percent_last_column=True,
