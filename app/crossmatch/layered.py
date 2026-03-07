@@ -88,6 +88,34 @@ def name_resolver(
     ), PendingReason.MATCHED_NAME_OUTSIDE_CIRCLE
 
 
+def pgc_resolver(
+    evidence: RecordEvidence, previous_result: PreliminaryCrossmatchStatus
+) -> tuple[PreliminaryCrossmatchStatus, PendingReason | None]:
+    if evidence.record_pgc is None:
+        return previous_result, None
+
+    if evidence.record_pgc is not None and not evidence.claimed_pgc_exists_in_layer2:
+        return previous_result, PendingReason.UNKNOWN_PGC
+
+    pgc = evidence.record_pgc
+
+    if isinstance(previous_result, PreliminaryCrossmatchStatusNew):
+        return PreliminaryCrossmatchStatusExisting(pgc), PendingReason.MATCHED_PGC_OUTSIDE_CIRCLE
+
+    if isinstance(previous_result, PreliminaryCrossmatchStatusExisting):
+        if pgc == previous_result.pgc:
+            return previous_result, None
+
+        return PreliminaryCrossmatchStatusColliding(
+            {pgc, previous_result.pgc}
+        ), PendingReason.MATCHED_PGC_OUTSIDE_CIRCLE
+
+    if pgc in previous_result.pgcs:
+        return PreliminaryCrossmatchStatusExisting(pgc), None
+
+    return PreliminaryCrossmatchStatusColliding(previous_result.pgcs | {pgc}), PendingReason.MATCHED_PGC_OUTSIDE_CIRCLE
+
+
 def _preliminary_to_final(results: PreliminaryCrossmatchStatus, pending_reason: PendingReason) -> CrossmatchResult:
     if isinstance(results, PreliminaryCrossmatchStatusNew):
         return CrossmatchResult(
@@ -115,9 +143,13 @@ def resolver(evidence: RecordEvidence) -> CrossmatchResult:
 
     name_result, pending_reason = name_resolver(evidence, icrs_result)
     if pending_reason is not None:
-        return _preliminary_to_final(icrs_result, pending_reason)
+        return _preliminary_to_final(name_result, pending_reason)
 
-    final_result = name_result
+    pgc_result, pending_reason = pgc_resolver(evidence, name_result)
+    if pending_reason is not None:
+        return _preliminary_to_final(pgc_result, pending_reason)
+
+    final_result = pgc_result
 
     if isinstance(final_result, PreliminaryCrossmatchStatusNew):
         return CrossmatchResult(status=CrossmatchStatus.NEW, triage_status=TriageStatus.RESOLVED)
