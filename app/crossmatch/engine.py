@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import math
 from collections import defaultdict
 from typing import cast
@@ -65,6 +67,17 @@ BATCH_QUERY = sql.SQL("""
     LEFT JOIN layer2.cz l2_cz ON l2.pgc = l2_cz.pgc
     ORDER BY b.id ASC
 """)
+
+
+def _evidence_to_dict(evidence: RecordEvidence) -> dict:
+    return {
+        "neighbors": [dataclasses.asdict(n) for n in evidence.neighbors],
+        "record_designation": evidence.record_designation,
+        "same_name_pgcs": evidence.same_name_pgcs,
+        "record_pgc": evidence.record_pgc,
+        "claimed_pgc_exists_in_layer2": evidence.claimed_pgc_exists_in_layer2,
+        "record_redshift": evidence.record_redshift,
+    }
 
 
 def angular_distance_deg(ra1: float, dec1: float, ra2: float, dec2: float) -> float:
@@ -222,6 +235,7 @@ def _resolve_batch(
                 colliding_pgcs=sorted(result.colliding_pgcs) if result.colliding_pgcs else None,
                 matched_pgc=result.matched_pgc,
                 link=f"https://leda.sao.ru/records/{record_id}/crossmatch",
+                evidence=json.dumps(_evidence_to_dict(evidence)),
             )
     return results
 

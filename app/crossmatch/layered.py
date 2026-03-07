@@ -23,14 +23,18 @@ PreliminaryCrossmatchStatus = (
 )
 
 
-def icrs_simple_resolver(evidence: RecordEvidence) -> tuple[PreliminaryCrossmatchStatus, PendingReason | None]:
-    if len(evidence.neighbors) == 0:
+def icrs_simple_resolver(
+    evidence: RecordEvidence, radius_deg: float
+) -> tuple[PreliminaryCrossmatchStatus, PendingReason | None]:
+    neighbors_within_radius = [n for n in evidence.neighbors if n.distance_deg <= radius_deg]
+
+    if len(neighbors_within_radius) == 0:
         return PreliminaryCrossmatchStatusNew(), None
 
-    if len(evidence.neighbors) == 1:
-        return PreliminaryCrossmatchStatusExisting(evidence.neighbors[0].pgc), None
+    if len(neighbors_within_radius) == 1:
+        return PreliminaryCrossmatchStatusExisting(neighbors_within_radius[0].pgc), None
 
-    return PreliminaryCrossmatchStatusColliding({n.pgc for n in evidence.neighbors}), None
+    return PreliminaryCrossmatchStatusColliding({n.pgc for n in neighbors_within_radius}), None
 
 
 def name_resolver(
@@ -174,43 +178,6 @@ def _preliminary_to_final(results: PreliminaryCrossmatchStatus, pending_reason: 
     )
 
 
-def resolver(evidence: RecordEvidence, redshift_tolerance: float | None = None) -> CrossmatchResult:
-    icrs_result, pending_reason = icrs_simple_resolver(evidence)
-    if pending_reason is not None:
-        return _preliminary_to_final(icrs_result, pending_reason)
-
-    name_result, pending_reason = name_resolver(evidence, icrs_result)
-    if pending_reason is not None:
-        return _preliminary_to_final(name_result, pending_reason)
-
-    pgc_result, pending_reason = pgc_resolver(evidence, name_result)
-    if pending_reason is not None:
-        return _preliminary_to_final(pgc_result, pending_reason)
-
-    if redshift_tolerance is None:
-        final_result = pgc_result
-    else:
-        redshift_result, pending_reason = redshift_resolver(evidence, pgc_result, redshift_tolerance)
-        if pending_reason is not None:
-            return _preliminary_to_final(redshift_result, pending_reason)
-        final_result = redshift_result
-
-    if isinstance(final_result, PreliminaryCrossmatchStatusNew):
-        return CrossmatchResult(status=CrossmatchStatus.NEW, triage_status=TriageStatus.RESOLVED)
-
-    if isinstance(final_result, PreliminaryCrossmatchStatusExisting):
-        return CrossmatchResult(
-            status=CrossmatchStatus.EXISTING, triage_status=TriageStatus.RESOLVED, matched_pgc=final_result.pgc
-        )
-
-    return CrossmatchResult(
-        status=CrossmatchStatus.COLLIDING,
-        triage_status=TriageStatus.PENDING,
-        colliding_pgcs=list(final_result.pgcs),
-        pending_reason=PendingReason.MULTIPLE_OBJECTS_MATCHED,
-    )
-
-
 class LayeredResolver:
     def __init__(
         self,
@@ -231,4 +198,37 @@ class LayeredResolver:
         return self._pgc_column
 
     def resolve(self, evidence: RecordEvidence) -> CrossmatchResult:
-        return resolver(evidence, self._redshift_tolerance)
+        icrs_result, pending_reason = icrs_simple_resolver(evidence, self._radius_deg)
+        if pending_reason is not None:
+            return _preliminary_to_final(icrs_result, pending_reason)
+
+        pgc_result, pending_reason = pgc_resolver(evidence, icrs_result)
+        if pending_reason is not None:
+            return _preliminary_to_final(pgc_result, pending_reason)
+
+        name_result, pending_reason = name_resolver(evidence, pgc_result)
+        if pending_reason is not None:
+            return _preliminary_to_final(name_result, pending_reason)
+
+        if self._redshift_tolerance is None:
+            final_result = pgc_result
+        else:
+            redshift_result, pending_reason = redshift_resolver(evidence, pgc_result, self._redshift_tolerance)
+            if pending_reason is not None:
+                return _preliminary_to_final(redshift_result, pending_reason)
+            final_result = redshift_result
+
+        if isinstance(final_result, PreliminaryCrossmatchStatusNew):
+            return CrossmatchResult(status=CrossmatchStatus.NEW, triage_status=TriageStatus.RESOLVED)
+
+        if isinstance(final_result, PreliminaryCrossmatchStatusExisting):
+            return CrossmatchResult(
+                status=CrossmatchStatus.EXISTING, triage_status=TriageStatus.RESOLVED, matched_pgc=final_result.pgc
+            )
+
+        return CrossmatchResult(
+            status=CrossmatchStatus.COLLIDING,
+            triage_status=TriageStatus.PENDING,
+            colliding_pgcs=list(final_result.pgcs),
+            pending_reason=PendingReason.MULTIPLE_OBJECTS_MATCHED,
+        )
