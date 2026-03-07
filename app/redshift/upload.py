@@ -1,4 +1,4 @@
-from psycopg import connect, sql
+from psycopg import sql
 
 from app.display import print_table
 from app.gen.client import adminapi
@@ -9,6 +9,7 @@ from app.gen.client.adminapi.models.save_structured_data_request import (
 from app.gen.client.adminapi.models.save_structured_data_request_units import (
     SaveStructuredDataRequestUnits,
 )
+from app.storage import PgStorage
 from app.upload import handle_call
 
 C_KM_S = 299792.458
@@ -19,7 +20,7 @@ REDSHIFT_UNITS = SaveStructuredDataRequestUnits.from_dict({"cz": "km/s", "e_cz":
 
 
 def upload_redshift(
-    dsn: str,
+    storage: PgStorage,
     table_name: str,
     z_column: str,
     batch_size: int,
@@ -41,46 +42,43 @@ def upload_redshift(
     cz_max = float("-inf")
     cz_sum = 0.0
 
-    with connect(dsn) as conn:
-        last_id = ""
-        while True:
-            with conn.cursor() as cur:
-                cur.execute(query, (last_id, batch_size))
-                rows = cur.fetchall()
-            if not rows:
-                break
+    last_id = ""
+    while True:
+        rows = storage.query(query, (last_id, batch_size))
+        if not rows:
+            break
 
-            batch_ids: list[str] = []
-            batch_data: list[list[float]] = []
+        batch_ids: list[str] = []
+        batch_data: list[list[float]] = []
 
-            for row in rows:
-                last_id = row[0]
-                z_val = row[1]
-                if z_val is None:
-                    skipped += 1
-                    continue
-                cz_val = float(z_val) * C_KM_S
-                e_cz = float(z_error) * C_KM_S
-                batch_ids.append(last_id)
-                batch_data.append([cz_val, e_cz])
-                uploaded += 1
-                cz_min = min(cz_min, cz_val)
-                cz_max = max(cz_max, cz_val)
-                cz_sum += cz_val
+        for row in rows:
+            last_id = row["hyperleda_internal_id"]
+            z_val = row[z_column]
+            if z_val is None:
+                skipped += 1
+                continue
+            cz_val = float(z_val) * C_KM_S
+            e_cz = float(z_error) * C_KM_S
+            batch_ids.append(last_id)
+            batch_data.append([cz_val, e_cz])
+            uploaded += 1
+            cz_min = min(cz_min, cz_val)
+            cz_max = max(cz_max, cz_val)
+            cz_sum += cz_val
 
-            if write and batch_ids:
-                handle_call(
-                    save_structured_data.sync_detailed(
-                        client=client,
-                        body=SaveStructuredDataRequest(
-                            catalog="redshift",
-                            columns=REDSHIFT_COLUMNS,
-                            ids=batch_ids,
-                            data=batch_data,
-                            units=REDSHIFT_UNITS,
-                        ),
-                    )
+        if write and batch_ids:
+            handle_call(
+                save_structured_data.sync_detailed(
+                    client=client,
+                    body=SaveStructuredDataRequest(
+                        catalog="redshift",
+                        columns=REDSHIFT_COLUMNS,
+                        ids=batch_ids,
+                        data=batch_data,
+                        units=REDSHIFT_UNITS,
+                    ),
                 )
+            )
 
     total = uploaded + skipped
 

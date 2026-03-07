@@ -1,6 +1,6 @@
 from collections import Counter
 
-from psycopg import connect, sql
+from psycopg import sql
 
 from app import log
 from app.display import print_table
@@ -9,13 +9,14 @@ from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
+from app.storage import PgStorage
 from app.upload import handle_call
 
 NATURE_COLUMNS = ["type_name"]
 
 
 def upload_nature(
-    dsn: str,
+    storage: PgStorage,
     table_name: str,
     column_name: str | None,
     type_mapping: dict[str, str],
@@ -42,51 +43,48 @@ def upload_nature(
     total_uploaded = 0
     type_counts: Counter[str] = Counter()
 
-    with connect(dsn) as conn:
-        last_id = ""
-        while True:
-            with conn.cursor() as cur:
-                cur.execute(query, (last_id, batch_size))
-                rows = cur.fetchall()
-            if not rows:
-                break
+    last_id = ""
+    while True:
+        rows = storage.query(query, (last_id, batch_size))
+        if not rows:
+            break
 
-            batch_ids: list[str] = []
-            batch_data: list[list[str]] = []
+        batch_ids: list[str] = []
+        batch_data: list[list[str]] = []
 
-            for row in rows:
-                last_id = row[0]
-                leda_type: str | None = default_type
-                if not constant_type:
-                    raw_val = row[1]
-                    raw_key = str(raw_val).strip() if raw_val is not None else ""
-                    leda_type = type_mapping.get(raw_key, default_type if default_type is not None else raw_key)
+        for row in rows:
+            last_id = row["hyperleda_internal_id"]
+            leda_type: str | None = default_type
+            if not constant_type:
+                raw_val = row[column_name]
+                raw_key = str(raw_val).strip() if raw_val is not None else ""
+                leda_type = type_mapping.get(raw_key, default_type if default_type is not None else raw_key)
 
-                assert leda_type is not None
-                batch_ids.append(last_id)
-                batch_data.append([leda_type])
-                type_counts[leda_type] += 1
-                total_uploaded += 1
+            assert leda_type is not None
+            batch_ids.append(last_id)
+            batch_data.append([leda_type])
+            type_counts[leda_type] += 1
+            total_uploaded += 1
 
-            if write and batch_ids:
-                handle_call(
-                    save_structured_data.sync_detailed(
-                        client=client,
-                        body=SaveStructuredDataRequest(
-                            catalog="nature",
-                            columns=NATURE_COLUMNS,
-                            ids=batch_ids,
-                            data=batch_data,
-                        ),
-                    )
+        if write and batch_ids:
+            handle_call(
+                save_structured_data.sync_detailed(
+                    client=client,
+                    body=SaveStructuredDataRequest(
+                        catalog="nature",
+                        columns=NATURE_COLUMNS,
+                        ids=batch_ids,
+                        data=batch_data,
+                    ),
                 )
-
-            log.logger.debug(
-                "processed batch",
-                rows=len(rows),
-                last_id=last_id,
-                total=total_uploaded,
             )
+
+        log.logger.debug(
+            "processed batch",
+            rows=len(rows),
+            last_id=last_id,
+            total=total_uploaded,
+        )
 
     table_rows: list[tuple[str, int, str]] = [
         (

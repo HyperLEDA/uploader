@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import cast
 
 import click
-from psycopg import connect, sql
+from psycopg import sql
 
 from app import log
 from app.crossmatch.models import (
@@ -27,6 +27,7 @@ from app.gen.client.adminapi.models.set_crossmatch_results_request import (
 )
 from app.gen.client.adminapi.models.statuses_payload import StatusesPayload
 from app.gen.client.adminapi.types import UNSET, Unset
+from app.storage import PgStorage
 from app.upload import handle_call
 
 C_M_S = 299792458
@@ -74,36 +75,29 @@ def angular_distance_deg(ra1: float, dec1: float, ra2: float, dec2: float) -> fl
 
 
 def _fetch_batch(
-    conn,
+    storage: PgStorage,
     table_id: str,
     last_id: str,
     batch_size: int,
     radius_deg: float,
 ) -> tuple[dict[str, dict], str]:
-    with conn.cursor() as cur:
-        cur.execute(
-            BATCH_QUERY,
-            (table_id, last_id, batch_size, radius_deg),
-        )
-        rows = cur.fetchall()
+    rows = storage.query(BATCH_QUERY, (table_id, last_id, batch_size, radius_deg))
 
     if not rows:
         return {}, last_id
 
     by_record: dict[str, dict] = {}
     for r in rows:
-        (
-            new_id,
-            new_ra,
-            new_dec,
-            new_design,
-            new_cz,
-            existing_pgc,
-            existing_ra,
-            existing_dec,
-            existing_design,
-            existing_cz,
-        ) = r
+        new_id = r["new_id"]
+        new_ra = r["new_ra"]
+        new_dec = r["new_dec"]
+        new_design = r["new_design"]
+        new_cz = r["new_cz"]
+        existing_pgc = r["existing_pgc"]
+        existing_ra = r["existing_ra"]
+        existing_dec = r["existing_dec"]
+        existing_design = r["existing_design"]
+        existing_cz = r["existing_cz"]
         last_id = new_id
         if new_id not in by_record:
             by_record[new_id] = {
@@ -129,7 +123,7 @@ def _fetch_batch(
 
 
 def _enrich_batch(
-    conn,
+    storage: PgStorage,
     table_name: str,
     by_record: dict[str, dict],
     pgc_column: str | None,
@@ -143,35 +137,32 @@ def _enrich_batch(
             t=sql.Identifier(table_name),
         )
         batch_ids = list(by_record.keys())
-        with conn.cursor() as cur:
-            cur.execute(raw_pgc_query, (batch_ids,))
-            for record_id, pgc_val in cur.fetchall():
-                record_pgc_by_id[record_id] = int(pgc_val) if pgc_val is not None else None
+        for row in storage.query(raw_pgc_query, (batch_ids,)):
+            record_id = row["hyperleda_internal_id"]
+            pgc_val = row[pgc_column]
+            record_pgc_by_id[record_id] = int(pgc_val) if pgc_val is not None else None
 
     claimed_pgcs = {p for p in record_pgc_by_id.values() if p is not None}
     existing_pgcs: set[int] = set()
     if claimed_pgcs:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT pgc FROM layer2.icrs WHERE pgc = ANY(%s)",
-                (list(claimed_pgcs),),
-            )
-            existing_pgcs = {row[0] for row in cur.fetchall()}
+        for row in storage.query(
+            "SELECT pgc FROM layer2.icrs WHERE pgc = ANY(%s)",
+            (list(claimed_pgcs),),
+        ):
+            existing_pgcs.add(row["pgc"])
 
     designations_in_batch = {
         rec_data["new_design"] for rec_data in by_record.values() if rec_data["new_design"] is not None
     }
     design_to_pgcs: dict[str, frozenset[int]] = {}
     if designations_in_batch:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT design, pgc FROM layer2.designation WHERE design = ANY(%s)",
-                (list(designations_in_batch),),
-            )
-            pgcs_by_design: dict[str, set[int]] = {}
-            for design, pgc in cur.fetchall():
-                pgcs_by_design.setdefault(design, set()).add(pgc)
-            design_to_pgcs = {d: frozenset(s) for d, s in pgcs_by_design.items()}
+        pgcs_by_design: dict[str, set[int]] = {}
+        for row in storage.query(
+            "SELECT design, pgc FROM layer2.designation WHERE design = ANY(%s)",
+            (list(designations_in_batch),),
+        ):
+            pgcs_by_design.setdefault(row["design"], set()).add(row["pgc"])
+        design_to_pgcs = {d: frozenset(s) for d, s in pgcs_by_design.items()}
         for design in designations_in_batch:
             if design not in design_to_pgcs:
                 design_to_pgcs[design] = frozenset()
@@ -304,7 +295,7 @@ def _write_crossmatch_results(
 
 
 def run_crossmatch(
-    dsn: str,
+    storage: PgStorage,
     table_name: str,
     batch_size: int,
     client: adminapi.AuthenticatedClient,
@@ -316,27 +307,25 @@ def run_crossmatch(
     radius_deg = resolver.search_radius_deg
     pgc_column = resolver.pgc_column
 
-    with connect(dsn) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id FROM layer0.tables WHERE table_name = %s",
-                (table_name,),
-            )
-            row = cur.fetchone()
-            if row is None:
-                raise RuntimeError(f"Table not found: {table_name}")
-            table_id = row[0]
+    rows = storage.query(
+        "SELECT id FROM layer0.tables WHERE table_name = %s",
+        (table_name,),
+    )
+    if not rows:
+        raise RuntimeError(f"Table not found: {table_name}")
+    table_id = rows[0]["id"]
 
-        counts: dict[tuple[CrossmatchStatus, TriageStatus, PendingReason | None], int] = defaultdict(int)
-        total = 0
-        last_id = ""
+    counts: dict[tuple[CrossmatchStatus, TriageStatus, PendingReason | None], int] = defaultdict(int)
+    total = 0
+    last_id = ""
 
+    try:
         while True:
-            by_record, last_id = _fetch_batch(conn, table_id, last_id, batch_size, radius_deg)
+            by_record, last_id = _fetch_batch(storage, table_id, last_id, batch_size, radius_deg)
             if not by_record:
                 break
 
-            record_pgc_by_id, existing_pgcs, design_to_pgcs = _enrich_batch(conn, table_name, by_record, pgc_column)
+            record_pgc_by_id, existing_pgcs, design_to_pgcs = _enrich_batch(storage, table_name, by_record, pgc_column)
             batch_results = _resolve_batch(
                 by_record,
                 record_pgc_by_id,
@@ -359,6 +348,7 @@ def run_crossmatch(
                 last_id=last_id,
                 total=total,
             )
+    finally:
 
         def pct(n: int) -> float:
             return (100.0 * n / total) if total else 0.0

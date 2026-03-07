@@ -10,6 +10,7 @@ from urllib.parse import quote_plus
 import click
 import structlog
 from dotenv import load_dotenv
+from psycopg import connect
 
 import app
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
@@ -19,6 +20,7 @@ from app.gen.client import adminapi
 from app.icrs import upload_icrs as run_upload_icrs
 from app.nature import upload_nature as run_upload_nature
 from app.redshift import upload_redshift as run_upload_redshift
+from app.storage import PgStorage
 
 env_map = {
     "dev": "http://localhost:8080",
@@ -110,15 +112,17 @@ def upload_structured_designation(
     print_unmatched: bool,
 ) -> None:
     common = ctx.obj.upload_structured_common
-    run_upload_designations(
-        common["dsn"],
-        common["table_name"],
-        column_name,
-        batch_size,
-        common["client"],
-        write=write,
-        print_unmatched=print_unmatched,
-    )
+    with connect(common["dsn"]) as conn:
+        storage = PgStorage(conn)
+        run_upload_designations(
+            storage,
+            common["table_name"],
+            column_name,
+            batch_size,
+            common["client"],
+            write=write,
+            print_unmatched=print_unmatched,
+        )
 
 
 @upload_structured.command("icrs", help="Upload ICRS coordinates to the structured level.")
@@ -147,19 +151,21 @@ def upload_structured_icrs(
     write: bool,
 ) -> None:
     common = ctx.obj.upload_structured_common
-    run_upload_icrs(
-        common["dsn"],
-        common["table_name"],
-        ra_column,
-        dec_column,
-        batch_size,
-        common["client"],
-        write=write,
-        ra_error=ra_error,
-        ra_error_unit=ra_error_unit,
-        dec_error=dec_error,
-        dec_error_unit=dec_error_unit,
-    )
+    with connect(common["dsn"]) as conn:
+        storage = PgStorage(conn)
+        run_upload_icrs(
+            storage,
+            common["table_name"],
+            ra_column,
+            dec_column,
+            batch_size,
+            common["client"],
+            write=write,
+            ra_error=ra_error,
+            ra_error_unit=ra_error_unit,
+            dec_error=dec_error,
+            dec_error_unit=dec_error_unit,
+        )
 
 
 @upload_structured.command("redshift", help="Upload redshift measurements to the structured level.")
@@ -189,15 +195,17 @@ def upload_structured_redshift(
     write: bool,
 ) -> None:
     common = ctx.obj.upload_structured_common
-    run_upload_redshift(
-        common["dsn"],
-        common["table_name"],
-        z_column,
-        batch_size,
-        common["client"],
-        write=write,
-        z_error=z_error,
-    )
+    with connect(common["dsn"]) as conn:
+        storage = PgStorage(conn)
+        run_upload_redshift(
+            storage,
+            common["table_name"],
+            z_column,
+            batch_size,
+            common["client"],
+            write=write,
+            z_error=z_error,
+        )
 
 
 @upload_structured.command("nature", help="Upload object nature/type to the structured level.")
@@ -245,16 +253,18 @@ def upload_structured_nature(
         type_mapping[raw] = leda
 
     common = ctx.obj.upload_structured_common
-    run_upload_nature(
-        common["dsn"],
-        common["table_name"],
-        column_name,
-        type_mapping,
-        default_type,
-        batch_size,
-        common["client"],
-        write=write,
-    )
+    with connect(common["dsn"]) as conn:
+        storage = PgStorage(conn)
+        run_upload_nature(
+            storage,
+            common["table_name"],
+            column_name,
+            type_mapping,
+            default_type,
+            batch_size,
+            common["client"],
+            write=write,
+        )
 
 
 @cli.group("crossmatch", help="Cross-identify objects in a raw table against existing entries in the database.")
@@ -303,8 +313,19 @@ def crossmatch_default(
     radius: float,
     pgc_column: str | None,
 ) -> None:
+    common = ctx.obj.crossmatch_common
     resolver = DefaultResolver(radius_deg=radius / 3600.0, pgc_column=pgc_column)
-    run_crossmatch_cmd(**ctx.obj.crossmatch_common, resolver=resolver)
+    with connect(common["dsn"]) as conn:
+        storage = PgStorage(conn)
+        run_crossmatch_cmd(
+            storage,
+            common["table_name"],
+            common["batch_size"],
+            common["client"],
+            resolver=resolver,
+            print_pending=common["print_pending"],
+            write=common["write"],
+        )
 
 
 @crossmatch.command("two-radii", help="Cross-identify using inner and outer search radii.")
@@ -322,12 +343,23 @@ def crossmatch_two_radii(
     r2: float,
     redshift_tolerance: float,
 ) -> None:
+    common = ctx.obj.crossmatch_common
     resolver = TwoRadiiResolver(
         r1_deg=r1 / 3600.0,
         r2_deg=r2 / 3600.0,
         redshift_tolerance=redshift_tolerance,
     )
-    run_crossmatch_cmd(**ctx.obj.crossmatch_common, resolver=resolver)
+    with connect(common["dsn"]) as conn:
+        storage = PgStorage(conn)
+        run_crossmatch_cmd(
+            storage,
+            common["table_name"],
+            common["batch_size"],
+            common["client"],
+            resolver=resolver,
+            print_pending=common["print_pending"],
+            write=common["write"],
+        )
 
 
 @cli.command(help="Load and validate all upload plugins from the plugin directory.")

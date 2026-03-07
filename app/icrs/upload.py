@@ -1,4 +1,4 @@
-from psycopg import connect, sql
+from psycopg import sql
 
 from app import log
 from app.display import print_table
@@ -10,6 +10,7 @@ from app.gen.client.adminapi.models.save_structured_data_request import (
 from app.gen.client.adminapi.models.save_structured_data_request_units import (
     SaveStructuredDataRequestUnits,
 )
+from app.storage import PgStorage
 from app.upload import handle_call
 
 ICRS_COLUMNS = ["ra", "dec", "e_ra", "e_dec"]
@@ -41,7 +42,7 @@ def _fetch_units(
 
 
 def upload_icrs(
-    dsn: str,
+    storage: PgStorage,
     table_name: str,
     ra_column: str,
     dec_column: str,
@@ -79,57 +80,54 @@ def upload_icrs(
     ra_sum = 0.0
     dec_sum = 0.0
 
-    with connect(dsn) as conn:
-        last_id = ""
-        while True:
-            with conn.cursor() as cur:
-                cur.execute(query, (last_id, batch_size))
-                rows = cur.fetchall()
-            if not rows:
-                break
+    last_id = ""
+    while True:
+        rows = storage.query(query, (last_id, batch_size))
+        if not rows:
+            break
 
-            batch_ids: list[str] = []
-            batch_data: list[list[float]] = []
+        batch_ids: list[str] = []
+        batch_data: list[list[float]] = []
 
-            for row in rows:
-                last_id = row[0]
-                ra_val = row[1]
-                dec_val = row[2]
-                if ra_val is None or dec_val is None:
-                    skipped += 1
-                    continue
-                ra_f = float(ra_val)
-                dec_f = float(dec_val)
-                batch_ids.append(last_id)
-                batch_data.append([ra_f, dec_f, float(ra_error), float(dec_error)])
-                uploaded += 1
-                ra_min = min(ra_min, ra_f)
-                ra_max = max(ra_max, ra_f)
-                dec_min = min(dec_min, dec_f)
-                dec_max = max(dec_max, dec_f)
-                ra_sum += ra_f
-                dec_sum += dec_f
+        for row in rows:
+            last_id = row["hyperleda_internal_id"]
+            ra_val = row[ra_column]
+            dec_val = row[dec_column]
+            if ra_val is None or dec_val is None:
+                skipped += 1
+                continue
+            ra_f = float(ra_val)
+            dec_f = float(dec_val)
+            batch_ids.append(last_id)
+            batch_data.append([ra_f, dec_f, float(ra_error), float(dec_error)])
+            uploaded += 1
+            ra_min = min(ra_min, ra_f)
+            ra_max = max(ra_max, ra_f)
+            dec_min = min(dec_min, dec_f)
+            dec_max = max(dec_max, dec_f)
+            ra_sum += ra_f
+            dec_sum += dec_f
 
-            if write and batch_ids:
-                handle_call(
-                    save_structured_data.sync_detailed(
-                        client=client,
-                        body=SaveStructuredDataRequest(
-                            catalog="icrs",
-                            columns=ICRS_COLUMNS,
-                            ids=batch_ids,
-                            data=batch_data,
-                            units=units,
-                        ),
-                    )
+        if write and batch_ids:
+            handle_call(
+                save_structured_data.sync_detailed(
+                    client=client,
+                    body=SaveStructuredDataRequest(
+                        catalog="icrs",
+                        columns=ICRS_COLUMNS,
+                        ids=batch_ids,
+                        data=batch_data,
+                        units=units,
+                    ),
                 )
-
-            log.logger.debug(
-                "processed batch",
-                rows=len(rows),
-                last_id=last_id,
-                total=uploaded,
             )
+
+        log.logger.debug(
+            "processed batch",
+            rows=len(rows),
+            last_id=last_id,
+            total=uploaded,
+        )
 
     total = uploaded + skipped
 
