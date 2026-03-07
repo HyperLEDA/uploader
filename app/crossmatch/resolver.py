@@ -321,18 +321,4 @@ class TwoRadiiResolver:
         )
 
 
-class LayeredResolver:
-    def __init__(self, radius_deg: float, pgc_column: str | None = None) -> None:
-        self._radius_deg = radius_deg
-        self._pgc_column = pgc_column
-
-    @property
-    def search_radius_deg(self) -> float:
-        return self._radius_deg
-
-    @property
-    def pgc_column(self) -> str | None:
-        return self._pgc_column
-
-    def resolve(self, evidence: RecordEvidence) -> CrossmatchResult:
-        return layered.resolver(evidence)
+LayeredResolver = layered.LayeredResolver

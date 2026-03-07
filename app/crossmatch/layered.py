@@ -116,6 +116,44 @@ def pgc_resolver(
     return PreliminaryCrossmatchStatusColliding(previous_result.pgcs | {pgc}), PendingReason.MATCHED_PGC_OUTSIDE_CIRCLE
 
 
+def redshift_resolver(
+    evidence: RecordEvidence,
+    previous_result: PreliminaryCrossmatchStatus,
+    redshift_tolerance: float,
+) -> tuple[PreliminaryCrossmatchStatus, PendingReason | None]:
+    if evidence.record_redshift is None:
+        return previous_result, None
+
+    record_z = evidence.record_redshift
+
+    if isinstance(previous_result, PreliminaryCrossmatchStatusNew):
+        return previous_result, None
+
+    if isinstance(previous_result, PreliminaryCrossmatchStatusExisting):
+        # across neigbours, find me a neighbour with the matched PGC
+        neighbor = next((n for n in evidence.neighbors if n.pgc == previous_result.pgc), None)
+
+        if neighbor is None or neighbor.redshift is None:
+            return previous_result, None
+
+        if abs(neighbor.redshift - record_z) < redshift_tolerance:
+            return previous_result, None
+
+        return previous_result, PendingReason.REDSHIFT_MISMATCH
+
+    neighbors_involved = [n for n in evidence.neighbors if n.pgc in previous_result.pgcs]
+    if any(n.redshift is None for n in neighbors_involved):
+        return previous_result, None
+
+    close = [
+        n for n in neighbors_involved if n.redshift is not None and abs(n.redshift - record_z) < redshift_tolerance
+    ]
+    if len(close) == 1:
+        return PreliminaryCrossmatchStatusExisting(close[0].pgc), None
+
+    return previous_result, None
+
+
 def _preliminary_to_final(results: PreliminaryCrossmatchStatus, pending_reason: PendingReason) -> CrossmatchResult:
     if isinstance(results, PreliminaryCrossmatchStatusNew):
         return CrossmatchResult(
@@ -136,7 +174,7 @@ def _preliminary_to_final(results: PreliminaryCrossmatchStatus, pending_reason: 
     )
 
 
-def resolver(evidence: RecordEvidence) -> CrossmatchResult:
+def resolver(evidence: RecordEvidence, redshift_tolerance: float | None = None) -> CrossmatchResult:
     icrs_result, pending_reason = icrs_simple_resolver(evidence)
     if pending_reason is not None:
         return _preliminary_to_final(icrs_result, pending_reason)
@@ -149,7 +187,13 @@ def resolver(evidence: RecordEvidence) -> CrossmatchResult:
     if pending_reason is not None:
         return _preliminary_to_final(pgc_result, pending_reason)
 
-    final_result = pgc_result
+    if redshift_tolerance is None:
+        final_result = pgc_result
+    else:
+        redshift_result, pending_reason = redshift_resolver(evidence, pgc_result, redshift_tolerance)
+        if pending_reason is not None:
+            return _preliminary_to_final(redshift_result, pending_reason)
+        final_result = redshift_result
 
     if isinstance(final_result, PreliminaryCrossmatchStatusNew):
         return CrossmatchResult(status=CrossmatchStatus.NEW, triage_status=TriageStatus.RESOLVED)
@@ -165,3 +209,26 @@ def resolver(evidence: RecordEvidence) -> CrossmatchResult:
         colliding_pgcs=list(final_result.pgcs),
         pending_reason=PendingReason.MULTIPLE_OBJECTS_MATCHED,
     )
+
+
+class LayeredResolver:
+    def __init__(
+        self,
+        radius_deg: float,
+        pgc_column: str | None = None,
+        redshift_tolerance: float | None = None,
+    ) -> None:
+        self._radius_deg = radius_deg
+        self._pgc_column = pgc_column
+        self._redshift_tolerance = redshift_tolerance
+
+    @property
+    def search_radius_deg(self) -> float:
+        return self._radius_deg
+
+    @property
+    def pgc_column(self) -> str | None:
+        return self._pgc_column
+
+    def resolve(self, evidence: RecordEvidence) -> CrossmatchResult:
+        return resolver(evidence, self._redshift_tolerance)

@@ -369,14 +369,25 @@ def crossmatch_two_radii(
     default=None,
     help="Column in the raw data table containing the claimed PGC; if omitted, PGC matching is disabled",
 )
+@click.option(
+    "--redshift-tolerance",
+    type=float,
+    default=None,
+    help="Redshift z tolerance for crossmatching; if omitted, redshift resolution is skipped",
+)
 @click.pass_context
 def crossmatch_layered(
     ctx: click.Context,
     radius: float,
     pgc_column: str | None,
+    redshift_tolerance: float | None,
 ) -> None:
     common = ctx.obj.crossmatch_common
-    resolver = LayeredResolver(radius_deg=radius / 3600.0, pgc_column=pgc_column)
+    resolver = LayeredResolver(
+        radius_deg=radius / 3600.0,
+        pgc_column=pgc_column,
+        redshift_tolerance=redshift_tolerance,
+    )
     with connect(common["dsn"]) as conn:
         storage = PgStorage(conn)
         run_crossmatch_cmd(
