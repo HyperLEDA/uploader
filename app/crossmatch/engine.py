@@ -186,8 +186,8 @@ def _resolve_batch(
     design_to_pgcs: dict[str, frozenset[int]],
     resolver: Resolver,
     print_pending: bool,
-) -> list[CrossmatchResult]:
-    results: list[CrossmatchResult] = []
+) -> list[tuple[str, CrossmatchResult]]:
+    results: list[tuple[str, CrossmatchResult]] = []
     radius_deg = resolver.search_radius_deg
     for record_id, rec_data in by_record.items():
         new_ra = rec_data["new_ra"]
@@ -216,7 +216,6 @@ def _resolve_batch(
         claimed_pgc_exists = record_pgc is not None and record_pgc in existing_pgcs
         record_redshift = rec_data.get("new_redshift")
         evidence = RecordEvidence(
-            record_id=record_id,
             neighbors=neighbors,
             record_designation=record_designation,
             global_pgcs_with_same_design=global_pgcs or None,
@@ -225,7 +224,7 @@ def _resolve_batch(
             record_redshift=record_redshift,
         )
         result = resolver.resolve(evidence)
-        results.append(result)
+        results.append((record_id, result))
         if print_pending and result.triage_status == TriageStatus.PENDING:
             line = record_id + f"({result.status})"
             if result.pending_reason is not None:
@@ -240,7 +239,7 @@ def _resolve_batch(
 
 def _write_crossmatch_results(
     client: adminapi.AuthenticatedClient,
-    results: list[CrossmatchResult],
+    results: list[tuple[str, CrossmatchResult]],
 ) -> None:
     new_record_ids_list: list[str] = []
     new_triage_list: list[RecordTriageStatus] = []
@@ -250,17 +249,17 @@ def _write_crossmatch_results(
     collided_record_ids_list: list[str] = []
     collided_matches_list: list[list[int]] = []
     collided_triage_list: list[RecordTriageStatus] = []
-    for r in results:
+    for record_id, r in results:
         triage = RecordTriageStatus(r.triage_status.value)
         if r.status == CrossmatchStatus.NEW:
-            new_record_ids_list.append(r.record_id)
+            new_record_ids_list.append(record_id)
             new_triage_list.append(triage)
         elif r.status == CrossmatchStatus.EXISTING and r.matched_pgc is not None:
-            existing_record_ids_list.append(r.record_id)
+            existing_record_ids_list.append(record_id)
             existing_pgc_list.append(r.matched_pgc)
             existing_triage_list.append(triage)
         elif r.status == CrossmatchStatus.COLLIDING and r.colliding_pgcs is not None:
-            collided_record_ids_list.append(r.record_id)
+            collided_record_ids_list.append(record_id)
             collided_matches_list.append(sorted(r.colliding_pgcs))
             collided_triage_list.append(triage)
     new_pl = (
@@ -347,7 +346,7 @@ def run_crossmatch(
                 print_pending,
             )
 
-            for result in batch_results:
+            for _record_id, result in batch_results:
                 counts[(result.status, result.triage_status, result.pending_reason)] += 1
                 total += 1
 

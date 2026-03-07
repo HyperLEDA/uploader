@@ -67,7 +67,6 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
 
         if record_pgc is not None and n.pgc != record_pgc:
             return CrossmatchResult(
-                record_id=evidence.record_id,
                 status=CrossmatchStatus.EXISTING,
                 triage_status=TriageStatus.PENDING,
                 matched_pgc=n.pgc,
@@ -76,14 +75,12 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
 
         if _preferred_neighbor(evidence, n) or record_pgc is None:
             return CrossmatchResult(
-                record_id=evidence.record_id,
                 status=CrossmatchStatus.EXISTING,
                 triage_status=TriageStatus.RESOLVED,
                 matched_pgc=n.pgc,
             )
 
         return CrossmatchResult(
-            record_id=evidence.record_id,
             status=CrossmatchStatus.EXISTING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=n.pgc,
@@ -97,7 +94,6 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
             p = preferred[0]
             triage = TriageStatus.RESOLVED if record_pgc is None or p.pgc == record_pgc else TriageStatus.PENDING
             return CrossmatchResult(
-                record_id=evidence.record_id,
                 status=CrossmatchStatus.EXISTING,
                 triage_status=triage,
                 matched_pgc=p.pgc,
@@ -105,7 +101,6 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
             )
 
         return CrossmatchResult(
-            record_id=evidence.record_id,
             status=CrossmatchStatus.COLLIDING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=None,
@@ -126,7 +121,6 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
             else PendingReason.MATCHED_PGC_OUTSIDE_CIRCLE
         )
         return CrossmatchResult(
-            record_id=evidence.record_id,
             status=CrossmatchStatus.EXISTING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=matched_pgc,
@@ -134,7 +128,6 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
         )
 
     return CrossmatchResult(
-        record_id=evidence.record_id,
         status=CrossmatchStatus.NEW,
         triage_status=TriageStatus.RESOLVED,
         matched_pgc=None,
@@ -152,7 +145,6 @@ def _resolve_by_radius_coordinate(
 
     if len(inner) > 1:
         return CrossmatchResult(
-            record_id=evidence.record_id,
             status=CrossmatchStatus.COLLIDING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=None,
@@ -162,7 +154,6 @@ def _resolve_by_radius_coordinate(
 
     if len(inner) == 1 and len(outer) >= 1:
         return CrossmatchResult(
-            record_id=evidence.record_id,
             status=CrossmatchStatus.COLLIDING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=inner[0].pgc,
@@ -171,7 +162,6 @@ def _resolve_by_radius_coordinate(
 
     if len(inner) == 1 and len(outer) == 0:
         return CrossmatchResult(
-            record_id=evidence.record_id,
             status=CrossmatchStatus.EXISTING,
             triage_status=TriageStatus.RESOLVED,
             matched_pgc=inner[0].pgc,
@@ -179,7 +169,6 @@ def _resolve_by_radius_coordinate(
 
     if len(inner) == 0 and len(outer) == 1:
         return CrossmatchResult(
-            record_id=evidence.record_id,
             status=CrossmatchStatus.EXISTING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=outer[0].pgc,
@@ -188,7 +177,6 @@ def _resolve_by_radius_coordinate(
 
     if len(inner) == 0 and len(outer) > 1:
         return CrossmatchResult(
-            record_id=evidence.record_id,
             status=CrossmatchStatus.COLLIDING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=None,
@@ -197,7 +185,6 @@ def _resolve_by_radius_coordinate(
         )
 
     return CrossmatchResult(
-        record_id=evidence.record_id,
         status=CrossmatchStatus.NEW,
         triage_status=TriageStatus.RESOLVED,
         matched_pgc=None,
@@ -216,7 +203,6 @@ def _apply_redshift_check(
     redshift_tolerance: float,
 ) -> CrossmatchResult:
     """Refine coordinate result using redshift when record and involved neighbors have redshift."""
-    record_id = coord_result.record_id
     record_z = evidence.record_redshift
 
     if record_z is None:
@@ -236,14 +222,12 @@ def _apply_redshift_check(
 
         if _redshift_close(record_z, neighbor.redshift, redshift_tolerance):
             return CrossmatchResult(
-                record_id=record_id,
                 status=CrossmatchStatus.EXISTING,
                 triage_status=TriageStatus.RESOLVED,
                 matched_pgc=matched_pgc,
             )
 
         return CrossmatchResult(
-            record_id=record_id,
             status=CrossmatchStatus.EXISTING,
             triage_status=TriageStatus.PENDING,
             matched_pgc=matched_pgc,
@@ -262,7 +246,6 @@ def _apply_redshift_check(
         close = [n for n in neighbors_involved if _redshift_close(record_z, n.redshift, redshift_tolerance)]
         if len(close) == 1:
             return CrossmatchResult(
-                record_id=record_id,
                 status=CrossmatchStatus.EXISTING,
                 triage_status=TriageStatus.RESOLVED,
                 matched_pgc=close[0].pgc,

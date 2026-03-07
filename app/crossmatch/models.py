@@ -14,7 +14,6 @@ class Neighbor:
 
 @dataclass
 class RecordEvidence:
-    record_id: str
     neighbors: list[Neighbor]
     record_designation: str | None = None
     global_pgcs_with_same_design: frozenset[int] | None = None
@@ -52,9 +51,8 @@ class PendingReason(enum.Enum):
 
 @dataclass
 class CrossmatchResult:
-    record_id: str
     status: CrossmatchStatus
     triage_status: TriageStatus
-    matched_pgc: int | None
+    matched_pgc: int | None = None
     colliding_pgcs: list[int] | None = None
     pending_reason: PendingReason | None = None
