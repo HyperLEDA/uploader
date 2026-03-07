@@ -60,7 +60,7 @@ def resolve(evidence: RecordEvidence) -> CrossmatchResult:
     neighbors = evidence.neighbors
     record_pgc = evidence.record_pgc
     claimed_pgc_exists = evidence.claimed_pgc_exists_in_layer2
-    global_pgcs = evidence.global_pgcs_with_same_design or frozenset()
+    global_pgcs = evidence.same_name_pgcs or []
 
     if len(neighbors) == 1:
         n = neighbors[0]

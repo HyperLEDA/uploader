@@ -16,7 +16,7 @@ class Neighbor:
 class RecordEvidence:
     neighbors: list[Neighbor]
     record_designation: str | None = None
-    global_pgcs_with_same_design: frozenset[int] | None = None
+    same_name_pgcs: list[int] | None = None
     record_pgc: int | None = None
     claimed_pgc_exists_in_layer2: bool = False
     record_redshift: float | None = None

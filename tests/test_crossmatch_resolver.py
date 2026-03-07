@@ -54,7 +54,7 @@ def test_resolve_name_match_in_circle() -> None:
             Neighbor(pgc=2, ra=10.01, dec=20.01, distance_deg=0.002, design="PGC 456"),
         ],
         record_designation="NGC 123",
-        global_pgcs_with_same_design=frozenset({1}),
+        same_name_pgcs=[1],
     )
     result = resolve(evidence)
     assert result.status == CrossmatchStatus.EXISTING
@@ -66,7 +66,7 @@ def test_resolve_name_match_outside_circle() -> None:
     evidence = RecordEvidence(
         neighbors=[],
         record_designation="NGC 999",
-        global_pgcs_with_same_design=frozenset({100}),
+        same_name_pgcs=[100],
     )
     result = resolve(evidence)
     assert result.status == CrossmatchStatus.EXISTING
@@ -82,7 +82,7 @@ def test_resolve_name_match_in_circle_ambiguous_two_matching() -> None:
             Neighbor(pgc=2, ra=10.01, dec=20.01, distance_deg=0.002, design="NGC 123"),
         ],
         record_designation="NGC 123",
-        global_pgcs_with_same_design=frozenset({1, 2}),
+        same_name_pgcs=[1, 2],
     )
     result = resolve(evidence)
     assert result.status == CrossmatchStatus.COLLIDING
@@ -95,7 +95,7 @@ def test_resolve_name_match_outside_circle_ambiguous_multiple_pgcs() -> None:
     evidence = RecordEvidence(
         neighbors=[],
         record_designation="NGC 999",
-        global_pgcs_with_same_design=frozenset({100, 101}),
+        same_name_pgcs=[100, 101],
     )
     result = resolve(evidence)
     assert result.status == CrossmatchStatus.NEW

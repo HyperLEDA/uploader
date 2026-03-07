@@ -127,7 +127,7 @@ def _enrich_batch(
     table_name: str,
     by_record: dict[str, dict],
     pgc_column: str | None,
-) -> tuple[dict[str, int | None], set[int], dict[str, frozenset[int]]]:
+) -> tuple[dict[str, int | None], set[int], dict[str, list[int]]]:
     record_pgc_by_id: dict[str, int | None] = {}
     if pgc_column is not None:
         raw_pgc_query = sql.SQL(
@@ -154,7 +154,7 @@ def _enrich_batch(
     designations_in_batch = {
         rec_data["new_design"] for rec_data in by_record.values() if rec_data["new_design"] is not None
     }
-    design_to_pgcs: dict[str, frozenset[int]] = {}
+    design_to_pgcs: dict[str, list[int]] = {}
     if designations_in_batch:
         pgcs_by_design: dict[str, set[int]] = {}
         for row in storage.query(
@@ -162,10 +162,10 @@ def _enrich_batch(
             (list(designations_in_batch),),
         ):
             pgcs_by_design.setdefault(row["design"], set()).add(row["pgc"])
-        design_to_pgcs = {d: frozenset(s) for d, s in pgcs_by_design.items()}
+        design_to_pgcs = {d: list(s) for d, s in pgcs_by_design.items()}
         for design in designations_in_batch:
             if design not in design_to_pgcs:
-                design_to_pgcs[design] = frozenset()
+                design_to_pgcs[design] = []
 
     return record_pgc_by_id, existing_pgcs, design_to_pgcs
 
@@ -174,7 +174,7 @@ def _resolve_batch(
     by_record: dict[str, dict],
     record_pgc_by_id: dict[str, int | None],
     existing_pgcs: set[int],
-    design_to_pgcs: dict[str, frozenset[int]],
+    design_to_pgcs: dict[str, list[int]],
     resolver: Resolver,
     print_pending: bool,
 ) -> list[tuple[str, CrossmatchResult]]:
@@ -185,9 +185,7 @@ def _resolve_batch(
         new_dec = rec_data["new_dec"]
         record_designation = rec_data["new_design"]
         candidates = rec_data["candidates"]
-        global_pgcs = (
-            design_to_pgcs.get(record_designation, frozenset()) if record_designation is not None else frozenset()
-        )
+        global_pgcs = design_to_pgcs.get(record_designation, []) if record_designation is not None else []
         neighbors: list[Neighbor] = []
         if new_ra is not None and new_dec is not None:
             for existing_ra, existing_dec, pgc, existing_design, existing_redshift in candidates:
@@ -209,7 +207,7 @@ def _resolve_batch(
         evidence = RecordEvidence(
             neighbors=neighbors,
             record_designation=record_designation,
-            global_pgcs_with_same_design=global_pgcs or None,
+            same_name_pgcs=global_pgcs or None,
             record_pgc=record_pgc,
             claimed_pgc_exists_in_layer2=claimed_pgc_exists,
             record_redshift=record_redshift,
