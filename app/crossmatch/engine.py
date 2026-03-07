@@ -2,7 +2,6 @@ import math
 from collections import defaultdict
 from typing import cast
 
-import click
 from psycopg import sql
 
 from app import log
@@ -215,14 +214,15 @@ def _resolve_batch(
         result = resolver.resolve(evidence)
         results.append((record_id, result))
         if print_pending and result.triage_status == TriageStatus.PENDING:
-            line = record_id + f"({result.status})"
-            if result.pending_reason is not None:
-                line += " " + result.pending_reason.value
-            if result.colliding_pgcs:
-                line += " pgcs: " + ",".join(str(p) for p in sorted(result.colliding_pgcs))
-            elif result.matched_pgc is not None:
-                line += " pgc: " + str(result.matched_pgc)
-            click.echo(line)
+            log.logger.warning(
+                "pending crossmatch",
+                record_id=record_id,
+                status=result.status.value,
+                pending_reason=result.pending_reason.value if result.pending_reason is not None else None,
+                colliding_pgcs=sorted(result.colliding_pgcs) if result.colliding_pgcs else None,
+                matched_pgc=result.matched_pgc,
+                link=f"https://leda.sao.ru/records/{record_id}/crossmatch",
+            )
     return results
 
 

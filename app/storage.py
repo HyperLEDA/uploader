@@ -18,7 +18,7 @@ class PgStorage:
         params: Sequence[Any] | None = None,
     ) -> list[dict[str, Any]]:
         query_str = query if isinstance(query, str) else query.as_string(self._conn)
-        log.logger.info("Started query", query=query_str)
+        log.logger.debug("Started query", query=query_str)
         if isinstance(query, str):
             query_exec: sql.SQL | sql.Composed = sql.SQL(cast(LiteralString, query))
         else:
@@ -26,5 +26,5 @@ class PgStorage:
         with self._conn.cursor(row_factory=dict_row) as cur:
             cur.execute(query_exec, params)
             rows = list(cur.fetchall())
-        log.logger.info("Finished query", rows=len(rows))
+        log.logger.debug("Finished query", rows=len(rows))
         return rows
