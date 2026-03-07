@@ -17,6 +17,25 @@ from app.gen.client.adminapi import models, types
 VIZIER_URL = "https://vizier.cds.unistra.fr/viz-bin/votable/-tsv"
 
 
+def _coerce_row_to_schema(
+    row_dict: dict[str, object],
+    schema: list[models.ColumnDescription],
+) -> dict[str, object]:
+    type_by_col = {col.name: col.data_type for col in schema}
+    result = {}
+    for k, v in row_dict.items():
+        dt = type_by_col.get(k, models.DatatypeEnum.STRING)
+        if v is None or (isinstance(v, float) and pandas.isna(v)):
+            result[k] = None
+        elif dt == models.DatatypeEnum.INTEGER:
+            result[k] = int(float(str(v))) if v != "" else None
+        elif dt == models.DatatypeEnum.DOUBLE:
+            result[k] = float(str(v)) if v != "" else None
+        else:
+            result[k] = str(v) if v != "" else None
+    return result
+
+
 def _map_votable_datatype(datatype: str) -> models.DatatypeEnum:
     datatype_lower = datatype.lower() if datatype else ""
     if datatype_lower in ("char", "unicodechar", "string", "text"):
@@ -40,12 +59,12 @@ class VizierPlugin(
         catalog_name: str,
         table_name: str,
         cache_path: str = ".vizier_cache/",
-        batch_size: int = 500,
+        batch_size: int = 100,
     ):
         self.cache_path = cache_path
         self.catalog_name = catalog_name
         self.table_name = table_name
-        self.batch_size = batch_size
+        self.batch_size = int(batch_size)
 
     def _write_table_cache(self, catalog_name: str, table_name: str):
         app.logger.info(
@@ -61,8 +80,8 @@ class VizierPlugin(
         if not table:
             raise ValueError("table not found in the catalog")
 
-        cache_filename = self._obtain_cache_path("tables", catalog_name, table_name)
-        table.write(cache_filename, format="votable")
+        cache_filename = self._obtain_cache_path("tables", catalog_name, table_name, ext="csv")
+        table.write(cache_filename, format="csv")
 
         app.logger.debug("wrote table cache", location=str(cache_filename))
 
@@ -76,8 +95,10 @@ class VizierPlugin(
 
         app.logger.debug("wrote cache", location=str(cache_filename))
 
-    def _obtain_cache_path(self, type_path: str, catalog_name: str, table_name: str) -> pathlib.Path:
-        filename = f"{_get_filename(catalog_name, table_name)}.vot"
+    def _obtain_cache_path(
+        self, type_path: str, catalog_name: str, table_name: str, *, ext: str = "vot"
+    ) -> pathlib.Path:
+        filename = f"{_get_filename(catalog_name, table_name)}.{ext}"
         path = pathlib.Path(self.cache_path) / type_path / filename
 
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -88,8 +109,8 @@ class VizierPlugin(
         return votable.parse(str(cache_filename))
 
     def _get_table_from_cache(self, catalog_name: str, table_name: str) -> astropy.table.Table:
-        cache_filename = self._obtain_cache_path("tables", catalog_name, table_name)
-        return astropy.table.Table.read(cache_filename, format="votable")
+        cache_filename = self._obtain_cache_path("tables", catalog_name, table_name, ext="csv")
+        return astropy.table.Table.read(cache_filename, format="csv")
 
     def prepare(self) -> None:
         pass
@@ -114,11 +135,12 @@ class VizierPlugin(
         ]
 
     def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
-        if not self._obtain_cache_path("tables", self.catalog_name, self.table_name).exists():
+        if not self._obtain_cache_path("tables", self.catalog_name, self.table_name, ext="csv").exists():
             app.logger.debug("did not hit cache for the table, downloading")
             self._write_table_cache(self.catalog_name, self.table_name)
 
         table = self._get_table_from_cache(self.catalog_name, self.table_name)
+        schema = self.get_schema()
 
         total_rows = len(table)
         app.logger.info("uploading table", total_rows=total_rows)
@@ -130,8 +152,8 @@ class VizierPlugin(
 
             rows = []
             for row in batch:
-                row_dict = {k: v for k, v in dict(row).items() if v != "--"}
-                rows.append(row_dict)
+                row_dict = {_sanitize_column_name(k): v for k, v in dict(row).items() if v != "--"}
+                rows.append(_coerce_row_to_schema(row_dict, schema))
 
             yield pandas.DataFrame(rows), offset / total_rows
 
@@ -155,6 +177,10 @@ class VizierPlugin(
 
 def _sanitize_filename(string: str) -> str:
     return string.replace("/", "_")
+
+
+def _sanitize_column_name(name: str) -> str:
+    return name.replace("/", "_")
 
 
 def _get_filename(catalog_name: str, table_name: str) -> str:

@@ -1,4 +1,5 @@
 import math
+import traceback
 from typing import Any
 
 import click
@@ -26,7 +27,11 @@ def upload(
     try:
         _upload(plugin, client, *args, dry_run=dry_run, **kwargs)
     except Exception as e:
-        log.logger.error("Encountered an unrecoverable error", error=e)
+        log.logger.error(
+            "Encountered an unrecoverable error",
+            error=e,
+            traceback=traceback.format_exc(),
+        )
     finally:
         plugin.stop()
 

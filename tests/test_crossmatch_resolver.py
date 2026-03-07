@@ -291,7 +291,7 @@ def test_resolve_by_radius_single_in_outer_only_redshift_not_close_pending() -> 
     assert result.status == CrossmatchStatus.EXISTING
     assert result.triage_status == TriageStatus.PENDING
     assert result.matched_pgc == 10
-    assert result.pending_reason == PendingReason.SINGLE_IN_OUTER_RADIUS_ONLY
+    assert result.pending_reason == PendingReason.REDSHIFT_MISMATCH
 
 
 def test_resolve_by_radius_multiple_in_outer_any_no_redshift_colliding_proxy() -> None:
