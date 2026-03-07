@@ -128,5 +128,8 @@ def resolver(evidence: RecordEvidence) -> CrossmatchResult:
         )
 
     return CrossmatchResult(
-        status=CrossmatchStatus.COLLIDING, triage_status=TriageStatus.PENDING, colliding_pgcs=list(final_result.pgcs)
+        status=CrossmatchStatus.COLLIDING,
+        triage_status=TriageStatus.PENDING,
+        colliding_pgcs=list(final_result.pgcs),
+        pending_reason=PendingReason.MULTIPLE_OBJECTS_MATCHED,
     )

@@ -31,6 +31,7 @@ Overview:
 
 from typing import Protocol
 
+from app.crossmatch import layered
 from app.crossmatch.models import (
     CrossmatchResult,
     CrossmatchStatus,
@@ -318,3 +319,20 @@ class TwoRadiiResolver:
             self._r2_deg,
             self._redshift_tolerance,
         )
+
+
+class LayeredResolver:
+    def __init__(self, radius_deg: float, pgc_column: str | None = None) -> None:
+        self._radius_deg = radius_deg
+        self._pgc_column = pgc_column
+
+    @property
+    def search_radius_deg(self) -> float:
+        return self._radius_deg
+
+    @property
+    def pgc_column(self) -> str | None:
+        return self._pgc_column
+
+    def resolve(self, evidence: RecordEvidence) -> CrossmatchResult:
+        return layered.resolver(evidence)

@@ -14,7 +14,7 @@ from psycopg import connect
 
 import app
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
-from app.crossmatch.resolver import DefaultResolver, TwoRadiiResolver
+from app.crossmatch.resolver import DefaultResolver, LayeredResolver, TwoRadiiResolver
 from app.designations import upload_designations as run_upload_designations
 from app.gen.client import adminapi
 from app.icrs import upload_icrs as run_upload_icrs
@@ -349,6 +349,34 @@ def crossmatch_two_radii(
         r2_deg=r2 / 3600.0,
         redshift_tolerance=redshift_tolerance,
     )
+    with connect(common["dsn"]) as conn:
+        storage = PgStorage(conn)
+        run_crossmatch_cmd(
+            storage,
+            common["table_name"],
+            common["batch_size"],
+            common["client"],
+            resolver=resolver,
+            print_pending=common["print_pending"],
+            write=common["write"],
+        )
+
+
+@crossmatch.command("layered", help="Cross-identify using layered ICRS then name resolution.")
+@click.option("--radius", required=True, type=float, help="Search radius in arcseconds")
+@click.option(
+    "--pgc-column",
+    default=None,
+    help="Column in the raw data table containing the claimed PGC; if omitted, PGC matching is disabled",
+)
+@click.pass_context
+def crossmatch_layered(
+    ctx: click.Context,
+    radius: float,
+    pgc_column: str | None,
+) -> None:
+    common = ctx.obj.crossmatch_common
+    resolver = LayeredResolver(radius_deg=radius / 3600.0, pgc_column=pgc_column)
     with connect(common["dsn"]) as conn:
         storage = PgStorage(conn)
         run_crossmatch_cmd(
