@@ -3,11 +3,13 @@ import inspect
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
 import click
 import structlog
+from dotenv import load_dotenv
 
 import app
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
@@ -49,8 +51,16 @@ class CommandContext:
     type=click.Choice(env_map.keys()),
     default="prod",
 )
+@click.option(
+    "--env-file",
+    type=click.Path(path_type=Path),
+    default=Path(".env"),
+    help="Path to .env file for DB_PASSWORD etc.; used by upload-structured and crossmatch",
+)
 @click.pass_context
-def cli(ctx, log_level: str, endpoint: str) -> None:
+def cli(ctx: click.Context, log_level: str, endpoint: str, env_file: Path) -> None:
+    if env_file.exists():
+        load_dotenv(env_file)
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
 
     ctx.obj = CommandContext(
