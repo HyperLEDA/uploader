@@ -1,5 +1,6 @@
 from psycopg import connect, sql
 
+from app import log
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import get_table, save_structured_data
@@ -71,6 +72,12 @@ def upload_icrs(
     )
     uploaded = 0
     skipped = 0
+    ra_min = float("inf")
+    ra_max = float("-inf")
+    dec_min = float("inf")
+    dec_max = float("-inf")
+    ra_sum = 0.0
+    dec_sum = 0.0
 
     with connect(dsn) as conn:
         last_id = ""
@@ -91,9 +98,17 @@ def upload_icrs(
                 if ra_val is None or dec_val is None:
                     skipped += 1
                     continue
+                ra_f = float(ra_val)
+                dec_f = float(dec_val)
                 batch_ids.append(last_id)
-                batch_data.append([float(ra_val), float(dec_val), float(ra_error), float(dec_error)])
+                batch_data.append([ra_f, dec_f, float(ra_error), float(dec_error)])
                 uploaded += 1
+                ra_min = min(ra_min, ra_f)
+                ra_max = max(ra_max, ra_f)
+                dec_min = min(dec_min, dec_f)
+                dec_max = max(dec_max, dec_f)
+                ra_sum += ra_f
+                dec_sum += dec_f
 
             if write and batch_ids:
                 handle_call(
@@ -109,15 +124,35 @@ def upload_icrs(
                     )
                 )
 
+            log.logger.debug(
+                "processed batch",
+                rows=len(rows),
+                last_id=last_id,
+                total=uploaded,
+            )
+
     total = uploaded + skipped
 
     def pct(n: int) -> float:
         return (100.0 * n / total) if total else 0.0
 
-    table_rows = [
+    table_rows: list[tuple[str, int | float, float | str]] = [
         ("Uploaded", uploaded, pct(uploaded)),
         ("Skipped (null)", skipped, pct(skipped)),
     ]
+    if uploaded > 0:
+        ra_mean = ra_sum / uploaded
+        dec_mean = dec_sum / uploaded
+        table_rows.extend(
+            [
+                ("RA min", round(ra_min, 6), "-"),
+                ("RA max", round(ra_max, 6), "-"),
+                ("RA mean", round(ra_mean, 6), "-"),
+                ("Dec min", round(dec_min, 6), "-"),
+                ("Dec max", round(dec_max, 6), "-"),
+                ("Dec mean", round(dec_mean, 6), "-"),
+            ]
+        )
     print_table(
         ("Status", "Count", "%"),
         table_rows,
