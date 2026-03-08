@@ -123,9 +123,9 @@ def pgc_resolver(
 def redshift_resolver(
     evidence: RecordEvidence,
     previous_result: PreliminaryCrossmatchStatus,
-    redshift_tolerance: float,
+    redshift_tolerance: float | None,
 ) -> tuple[PreliminaryCrossmatchStatus, PendingReason | None]:
-    if evidence.record_redshift is None:
+    if redshift_tolerance is None or evidence.record_redshift is None:
         return previous_result, None
 
     record_z = evidence.record_redshift
@@ -154,6 +154,37 @@ def redshift_resolver(
     ]
     if len(close) == 1:
         return PreliminaryCrossmatchStatusExisting(close[0].pgc), None
+
+    return previous_result, None
+
+
+def object_type_resolver(
+    evidence: RecordEvidence, previous_result: PreliminaryCrossmatchStatus
+) -> tuple[PreliminaryCrossmatchStatus, PendingReason | None]:
+    if evidence.record_type_name is None:
+        return previous_result, None
+
+    if isinstance(previous_result, PreliminaryCrossmatchStatusNew):
+        return previous_result, None
+
+    record_type = evidence.record_type_name
+
+    if isinstance(previous_result, PreliminaryCrossmatchStatusExisting):
+        neighbor = next((n for n in evidence.neighbors if n.pgc == previous_result.pgc), None)
+        existing_type = neighbor.type_name if neighbor is not None else None
+
+        if existing_type is not None and record_type != existing_type:
+            return previous_result, PendingReason.TYPE_MISMATCH
+
+        return previous_result, None
+
+    same_type_neighbors = [
+        n
+        for n in evidence.neighbors
+        if n.pgc in previous_result.pgcs and record_type is not None and n.type_name == record_type
+    ]
+    if len(same_type_neighbors) == 1:
+        return PreliminaryCrossmatchStatusExisting(same_type_neighbors[0].pgc), None
 
     return previous_result, None
 
@@ -210,13 +241,14 @@ class LayeredResolver:
         if pending_reason is not None:
             return _preliminary_to_final(name_result, pending_reason)
 
-        if self._redshift_tolerance is None:
-            final_result = name_result
-        else:
-            redshift_result, pending_reason = redshift_resolver(evidence, name_result, self._redshift_tolerance)
-            if pending_reason is not None:
-                return _preliminary_to_final(redshift_result, pending_reason)
-            final_result = redshift_result
+        redshift_result, pending_reason = redshift_resolver(evidence, name_result, self._redshift_tolerance)
+        if pending_reason is not None:
+            return _preliminary_to_final(redshift_result, pending_reason)
+
+        type_result, pending_reason = object_type_resolver(evidence, redshift_result)
+        if pending_reason is not None:
+            return _preliminary_to_final(type_result, pending_reason)
+        final_result = type_result
 
         if isinstance(final_result, PreliminaryCrossmatchStatusNew):
             return CrossmatchResult(status=CrossmatchStatus.NEW, triage_status=TriageStatus.RESOLVED)

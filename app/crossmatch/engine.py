@@ -47,15 +47,18 @@ BATCH_QUERY = sql.SQL("""
         nc.dec AS new_dec,
         new_desig.design AS new_design,
         new_cz.cz AS new_cz,
+        rec_nat.type_name AS new_type,
         l2.pgc AS existing_pgc,
         l2.ra AS existing_ra,
         l2.dec AS existing_dec,
         l2_desig.design AS existing_design,
-        l2_cz.cz AS existing_cz
+        l2_cz.cz AS existing_cz,
+        l2_nat.type_name AS existing_type
     FROM batch b
     LEFT JOIN icrs.data nc ON b.id = nc.record_id
     LEFT JOIN designation.data new_desig ON b.id = new_desig.record_id
     LEFT JOIN cz.data new_cz ON b.id = new_cz.record_id
+    LEFT JOIN nature.data rec_nat ON b.id = rec_nat.record_id
     LEFT JOIN layer2.icrs l2
         ON nc.record_id IS NOT NULL
         AND ST_DWithin(
@@ -65,6 +68,7 @@ BATCH_QUERY = sql.SQL("""
         )
     LEFT JOIN layer2.designation l2_desig ON l2.pgc = l2_desig.pgc
     LEFT JOIN layer2.cz l2_cz ON l2.pgc = l2_cz.pgc
+    LEFT JOIN layer2.nature l2_nat ON l2.pgc = l2_nat.pgc
     ORDER BY b.id ASC
 """)
 
@@ -77,6 +81,7 @@ def _evidence_to_dict(evidence: RecordEvidence) -> dict:
         "record_pgc": evidence.record_pgc,
         "claimed_pgc_exists_in_layer2": evidence.claimed_pgc_exists_in_layer2,
         "record_redshift": evidence.record_redshift,
+        "record_type_name": evidence.record_type_name,
     }
 
 
@@ -105,11 +110,13 @@ def _fetch_batch(
         new_dec = r["new_dec"]
         new_design = r["new_design"]
         new_cz = r["new_cz"]
+        new_type = r.get("new_type")
         existing_pgc = r["existing_pgc"]
         existing_ra = r["existing_ra"]
         existing_dec = r["existing_dec"]
         existing_design = r["existing_design"]
         existing_cz = r["existing_cz"]
+        existing_type = r.get("existing_type")
         last_id = new_id
         if new_id not in by_record:
             by_record[new_id] = {
@@ -117,6 +124,7 @@ def _fetch_batch(
                 "new_dec": None,
                 "new_design": None,
                 "new_redshift": None,
+                "new_type": None,
                 "candidates": [],
             }
         rec_data = by_record[new_id]
@@ -127,9 +135,13 @@ def _fetch_batch(
             rec_data["new_design"] = new_design
         if new_cz is not None:
             rec_data["new_redshift"] = float(new_cz) / C_M_S
+        if new_type is not None:
+            rec_data["new_type"] = new_type
         if existing_pgc is not None and existing_ra is not None and existing_dec is not None:
             existing_redshift = float(existing_cz) / C_M_S if existing_cz is not None else None
-            rec_data["candidates"].append((existing_ra, existing_dec, existing_pgc, existing_design, existing_redshift))
+            rec_data["candidates"].append(
+                (existing_ra, existing_dec, existing_pgc, existing_design, existing_redshift, existing_type)
+            )
 
     return by_record, last_id
 
@@ -200,7 +212,7 @@ def _resolve_batch(
         global_pgcs = design_to_pgcs.get(record_designation, []) if record_designation is not None else []
         neighbors: list[Neighbor] = []
         if new_ra is not None and new_dec is not None:
-            for existing_ra, existing_dec, pgc, existing_design, existing_redshift in candidates:
+            for existing_ra, existing_dec, pgc, existing_design, existing_redshift, existing_type in candidates:
                 dist = angular_distance_deg(new_ra, new_dec, existing_ra, existing_dec)
                 if dist <= radius_deg:
                     neighbors.append(
@@ -211,11 +223,13 @@ def _resolve_batch(
                             distance_deg=dist,
                             design=existing_design,
                             redshift=existing_redshift,
+                            type_name=existing_type,
                         ),
                     )
         record_pgc = record_pgc_by_id.get(record_id) if record_pgc_by_id else None
         claimed_pgc_exists = record_pgc is not None and record_pgc in existing_pgcs
         record_redshift = rec_data.get("new_redshift")
+        record_type_name = rec_data.get("new_type")
         evidence = RecordEvidence(
             neighbors=neighbors,
             record_designation=record_designation,
@@ -223,6 +237,7 @@ def _resolve_batch(
             record_pgc=record_pgc,
             claimed_pgc_exists_in_layer2=claimed_pgc_exists,
             record_redshift=record_redshift,
+            record_type_name=record_type_name,
         )
         result = resolver.resolve(evidence)
         results.append((record_id, result))
