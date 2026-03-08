@@ -211,9 +211,9 @@ class LayeredResolver:
             return _preliminary_to_final(name_result, pending_reason)
 
         if self._redshift_tolerance is None:
-            final_result = pgc_result
+            final_result = name_result
         else:
-            redshift_result, pending_reason = redshift_resolver(evidence, pgc_result, self._redshift_tolerance)
+            redshift_result, pending_reason = redshift_resolver(evidence, name_result, self._redshift_tolerance)
             if pending_reason is not None:
                 return _preliminary_to_final(redshift_result, pending_reason)
             final_result = redshift_result
