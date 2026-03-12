@@ -32,6 +32,7 @@ class NameRule:
 
 RULES: list[NameRule] = [
     NameRule(
+        # XXXX J{HH}{MM}{SS.ssss}+{DD}{MM}{SS.ssss}
         name="CatalogJ",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
@@ -39,10 +40,12 @@ RULES: list[NameRule] = [
         ),
         replacement="",
         replacer=lambda m: (
-            f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}{m.group(7)}{m.group(8)}"
+            f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}"
+            f"{m.group(5)}{m.group(6)}{m.group(7)}{m.group(8)}"
         ),
     ),
     NameRule(
+        # XXXX J{HHMMSSss}+{DDMMSSs}
         name="CatalogJ",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,5})J(\d{8})([+-])(\d{7})$",
@@ -52,6 +55,7 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}",
     ),
     NameRule(
+        # XXXX J{HH}{MM}+{DD}{MM}
         name="CatalogJ",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})([+-])(\d{2})(\d{2})$",
@@ -61,14 +65,14 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
     ),
     NameRule(
-        name="NGC",
-        pattern=re.compile(r"^NGC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="NGC {0}",
-    ),
-    NameRule(
-        name="NGC",
-        pattern=re.compile(r"^NGC\s*0*(\d+)([a-zA-Z]{1,3})$", re.IGNORECASE),
-        replacement="NGC {0}{1}",
+        # XXXX {NNNNNN}[a-z]
+        name="CatalogNum",
+        pattern=re.compile(
+            r"^([A-Za-z]{2,5})\s*0*(\d{1,10})([a-zA-Z]{1,3})?$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {int(m.group(2))}{m.group(3) or ''}",
     ),
     NameRule(
         name="NGC",
@@ -79,11 +83,6 @@ RULES: list[NameRule] = [
         name="NGC",
         pattern=re.compile(r"^N\s*0*(\d+)([a-zA-Z]{1,3})$", re.IGNORECASE),
         replacement="NGC {0}{1}",
-    ),
-    NameRule(
-        name="PGC",
-        pattern=re.compile(r"^PGC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="PGC {0}",
     ),
     NameRule(
         name="3C",
@@ -142,29 +141,9 @@ RULES: list[NameRule] = [
         replacement="ISI96_{0}{1}{2}",
     ),
     NameRule(
-        name="GAMA",
-        pattern=re.compile(r"^GAMA\s*0*(\d+)$", re.IGNORECASE),
-        replacement="GAMA {0}",
-    ),
-    NameRule(
-        name="MGC",
-        pattern=re.compile(r"^MGC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="MGC {0}",
-    ),
-    NameRule(
         name="M",
         pattern=re.compile(r"^(?:MESSIER|M)\s*0*(\d+)$", re.IGNORECASE),
         replacement="M {0}",
-    ),
-    NameRule(
-        name="HIP",
-        pattern=re.compile(r"^HIP\s*0*(\d+)$", re.IGNORECASE),
-        replacement="HIP {0}",
-    ),
-    NameRule(
-        name="HD",
-        pattern=re.compile(r"^HD\s*0*(\d+)$", re.IGNORECASE),
-        replacement="HD {0}",
     ),
     NameRule(
         name="BD",
@@ -229,56 +208,6 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"HIPASS J{m.group(1)}{m.group(2)}{m.group(3)}{m.group(4) or ''}",
     ),
     NameRule(
-        name="UGCA",
-        pattern=re.compile(r"^UGCA\s*0*(\d+)$", re.IGNORECASE),
-        replacement="UGCA {0}",
-    ),
-    NameRule(
-        name="UGC",
-        pattern=re.compile(r"^UGC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="UGC {0}",
-    ),
-    NameRule(
-        name="UGC",
-        pattern=re.compile(r"^UGC\s*0*(\d+)([a-zA-Z]{1,3})$", re.IGNORECASE),
-        replacement="UGC {0}{1}",
-    ),
-    NameRule(
-        name="IC",
-        pattern=re.compile(r"^IC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="IC {0}",
-    ),
-    NameRule(
-        name="IC",
-        pattern=re.compile(r"^IC\s*0*(\d+)([a-zA-Z]{1,3})$", re.IGNORECASE),
-        replacement="IC {0}{1}",
-    ),
-    NameRule(
-        name="DDO",
-        pattern=re.compile(r"^DDO\s*0*(\d+)$", re.IGNORECASE),
-        replacement="DDO {0}",
-    ),
-    NameRule(
-        name="AGC",
-        pattern=re.compile(r"^AGC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="AGC {0}",
-    ),
-    NameRule(
-        name="VCC",
-        pattern=re.compile(r"^VCC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="VCC {0}",
-    ),
-    NameRule(
-        name="EVCC",
-        pattern=re.compile(r"^EVCC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="EVCC {0}",
-    ),
-    NameRule(
-        name="UCD",
-        pattern=re.compile(r"^UCD\s*0*(\d+)$", re.IGNORECASE),
-        replacement="UCD {0}",
-    ),
-    NameRule(
         name="Dw",
         pattern=re.compile(r"^Dw\s*(\d{4})([+-])(\d{2})(\d{2})?(b)?$", re.IGNORECASE),
         replacement="Dw {0}{1}{2}",
@@ -303,46 +232,6 @@ RULES: list[NameRule] = [
         name="MCG",
         pattern=re.compile(r"^MCG\s*([+-]?\d+)-0*(\d+)-0*(\d+)$", re.IGNORECASE),
         replacement="MCG {0}-{1}-{2}",
-    ),
-    NameRule(
-        name="KDG",
-        pattern=re.compile(r"^KDG\s*0*(\d+)$", re.IGNORECASE),
-        replacement="KDG {0}",
-    ),
-    NameRule(
-        name="KKSG",
-        pattern=re.compile(r"^KKSG\s*0*(\d+)$", re.IGNORECASE),
-        replacement="KKSG {0}",
-    ),
-    NameRule(
-        name="KKS",
-        pattern=re.compile(r"^KKS\s*0*(\d+)$", re.IGNORECASE),
-        replacement="KKS {0}",
-    ),
-    NameRule(
-        name="KKH",
-        pattern=re.compile(r"^KKH\s*0*(\d+)$", re.IGNORECASE),
-        replacement="KKH {0}",
-    ),
-    NameRule(
-        name="KKR",
-        pattern=re.compile(r"^KKR\s*0*(\d+)$", re.IGNORECASE),
-        replacement="KKR {0}",
-    ),
-    NameRule(
-        name="KK",
-        pattern=re.compile(r"^KK\s*0*(\d+)$", re.IGNORECASE),
-        replacement="KK {0}",
-    ),
-    NameRule(
-        name="BTS",
-        pattern=re.compile(r"^BTS\s*0*(\d+)$", re.IGNORECASE),
-        replacement="BTS {0}",
-    ),
-    NameRule(
-        name="JKB",
-        pattern=re.compile(r"^JKB\s*0*(\d+)$", re.IGNORECASE),
-        replacement="JKB {0}",
     ),
     NameRule(
         name="2QZ",
