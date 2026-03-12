@@ -32,6 +32,35 @@ class NameRule:
 
 RULES: list[NameRule] = [
     NameRule(
+        name="CatalogJ",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: (
+            f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}{m.group(7)}{m.group(8)}"
+        ),
+    ),
+    NameRule(
+        name="CatalogJ",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,5})J(\d{8})([+-])(\d{7})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}",
+    ),
+    NameRule(
+        name="CatalogJ",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})([+-])(\d{2})(\d{2})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
+    ),
+    NameRule(
         name="NGC",
         pattern=re.compile(r"^NGC\s*0*(\d+)$", re.IGNORECASE),
         replacement="NGC {0}",
@@ -52,14 +81,6 @@ RULES: list[NameRule] = [
         replacement="NGC {0}{1}",
     ),
     NameRule(
-        name="SDSS",
-        pattern=re.compile(
-            r"^SDSSJ\s*(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
-            re.IGNORECASE,
-        ),
-        replacement="SDSS J{0}{1}{2}{3}{4}{5}{6}",
-    ),
-    NameRule(
         name="PGC",
         pattern=re.compile(r"^PGC\s*0*(\d+)$", re.IGNORECASE),
         replacement="PGC {0}",
@@ -75,22 +96,9 @@ RULES: list[NameRule] = [
         replacement="3C {0}{1}",
     ),
     NameRule(
-        name="2MASS",
-        pattern=re.compile(r"^2MASSJ\s*(\d{8})([+-])(\d{7})$", re.IGNORECASE),
-        replacement="2MASS J{0}{1}{2}",
-    ),
-    NameRule(
-        name="2MASX",
-        pattern=re.compile(r"^2MASXJ\s*(\d{8})([+-])(\d{7})$", re.IGNORECASE),
-        replacement="2MASX J{0}{1}{2}",
-    ),
-    NameRule(
-        name="WINGS",
-        pattern=re.compile(
-            r"^WINGSJ\s*(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
-            re.IGNORECASE,
-        ),
-        replacement="WINGS J{0}{1}{2}{3}{4}{5}{6}",
+        name="2dFGRS",
+        pattern=re.compile(r"^2dfgrs\s*([NS]\d+Z\d+)$", re.IGNORECASE),
+        replacement="2dFGRS {0}",
     ),
     NameRule(
         name="J",
@@ -99,6 +107,14 @@ RULES: list[NameRule] = [
             re.IGNORECASE,
         ),
         replacement="J{0}{1}{2}{3}{4}{5}{6}",
+    ),
+    NameRule(
+        name="[REF]J",
+        pattern=re.compile(
+            r"^\[([A-Za-z]+\d+)\]\s*J(\d{6}(?:\.\d+)?)([+-])(\d{6}(?:\.\d+)?)$",
+            re.IGNORECASE,
+        ),
+        replacement="[{0}] J{1}{2}{3}",
     ),
     NameRule(
         name="SMDG",
