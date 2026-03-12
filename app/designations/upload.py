@@ -87,7 +87,7 @@ def upload_designations(
         def total_pct(n: int, total: int = total_so_far) -> float:
             return (100.0 * n / total) if total else 0.0
 
-        log.logger.debug(
+        log.logger.info(
             "processed batch",
             rows=batch_size_actual,
             last_id=last_id,

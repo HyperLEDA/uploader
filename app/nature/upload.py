@@ -79,7 +79,7 @@ def upload_nature(
                 )
             )
 
-        log.logger.debug(
+        log.logger.info(
             "processed batch",
             rows=len(rows),
             last_id=last_id,

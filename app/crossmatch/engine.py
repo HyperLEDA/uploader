@@ -369,7 +369,7 @@ def run_crossmatch(
             if write and client and batch_results:
                 _write_crossmatch_results(client, batch_results)
 
-            log.logger.debug(
+            log.logger.info(
                 "processed batch",
                 rows=len(by_record),
                 last_id=last_id,
