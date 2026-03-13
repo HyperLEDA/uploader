@@ -270,7 +270,7 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}",
     ),
     NameRule(
-        name="CAT NNNNNN",
+        name="CAT N",
         pattern=re.compile(
             r"^([A-Za-z]{2,7})\s*0*(\d{1,10})([a-zA-Z]{1,3})?$",
             re.IGNORECASE,
@@ -327,6 +327,15 @@ RULES: list[NameRule] = [
             re.IGNORECASE,
         ),
         replacement="[{0}] J{1}{2}{3}",
+    ),
+    NameRule(
+        name="CAT N-N-N",
+        pattern=re.compile(
+            r"^([A-Za-z]{2,6})\s*0*(\d{1,5})-0*(\d{1,5})-0*(\d{1,5})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {int(m.group(2))}-{int(m.group(3))}-{int(m.group(4))}",
     ),
 ]
 
