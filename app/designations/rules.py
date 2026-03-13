@@ -32,8 +32,7 @@ class NameRule:
 
 RULES: list[NameRule] = [
     NameRule(
-        # XXXX J{HH}{MM}{SS.ssss}+{DD}{MM}{SS.ssss}
-        name="CatalogJ",
+        name="CAT JHHMMSS.sss+DDMMSS.sss",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
             re.IGNORECASE,
@@ -45,8 +44,7 @@ RULES: list[NameRule] = [
         ),
     ),
     NameRule(
-        # XXXX J{HHMMSSss}+{DDMMSSs}
-        name="CatalogJ",
+        name="CAT JHHMMSSss+DDMMSSs",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,5})J(\d{8})([+-])(\d{7})$",
             re.IGNORECASE,
@@ -55,8 +53,7 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}",
     ),
     NameRule(
-        # XXXX J{HH}{MM}+{DD}{MM}
-        name="CatalogJ",
+        name="CAT JHHMM+DDMM",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})([+-])(\d{2})(\d{2})$",
             re.IGNORECASE,
@@ -65,8 +62,7 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
     ),
     NameRule(
-        # XXXX [J] HHMM+DD[a-z]?
-        name="CatalogJ",
+        name="CAT J HHMM+DD",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,6})\s*(J?)\s*(\d{4})([+-])(\d{2,3})([a-z])?$",
             re.IGNORECASE,
@@ -77,8 +73,7 @@ RULES: list[NameRule] = [
         ),
     ),
     NameRule(
-        # XXXX 7dig+6dig
-        name="CatalogJ",
+        name="CAT HHMMSSs+DDMMSS",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,6})\s*(\d{7})([+-])(\d{6})$",
             re.IGNORECASE,
@@ -87,8 +82,7 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}",
     ),
     NameRule(
-        # XXXX {NNNNNN}[a-z]
-        name="CatalogNum",
+        name="CAT NNNNNN",
         pattern=re.compile(
             r"^([A-Za-z]{2,7})\s*0*(\d{1,10})([a-zA-Z]{1,3})?$",
             re.IGNORECASE,
@@ -97,8 +91,7 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} {int(m.group(2))}{m.group(3) or ''}",
     ),
     NameRule(
-        # XXXX ±NNNNNN
-        name="CatalogSign",
+        name="CAT +HHMMSS",
         pattern=re.compile(
             r"^([A-Za-z]{2,5})\s*([+-])(\d{6})$",
             re.IGNORECASE,
