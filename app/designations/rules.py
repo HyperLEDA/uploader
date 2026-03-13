@@ -283,6 +283,15 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
     ),
     NameRule(
+        name="CAT JDD.ddd+DD.ddd",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,6})J(\d{1,3}\.\d+)([+-])(\d{1,3}\.\d+)$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}",
+    ),
+    NameRule(
         name="CAT J HHMM+DD",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,6})\s*(J?)\s*(\d{4})([+-])(\d{2,3})([a-z])?$",
