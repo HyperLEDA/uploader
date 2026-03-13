@@ -32,124 +32,6 @@ class NameRule:
 
 RULES: list[NameRule] = [
     NameRule(
-        name="CAT JHHMMSS.sss+DDMMSS.sss",
-        pattern=re.compile(
-            r"^([A-Za-z0-9]{2,6})J(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
-            re.IGNORECASE,
-        ),
-        replacement="",
-        replacer=lambda m: (
-            f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}"
-            f"{m.group(5)}{m.group(6)}{m.group(7)}{m.group(8)}"
-        ),
-    ),
-    NameRule(
-        name="CAT JHHMMSSss+DDMMSSs",
-        pattern=re.compile(
-            r"^([A-Za-z0-9]{2,5})J(\d{8})([+-])(\d{7})$",
-            re.IGNORECASE,
-        ),
-        replacement="",
-        replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}",
-    ),
-    NameRule(
-        name="CAT JHHMM+DDMM",
-        pattern=re.compile(
-            r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})([+-])(\d{2})(\d{2})$",
-            re.IGNORECASE,
-        ),
-        replacement="",
-        replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
-    ),
-    NameRule(
-        name="CAT HHMM+DDMM",
-        pattern=re.compile(
-            r"^([A-Za-z0-9]{2,5})\s*(\d{2})(\d{2})([+-])(\d{2})(\d{2})$",
-            re.IGNORECASE,
-        ),
-        replacement="",
-        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
-    ),
-    NameRule(
-        name="CAT J HHMM+DD",
-        pattern=re.compile(
-            r"^([A-Za-z0-9]{2,6})\s*(J?)\s*(\d{4})([+-])(\d{2,3})([a-z])?$",
-            re.IGNORECASE,
-        ),
-        replacement="",
-        replacer=lambda m: (
-            f"{m.group(1).upper()}{' J' if m.group(2) else ' '}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6) or ''}"
-        ),
-    ),
-    NameRule(
-        name="CAT HHMMSSs+DDMMSS",
-        pattern=re.compile(
-            r"^([A-Za-z0-9]{2,6})\s*(\d{7})([+-])(\d{6})$",
-            re.IGNORECASE,
-        ),
-        replacement="",
-        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}",
-    ),
-    NameRule(
-        name="CAT NNNNNN",
-        pattern=re.compile(
-            r"^([A-Za-z]{2,7})\s*0*(\d{1,10})([a-zA-Z]{1,3})?$",
-            re.IGNORECASE,
-        ),
-        replacement="",
-        replacer=lambda m: f"{m.group(1).upper()} {int(m.group(2))}{m.group(3) or ''}",
-    ),
-    NameRule(
-        name="CAT +HHMMSS",
-        pattern=re.compile(
-            r"^([A-Za-z]{2,5})\s*([+-])(\d{6})$",
-            re.IGNORECASE,
-        ),
-        replacement="",
-        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}",
-    ),
-    NameRule(
-        name="NGC",
-        pattern=re.compile(r"^N\s*0*(\d+)$", re.IGNORECASE),
-        replacement="NGC {0}",
-    ),
-    NameRule(
-        name="NGC",
-        pattern=re.compile(r"^N\s*0*(\d+)([a-zA-Z]{1,3})$", re.IGNORECASE),
-        replacement="NGC {0}{1}",
-    ),
-    NameRule(
-        name="3C",
-        pattern=re.compile(r"^3C\s*(\d+(?:\.\d+)?)$", re.IGNORECASE),
-        replacement="3C {0}",
-    ),
-    NameRule(
-        name="3C",
-        pattern=re.compile(r"^3C\s*(\d+(?:\.\d+)?)([a-zA-Z]{1,3})$", re.IGNORECASE),
-        replacement="3C {0}{1}",
-    ),
-    NameRule(
-        name="2dFGRS",
-        pattern=re.compile(r"^2dfgrs\s*([NS]\d+Z\d+)$", re.IGNORECASE),
-        replacement="2dFGRS {0}",
-    ),
-    NameRule(
-        name="J",
-        pattern=re.compile(
-            r"^J\s*(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
-            re.IGNORECASE,
-        ),
-        replacement="J{0}{1}{2}{3}{4}{5}{6}",
-    ),
-    NameRule(
-        name="[REF]J",
-        pattern=re.compile(
-            r"^\[([A-Za-z]+\d+)\]\s*J(\d{6}(?:\.\d+)?)([+-])(\d{6}(?:\.\d+)?)$",
-            re.IGNORECASE,
-        ),
-        replacement="[{0}] J{1}{2}{3}",
-    ),
-    NameRule(
         name="ISI96",
         pattern=re.compile(r"^ISI96_(\d{4})([+-])(\d{4})$", re.IGNORECASE),
         replacement="ISI96_{0}{1}{2}",
@@ -328,4 +210,133 @@ RULES: list[NameRule] = [
         replacement="NGC {0}{1} [{2}] {3}",
         replacer=lambda m: f"NGC {int(m.group(1))}{m.group(2)} [{m.group(3)}] {m.group(4)}",
     ),
+    NameRule(
+        name="CAT JHHMMSS.sss+DDMMSS.sss",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,6})J(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: (
+            f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}"
+            f"{m.group(5)}{m.group(6)}{m.group(7)}{m.group(8)}"
+        ),
+    ),
+    NameRule(
+        name="CAT JHHMMSSss+DDMMSSs",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,5})J(\d{8})([+-])(\d{7})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}",
+    ),
+    NameRule(
+        name="CAT JHHMM+DDMM",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})([+-])(\d{2})(\d{2})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
+    ),
+    NameRule(
+        name="CAT HHMM+DDMM",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,5})\s*(\d{2})(\d{2})([+-])(\d{2})(\d{2})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
+    ),
+    NameRule(
+        name="CAT J HHMM+DD",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,6})\s*(J?)\s*(\d{4})([+-])(\d{2,3})([a-z])?$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: (
+            f"{m.group(1).upper()}{' J' if m.group(2) else ' '}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6) or ''}"
+        ),
+    ),
+    NameRule(
+        name="CAT HHMMSSs+DDMMSS",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,6})\s*(\d{7})([+-])(\d{6})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}",
+    ),
+    NameRule(
+        name="CAT NNNNNN",
+        pattern=re.compile(
+            r"^([A-Za-z]{2,7})\s*0*(\d{1,10})([a-zA-Z]{1,3})?$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {int(m.group(2))}{m.group(3) or ''}",
+    ),
+    NameRule(
+        name="CAT +HHMMSS",
+        pattern=re.compile(
+            r"^([A-Za-z]{2,5})\s*([+-])(\d{6})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}",
+    ),
+    NameRule(
+        name="NGC",
+        pattern=re.compile(r"^N\s*0*(\d+)$", re.IGNORECASE),
+        replacement="NGC {0}",
+    ),
+    NameRule(
+        name="NGC",
+        pattern=re.compile(r"^N\s*0*(\d+)([a-zA-Z]{1,3})$", re.IGNORECASE),
+        replacement="NGC {0}{1}",
+    ),
+    NameRule(
+        name="3C",
+        pattern=re.compile(r"^3C\s*(\d+(?:\.\d+)?)$", re.IGNORECASE),
+        replacement="3C {0}",
+    ),
+    NameRule(
+        name="3C",
+        pattern=re.compile(r"^3C\s*(\d+(?:\.\d+)?)([a-zA-Z]{1,3})$", re.IGNORECASE),
+        replacement="3C {0}{1}",
+    ),
+    NameRule(
+        name="2dFGRS",
+        pattern=re.compile(r"^2dfgrs\s*([NS]\d+Z\d+)$", re.IGNORECASE),
+        replacement="2dFGRS {0}",
+    ),
+    NameRule(
+        name="J",
+        pattern=re.compile(
+            r"^J\s*(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
+            re.IGNORECASE,
+        ),
+        replacement="J{0}{1}{2}{3}{4}{5}{6}",
+    ),
+    NameRule(
+        name="[REF]J",
+        pattern=re.compile(
+            r"^\[([A-Za-z]+\d+)\]\s*J(\d{6}(?:\.\d+)?)([+-])(\d{6}(?:\.\d+)?)$",
+            re.IGNORECASE,
+        ),
+        replacement="[{0}] J{1}{2}{3}",
+    ),
 ]
+
+
+def match(name: str) -> tuple[str, str] | None:
+    value = name.strip() if name else ""
+    if not value:
+        return None
+    for rule in RULES:
+        formatted = rule.match(value)
+        if formatted is not None:
+            return (formatted, rule.name)
+    return None

@@ -38,9 +38,7 @@ def object_type_resolver(
     same_type_neighbors = [
         n
         for n in evidence.neighbors
-        if n.pgc in previous_result.pgcs
-        and n.type_name is not None
-        and _types_match(record_type, n.type_name)
+        if n.pgc in previous_result.pgcs and n.type_name is not None and _types_match(record_type, n.type_name)
     ]
     if len(same_type_neighbors) == 1:
         return PreliminaryCrossmatchStatusExisting(same_type_neighbors[0].pgc), None

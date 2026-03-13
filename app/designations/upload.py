@@ -2,7 +2,7 @@ import click
 from psycopg import sql
 
 from app import log
-from app.designations.rules import RULES
+from app.designations.rules import RULES, match
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
@@ -53,13 +53,11 @@ def upload_designations(
                 unmatched += 1
                 continue
             name_str = str(name_val).strip()
-            transformed: str | None = None
-            for rule in RULES:
-                transformed = rule.match(name_str)
-                if transformed is not None:
-                    rule_counts[rule.name] += 1
-                    break
-            if transformed is None:
+            match_result = match(name_str)
+            if match_result is not None:
+                transformed, rule_name = match_result
+                rule_counts[rule_name] += 1
+            else:
                 unmatched += 1
                 transformed = name_str
                 if print_unmatched:
