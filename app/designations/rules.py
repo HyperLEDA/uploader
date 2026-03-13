@@ -312,6 +312,15 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}",
     ),
     NameRule(
+        name="CAT HHMMSS+DDMMS",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,6})(\d{6})([+-])(\d{5})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}",
+    ),
+    NameRule(
         name="CAT HHMMSS.sss+DDMMSS",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,6})(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2})$",
