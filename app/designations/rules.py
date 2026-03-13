@@ -332,6 +332,15 @@ RULES: list[NameRule] = [
         replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}",
     ),
     NameRule(
+        name="CAT +DD.d",
+        pattern=re.compile(
+            r"^((?:[A-Za-z][A-Za-z0-9]{1,4}|[0-9][A-Za-z][A-Za-z0-9]{0,3}|[0-9]{2}[A-Za-z][A-Za-z0-9]{0,2}|[0-9]{3}[A-Za-z][A-Za-z0-9]?))([+-])(\d{2}(?:\.\d+)?)$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}",
+    ),
+    NameRule(
         name="[REF]J",
         pattern=re.compile(
             r"^\[([A-Za-z]+\d+)\]\s*J(\d{6}(?:\.\d+)?)([+-])(\d{6}(?:\.\d+)?)$",
@@ -348,6 +357,15 @@ RULES: list[NameRule] = [
         replacement="[{0}] {1}{2}{3}",
     ),
     NameRule(
+        name="[REF]N",
+        pattern=re.compile(
+            r"^\[([A-Za-z]+\d+)\]0*(\d+)$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"[{m.group(1)}] {int(m.group(2))}",
+    ),
+    NameRule(
         name="CAT N-N-N",
         pattern=re.compile(
             r"^([A-Za-z]{2,6})\s*0*(\d{1,5})-0*(\d{1,5})-0*(\d{1,5})$",
@@ -355,6 +373,24 @@ RULES: list[NameRule] = [
         ),
         replacement="",
         replacer=lambda m: f"{m.group(1).upper()} {int(m.group(2))}-{int(m.group(3))}-{int(m.group(4))}",
+    ),
+    NameRule(
+        name="CGMW",
+        pattern=re.compile(
+            r"^CGMW([1-5])-0*(\d{5})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"CGMW {m.group(1)}-{int(m.group(2))}",
+    ),
+    NameRule(
+        name="[REF] *",
+        pattern=re.compile(
+            r"^\[([A-Za-z]+\d+)\]\s*(.+)$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"[{m.group(1)}] {m.group(2).strip()}",
     ),
 ]
 
