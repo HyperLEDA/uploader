@@ -90,11 +90,21 @@ RULES: list[NameRule] = [
         # XXXX {NNNNNN}[a-z]
         name="CatalogNum",
         pattern=re.compile(
-            r"^([A-Za-z]{2,5})\s*0*(\d{1,10})([a-zA-Z]{1,3})?$",
+            r"^([A-Za-z]{2,7})\s*0*(\d{1,10})([a-zA-Z]{1,3})?$",
             re.IGNORECASE,
         ),
         replacement="",
         replacer=lambda m: f"{m.group(1).upper()} {int(m.group(2))}{m.group(3) or ''}",
+    ),
+    NameRule(
+        # XXXX ±NNNNNN
+        name="CatalogSign",
+        pattern=re.compile(
+            r"^([A-Za-z]{2,5})\s*([+-])(\d{6})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}",
     ),
     NameRule(
         name="NGC",
@@ -151,11 +161,6 @@ RULES: list[NameRule] = [
         name="M",
         pattern=re.compile(r"^(?:MESSIER|M)\s*0*(\d+)$", re.IGNORECASE),
         replacement="M {0}",
-    ),
-    NameRule(
-        name="BD",
-        pattern=re.compile(r"^BD\s*([+-])(\d{2})(\d+)$", re.IGNORECASE),
-        replacement="BD {0}{1}{2}",
     ),
     NameRule(
         name="Andromeda",
@@ -324,24 +329,6 @@ RULES: list[NameRule] = [
             re.IGNORECASE,
         ),
         replacement="SMM J{0}{1}{2}{3}{4}{5}{6}",
-    ),
-    NameRule(
-        name="PANDAS",
-        pattern=re.compile(r"^PANDAS\s*0*(\d+)$", re.IGNORECASE),
-        replacement="PANDAS {0}",
-        replacer=lambda m: f"PANDAS {int(m.group(1))}",
-    ),
-    NameRule(
-        name="LAEVENS",
-        pattern=re.compile(r"^LAEVENS\s*0*(\d+)$", re.IGNORECASE),
-        replacement="LAEVENS {0}",
-        replacer=lambda m: f"LAEVENS {int(m.group(1))}",
-    ),
-    NameRule(
-        name="BSDL",
-        pattern=re.compile(r"^BSDL\s*0*(\d+)$", re.IGNORECASE),
-        replacement="BSDL {0}",
-        replacer=lambda m: f"BSDL {int(m.group(1))}",
     ),
     NameRule(
         name="NGC",
