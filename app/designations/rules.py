@@ -34,7 +34,7 @@ RULES: list[NameRule] = [
     NameRule(
         name="CAT JHHMMSS.sss+DDMMSS.sss",
         pattern=re.compile(
-            r"^([A-Za-z0-9]{2,5})J(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
+            r"^([A-Za-z0-9]{2,6})J(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
             re.IGNORECASE,
         ),
         replacement="",
@@ -60,6 +60,15 @@ RULES: list[NameRule] = [
         ),
         replacement="",
         replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
+    ),
+    NameRule(
+        name="CAT HHMM+DDMM",
+        pattern=re.compile(
+            r"^([A-Za-z0-9]{2,5})\s*(\d{2})(\d{2})([+-])(\d{2})(\d{2})$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"{m.group(1).upper()} {m.group(2)}{m.group(3)}{m.group(4)}{m.group(5)}{m.group(6)}",
     ),
     NameRule(
         name="CAT J HHMM+DD",
@@ -139,11 +148,6 @@ RULES: list[NameRule] = [
             re.IGNORECASE,
         ),
         replacement="[{0}] J{1}{2}{3}",
-    ),
-    NameRule(
-        name="MAGE",
-        pattern=re.compile(r"^MAGE\s*(\d{4})([+-])(\d{4})$", re.IGNORECASE),
-        replacement="MAGE {0}{1}{2}",
     ),
     NameRule(
         name="ISI96",
@@ -258,14 +262,6 @@ RULES: list[NameRule] = [
         name="CNOC2",
         pattern=re.compile(r"^CNOC2_(\d+)\.(\d+)$", re.IGNORECASE),
         replacement="CNOC2_{0}.{1}",
-    ),
-    NameRule(
-        name="LAMOST",
-        pattern=re.compile(
-            r"^LAMOSTJ(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",
-            re.IGNORECASE,
-        ),
-        replacement="LAMOST J{0}{1}{2}{3}{4}{5}{6}",
     ),
     NameRule(
         name="2MFGC",
