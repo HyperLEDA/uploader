@@ -180,10 +180,16 @@ def _enrich_batch(
     }
     design_to_pgcs: dict[str, list[int]] = {}
     if designations_in_batch:
+        designs_list = list(designations_in_batch)
         pgcs_by_design: dict[str, set[int]] = {}
         for row in storage.query(
             "SELECT design, pgc FROM layer2.designation WHERE design = ANY(%s)",
-            (list(designations_in_batch),),
+            (designs_list,),
+        ):
+            pgcs_by_design.setdefault(row["design"], set()).add(row["pgc"])
+        for row in storage.query(
+            "SELECT design, pgc FROM layer2.designations WHERE design = ANY(%s)",
+            (designs_list,),
         ):
             pgcs_by_design.setdefault(row["design"], set()).add(row["pgc"])
         design_to_pgcs = {d: list(s) for d, s in pgcs_by_design.items()}
