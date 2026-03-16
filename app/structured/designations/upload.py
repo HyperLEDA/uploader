@@ -2,7 +2,6 @@ import click
 from psycopg import sql
 
 from app import log
-from app.designations.rules import RULES, match
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
@@ -10,6 +9,7 @@ from app.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
 from app.storage import PgStorage
+from app.structured.designations.rules import RULES, match
 from app.upload import handle_call
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from app.designations.rules import match
+from app.structured.designations.rules import match
 
 RULE_CASES: list[tuple[str, tuple[str, str] | None]] = [
     ("2MASSJ16295276+3911433", ("CAT JHHMMSSss+DDMMSSs", "2MASS J16295276+3911433")),

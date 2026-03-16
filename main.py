@@ -15,12 +15,12 @@ from psycopg import connect
 import app
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
 from app.crossmatch.resolver import DefaultResolver, LayeredResolver, TwoRadiiResolver
-from app.designations import upload_designations as run_upload_designations
 from app.gen.client import adminapi
-from app.icrs import upload_icrs as run_upload_icrs
-from app.nature import upload_nature as run_upload_nature
-from app.redshift import upload_redshift as run_upload_redshift
 from app.storage import PgStorage
+from app.structured.designations import upload_designations as run_upload_designations
+from app.structured.icrs import upload_icrs as run_upload_icrs
+from app.structured.nature import upload_nature as run_upload_nature
+from app.structured.redshift import upload_redshift as run_upload_redshift
 
 env_map = {
     "dev": "http://localhost:8080",
