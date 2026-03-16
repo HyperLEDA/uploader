@@ -30,58 +30,78 @@ def upload_photometry_hyperleda(
     *,
     write: bool = False,
 ) -> None:
-    uploaded_rows = 0
     uploaded_objects = 0
     skipped = 0
+    total_source_rows = 0
+    band_counts: dict[str, int] = {band: 0 for band, _, _ in BANDS}
+    band_mag_sums: dict[str, float] = {band: 0.0 for band, _, _ in BANDS}
 
-    for rows in rawdata_batches(storage, table_name, PHOTOMETRY_RAW_COLUMNS, batch_size):
-        batch_ids: list[str] = []
-        batch_data: list[list[str | float]] = []
+    try:
+        for rows in rawdata_batches(storage, table_name, PHOTOMETRY_RAW_COLUMNS, batch_size):
+            total_source_rows += len(rows)
+            batch_ids: list[str] = []
+            batch_data: list[list[str | float]] = []
 
-        for row in rows:
-            internal_id = row["hyperleda_internal_id"]
-            mag_vals = [row[mag_col] for _, mag_col, _ in BANDS]
-            err_vals = [row[err_col] for _, _, err_col in BANDS]
-            if any(m is None for m in mag_vals) or any(e is None for e in err_vals):
-                skipped += 1
-                continue
-            for (band, _, _), mag_val, err_val in zip(BANDS, mag_vals, err_vals, strict=True):
-                batch_ids.append(internal_id)
-                batch_data.append([band, float(mag_val), float(err_val), "asymptotic"])
-            uploaded_objects += 1
-            uploaded_rows += len(BANDS)
+            for row in rows:
+                internal_id = row["hyperleda_internal_id"]
+                had_any = False
+                for band, mag_col, err_col in BANDS:
+                    mag_val = row.get(mag_col)
+                    err_val = row.get(err_col)
+                    if mag_val is not None and err_val is not None:
+                        batch_ids.append(internal_id)
+                        batch_data.append([band, float(mag_val), float(err_val), "asymptotic"])
+                        band_counts[band] += 1
+                        band_mag_sums[band] += float(mag_val)
+                        had_any = True
+                if had_any:
+                    uploaded_objects += 1
+                else:
+                    skipped += 1
 
-        if write and batch_ids:
-            handle_call(
-                save_structured_data.sync_detailed(
-                    client=client,
-                    body=SaveStructuredDataRequest(
-                        catalog="photometry",
-                        columns=PHOTOMETRY_COLUMNS,
-                        ids=batch_ids,
-                        data=batch_data,
-                    ),
+            if write and batch_ids:
+                handle_call(
+                    save_structured_data.sync_detailed(
+                        client=client,
+                        body=SaveStructuredDataRequest(
+                            catalog="photometry",
+                            columns=PHOTOMETRY_COLUMNS,
+                            ids=batch_ids,
+                            data=batch_data,
+                        ),
+                    )
                 )
+
+            uploaded_rows = sum(band_counts.values())
+            log.logger.info(
+                "processed batch",
+                source_rows=len(rows),
+                total_source_rows=total_source_rows,
+                objects=uploaded_objects,
+                photometry_rows=uploaded_rows,
             )
+    finally:
+        total = uploaded_objects + skipped
+        total_photometry_rows = sum(band_counts.values())
 
-        log.logger.info(
-            "processed batch",
-            objects=uploaded_objects,
-            photometry_rows=uploaded_rows,
+        def pct(n: int, denom: int) -> float:
+            return (100.0 * n / denom) if denom else 0.0
+
+        table_rows: list[tuple[str | int | float, ...]] = [
+            ("Source rows with ≥1 band", uploaded_objects, f"{pct(uploaded_objects, total):.1f}%", "-"),
+            ("Source rows with no band", skipped, f"{pct(skipped, total):.1f}%", "-"),
+            ("Total photometry rows", total_photometry_rows, "-", "-"),
+        ]
+        for band, _, _ in BANDS:
+            count = band_counts[band]
+            avg_mag = (band_mag_sums[band] / count) if count else 0.0
+            pct_str = f"{pct(count, total_photometry_rows):.1f}%" if total_photometry_rows else "-"
+            avg_str = round(avg_mag, 3) if count else "-"
+            table_rows.append((band, count, pct_str, avg_str))
+
+        print_table(
+            ("Status", "Uploaded", "% of total", "Avg mag"),
+            table_rows,
+            title=f"Total source rows: {total}\n",
+            percent_last_column=False,
         )
-
-    total = uploaded_objects + skipped
-
-    def pct(n: int) -> float:
-        return (100.0 * n / total) if total else 0.0
-
-    table_rows: list[tuple[str, int, float | str]] = [
-        ("Uploaded (objects)", uploaded_objects, pct(uploaded_objects)),
-        ("Uploaded (photometry rows)", uploaded_rows, "-"),
-        ("Skipped (null mag/error)", skipped, pct(skipped)),
-    ]
-    print_table(
-        ("Status", "Count", "%"),
-        table_rows,
-        title=f"Total source rows: {total}\n",
-    )

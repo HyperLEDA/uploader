@@ -31,7 +31,7 @@ def rawdata_batches(
             break
         total += len(rows)
         log.logger.debug(
-            "processed batch",
+            "read batch",
             rows=len(rows),
             last_id=rows[-1]["hyperleda_internal_id"],
             total=total,
