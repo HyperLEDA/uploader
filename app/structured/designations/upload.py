@@ -1,5 +1,4 @@
 import click
-from psycopg import sql
 
 from app import log
 from app.display import print_table
@@ -8,6 +7,7 @@ from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
+from app.lib.rawdata import rawdata_batches
 from app.storage import PgStorage
 from app.structured.designations.rules import RULES, match
 from app.upload import handle_call
@@ -23,32 +23,16 @@ def upload_designations(
     write: bool = False,
     print_unmatched: bool = False,
 ) -> None:
-    id_col = sql.Identifier("hyperleda_internal_id")
-    name_col = sql.Identifier(column_name)
-    table = sql.SQL("rawdata.") + sql.Identifier(table_name)
-
-    query = sql.SQL("SELECT {id_col}, {name_col} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
-        id_col=id_col,
-        name_col=name_col,
-        t=table,
-    )
-
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}
     unmatched = 0
 
-    last_id = ""
-    while True:
-        rows = storage.query(query, (last_id, batch_size))
-        if not rows:
-            break
-
+    for rows in rawdata_batches(storage, table_name, [column_name], batch_size):
         batch_ids: list[str] = []
         batch_names: list[list[str]] = []
 
         for row in rows:
             internal_id = row["hyperleda_internal_id"]
             name_val = row[column_name]
-            last_id = internal_id
             if name_val is None or (isinstance(name_val, str) and not name_val.strip()):
                 unmatched += 1
                 continue
@@ -78,20 +62,16 @@ def upload_designations(
                 )
             )
 
-        batch_size_actual = len(rows)
-        total_matched_so_far = sum(rule_counts.values())
-        total_so_far = total_matched_so_far + unmatched
+        total_so_far = sum(rule_counts.values()) + unmatched
 
-        def total_pct(n: int, total: int = total_so_far) -> float:
-            return (100.0 * n / total) if total else 0.0
+        def total_pct(n: int, t: int = total_so_far) -> float:
+            return (100.0 * n / t) if t else 0.0
 
         log.logger.info(
             "processed batch",
-            rows=batch_size_actual,
-            last_id=last_id,
             total=total_so_far,
-            matched=total_matched_so_far,
-            matched_pct=round(total_pct(total_matched_so_far), 1),
+            matched=sum(rule_counts.values()),
+            matched_pct=round(total_pct(sum(rule_counts.values())), 1),
             unmatched=unmatched,
             unmatched_pct=round(total_pct(unmatched), 1),
         )

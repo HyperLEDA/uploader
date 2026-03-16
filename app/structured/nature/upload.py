@@ -1,14 +1,12 @@
 from collections import Counter
 
-from psycopg import sql
-
-from app import log
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
+from app.lib.rawdata import rawdata_batches
 from app.storage import PgStorage
 from app.upload import handle_call
 
@@ -26,42 +24,23 @@ def upload_nature(
     *,
     write: bool = False,
 ) -> None:
-    id_col = sql.Identifier("hyperleda_internal_id")
-    table = sql.SQL("rawdata.") + sql.Identifier(table_name)
-
-    constant_type = column_name is None
-    if constant_type:
-        query = sql.SQL("SELECT {id_col} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
-            id_col=id_col, t=table
-        )
-    else:
-        col = sql.Identifier(column_name)
-        query = sql.SQL("SELECT {id_col}, {col} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
-            id_col=id_col, col=col, t=table
-        )
-
     total_uploaded = 0
     type_counts: Counter[str] = Counter()
 
-    last_id = ""
-    while True:
-        rows = storage.query(query, (last_id, batch_size))
-        if not rows:
-            break
-
+    columns: list[str] = [] if column_name is None else [column_name]
+    for rows in rawdata_batches(storage, table_name, columns, batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[str]] = []
 
         for row in rows:
-            last_id = row["hyperleda_internal_id"]
             leda_type: str | None = default_type
-            if not constant_type:
+            if column_name is not None:
                 raw_val = row[column_name]
                 raw_key = str(raw_val).strip() if raw_val is not None else ""
                 leda_type = type_mapping.get(raw_key, default_type if default_type is not None else raw_key)
 
             assert leda_type is not None
-            batch_ids.append(last_id)
+            batch_ids.append(row["hyperleda_internal_id"])
             batch_data.append([leda_type])
             type_counts[leda_type] += 1
             total_uploaded += 1
@@ -78,13 +57,6 @@ def upload_nature(
                     ),
                 )
             )
-
-        log.logger.info(
-            "processed batch",
-            rows=len(rows),
-            last_id=last_id,
-            total=total_uploaded,
-        )
 
     table_rows: list[tuple[str, int, str]] = [
         (

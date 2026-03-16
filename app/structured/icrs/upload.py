@@ -1,6 +1,3 @@
-from psycopg import sql
-
-from app import log
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import get_table, save_structured_data
@@ -10,6 +7,7 @@ from app.gen.client.adminapi.models.save_structured_data_request import (
 from app.gen.client.adminapi.models.save_structured_data_request_units import (
     SaveStructuredDataRequestUnits,
 )
+from app.lib.rawdata import rawdata_batches
 from app.storage import PgStorage
 from app.upload import handle_call
 
@@ -63,14 +61,6 @@ def upload_icrs(
         ra_error_unit,
         dec_error_unit,
     )
-    id_col = sql.Identifier("hyperleda_internal_id")
-    table = sql.SQL("rawdata.") + sql.Identifier(table_name)
-    query = sql.SQL("SELECT {id_col}, {ra}, {dec} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
-        id_col=id_col,
-        ra=sql.Identifier(ra_column),
-        dec=sql.Identifier(dec_column),
-        t=table,
-    )
     uploaded = 0
     skipped = 0
     ra_min = float("inf")
@@ -80,17 +70,11 @@ def upload_icrs(
     ra_sum = 0.0
     dec_sum = 0.0
 
-    last_id = ""
-    while True:
-        rows = storage.query(query, (last_id, batch_size))
-        if not rows:
-            break
-
+    for rows in rawdata_batches(storage, table_name, [ra_column, dec_column], batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[float]] = []
 
         for row in rows:
-            last_id = row["hyperleda_internal_id"]
             ra_val = row[ra_column]
             dec_val = row[dec_column]
             if ra_val is None or dec_val is None:
@@ -98,7 +82,7 @@ def upload_icrs(
                 continue
             ra_f = float(ra_val)
             dec_f = float(dec_val)
-            batch_ids.append(last_id)
+            batch_ids.append(row["hyperleda_internal_id"])
             batch_data.append([ra_f, dec_f, float(ra_error), float(dec_error)])
             uploaded += 1
             ra_min = min(ra_min, ra_f)
@@ -121,13 +105,6 @@ def upload_icrs(
                     ),
                 )
             )
-
-        log.logger.info(
-            "processed batch",
-            rows=len(rows),
-            last_id=last_id,
-            total=uploaded,
-        )
 
     total = uploaded + skipped
 

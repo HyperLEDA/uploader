@@ -1,5 +1,3 @@
-from psycopg import sql
-
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
@@ -9,6 +7,7 @@ from app.gen.client.adminapi.models.save_structured_data_request import (
 from app.gen.client.adminapi.models.save_structured_data_request_units import (
     SaveStructuredDataRequestUnits,
 )
+from app.lib.rawdata import rawdata_batches
 from app.storage import PgStorage
 from app.upload import handle_call
 
@@ -29,37 +28,24 @@ def upload_redshift(
     write: bool = False,
     z_error: float,
 ) -> None:
-    id_col = sql.Identifier("hyperleda_internal_id")
-    table = sql.SQL("rawdata.") + sql.Identifier(table_name)
-    query = sql.SQL("SELECT {id_col}, {z} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
-        id_col=id_col,
-        z=sql.Identifier(z_column),
-        t=table,
-    )
     uploaded = 0
     skipped = 0
     cz_min = float("inf")
     cz_max = float("-inf")
     cz_sum = 0.0
 
-    last_id = ""
-    while True:
-        rows = storage.query(query, (last_id, batch_size))
-        if not rows:
-            break
-
+    for rows in rawdata_batches(storage, table_name, [z_column], batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[float]] = []
 
         for row in rows:
-            last_id = row["hyperleda_internal_id"]
             z_val = row[z_column]
             if z_val is None:
                 skipped += 1
                 continue
             cz_val = float(z_val) * C_KM_S
             e_cz = float(z_error) * C_KM_S
-            batch_ids.append(last_id)
+            batch_ids.append(row["hyperleda_internal_id"])
             batch_data.append([cz_val, e_cz])
             uploaded += 1
             cz_min = min(cz_min, cz_val)
