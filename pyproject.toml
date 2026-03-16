@@ -23,6 +23,9 @@ dev = [
     "pytest>=8.4.2",
 ]
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
 [tool.ruff]
 line-length = 120
 src = ["."]
@@ -54,15 +57,14 @@ select = [
     "FLY",
     "NPY201",
     "PLC0415",
+    "S101",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = [
     "F403", # ignore star imports warning in __init__ files
 ]
-
-[tool.pytest.ini_options]
-pythonpath = ["."]
+"tests/**" = ["S101"]
 
 [tool.uv.sources]
 astroquery = { git = "https://github.com/astropy/astroquery.git", branch = "main" }

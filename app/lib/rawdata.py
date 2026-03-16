@@ -19,9 +19,9 @@ def rawdata_batches(
         select_cols.append(sql.Identifier(col))
     table = sql.SQL("rawdata.") + sql.Identifier(table_name)
     select_list = sql.SQL(", ").join(select_cols)
-    query = sql.SQL(
-        "SELECT {cols} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s"
-    ).format(cols=select_list, t=table, id_col=id_col)
+    query = sql.SQL("SELECT {cols} FROM {t} WHERE {id_col} > %s ORDER BY {id_col} ASC LIMIT %s").format(
+        cols=select_list, t=table, id_col=id_col
+    )
 
     last_id = ""
     total = 0

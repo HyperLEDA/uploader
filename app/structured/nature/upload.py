@@ -39,7 +39,8 @@ def upload_nature(
                 raw_key = str(raw_val).strip() if raw_val is not None else ""
                 leda_type = type_mapping.get(raw_key, default_type if default_type is not None else raw_key)
 
-            assert leda_type is not None
+            if leda_type is None:
+                raise RuntimeError("leda_type is None: set --default or ensure type_mapping covers all values")
             batch_ids.append(row["hyperleda_internal_id"])
             batch_data.append([leda_type])
             type_counts[leda_type] += 1
