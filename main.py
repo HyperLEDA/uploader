@@ -1,5 +1,4 @@
 import getpass
-import inspect
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,6 +15,7 @@ import app
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
 from app.crossmatch.resolver import DefaultResolver, LayeredResolver, TwoRadiiResolver
 from app.gen.client import adminapi
+from app.plugins import get_plugin_instance
 from app.storage import PgStorage
 from app.structured.designations import upload_designations as run_upload_designations
 from app.structured.icrs import upload_icrs as run_upload_icrs
@@ -620,30 +620,6 @@ def upload(
             table_type,
             dry_run=dry_run,
         )
-
-
-def get_plugin_instance(
-    plugin_name: str,
-    plugins: dict[str, type[app.UploaderPlugin]],
-    args: list[Any],
-) -> app.UploaderPlugin:
-    plugin_class = plugins[plugin_name]
-
-    try:
-        return plugin_class(*args)
-    except TypeError:
-        pass
-
-    s = inspect.signature(plugin_class)
-    required_args = []
-
-    for arg_name, arg in s.parameters.items():
-        if arg.default is inspect.Parameter.empty:
-            required_args.append(arg_name)
-
-    raise RuntimeError(
-        f"Plugin {plugin_name} has {len(required_args)} required arguments ({required_args}). {len(args)} were given."
-    )
 
 
 def parameter(name: str, value: str) -> str:

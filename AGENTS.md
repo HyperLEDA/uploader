@@ -1,5 +1,7 @@
 ## Development
 
+The web UI lives in `frontend/`. Use **Yarn** for JavaScript dependencies (`yarn install`, `yarn dev`). Start the API with `make serve` and the UI with `make frontend`.
+
 ### Running checks
 
 To check the code against static checks, run:

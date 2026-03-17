@@ -68,3 +68,14 @@ gen:
 		--meta uv \
 		--config openapigen.yaml \
 		--url https://leda.sao.ru/admin/api/openapi.json
+
+.PHONY: serve frontend frontend-install
+
+serve:
+	uv run uvicorn server.main:app --reload --port 8000
+
+frontend:
+	cd frontend && yarn dev
+
+frontend-install:
+	cd frontend && yarn install
