@@ -28,6 +28,9 @@ check:
 	@uv run pytest \
 		--quiet \
 		--config-file=pyproject.toml
+	@cd frontend && yarn lint
+	@cd frontend && yarn format:check
+	@cd frontend && yarn build
 
 fix:
 	@uvx ruff format \
@@ -37,6 +40,7 @@ fix:
 		--quiet \
 		--config=pyproject.toml \
 		--fix
+	@cd frontend && yarn format
 
 # only for mac as this is faster
 build:
