@@ -5,11 +5,16 @@ from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
+from app.gen.client.adminapi.models.save_structured_data_request_units import (
+    SaveStructuredDataRequestUnits,
+)
 from app.lib.rawdata import rawdata_batches
 from app.storage import PgStorage
 from app.upload import handle_call
 
 PHOTOMETRY_COLUMNS = ["band", "mag", "e_mag", "method"]
+
+PHOTOMETRY_UNITS = SaveStructuredDataRequestUnits.from_dict({"mag": "mag", "e_mag": "mag"})
 
 BANDS = [
     ("U", "ut", "e_ut"),
@@ -68,6 +73,7 @@ def upload_photometry_hyperleda(
                             columns=PHOTOMETRY_COLUMNS,
                             ids=batch_ids,
                             data=batch_data,
+                            units=PHOTOMETRY_UNITS,
                         ),
                     )
                 )
