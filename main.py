@@ -20,6 +20,9 @@ from app.storage import PgStorage
 from app.structured.designations import upload_designations as run_upload_designations
 from app.structured.icrs import upload_icrs as run_upload_icrs
 from app.structured.nature import upload_nature as run_upload_nature
+from app.structured.photometry.upload import (
+    upload_photometry_hyperleda as run_upload_photometry_hyperleda,
+)
 from app.structured.redshift import upload_redshift as run_upload_redshift
 
 env_map = {
@@ -205,6 +208,34 @@ def upload_structured_redshift(
             common["client"],
             write=write,
             z_error=z_error,
+        )
+
+
+@upload_structured.command(
+    "photometry-hyperleda",
+    help="Upload U/B/V/I/K asymptotic magnitudes from hyperleda_m000 to the photometry catalog.",
+)
+@click.option("--batch-size", default=10000, type=int, help="Source rows per batch")
+@click.option(
+    "--write",
+    is_flag=True,
+    help="Upload results to the API; default is to only print statistics (dry-run)",
+)
+@click.pass_context
+def upload_structured_photometry_hyperleda(
+    ctx: click.Context,
+    batch_size: int,
+    write: bool,
+) -> None:
+    common = ctx.obj.upload_structured_common
+    with connect(common["dsn"]) as conn:
+        storage = PgStorage(conn)
+        run_upload_photometry_hyperleda(
+            storage,
+            common["table_name"],
+            batch_size,
+            common["client"],
+            write=write,
         )
 
 
