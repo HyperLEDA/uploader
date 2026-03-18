@@ -5,7 +5,9 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import App from "./App.tsx";
 import "./index.css";
 
-const theme = createTheme();
+const theme = createTheme({
+  palette: { mode: "dark" },
+});
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
