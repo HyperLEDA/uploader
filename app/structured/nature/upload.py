@@ -1,4 +1,8 @@
 from collections import Counter
+from collections.abc import Callable
+from typing import Any
+
+from psycopg import sql
 
 from app.display import print_table
 from app.gen.client import adminapi
@@ -23,11 +27,21 @@ def upload_nature(
     client: adminapi.AuthenticatedClient,
     *,
     write: bool = False,
-) -> None:
+    report: Callable[[dict[str, Any]], None] | None = None,
+) -> int:
     total_uploaded = 0
     type_counts: Counter[str] = Counter()
 
     columns: list[str] = [] if column_name is None else [column_name]
+    total_count = 0
+    if report is not None:
+        cnt = storage.query(
+            sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
+            (),
+        )
+        total_count = int(cnt[0]["cnt"]) if cnt else 0
+    processed_rows = 0
+
     for rows in rawdata_batches(storage, table_name, columns, batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[str]] = []
@@ -59,6 +73,17 @@ def upload_nature(
                 )
             )
 
+        processed_rows += len(rows)
+        if report is not None:
+            batch_pct = int(100 * processed_rows / total_count) if total_count else 0
+            report({"type": "progress", "percent": min(99, batch_pct)})
+            report(
+                {
+                    "type": "log",
+                    "message": f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
+                },
+            )
+
     table_rows: list[tuple[str, int, str]] = [
         (
             leda_type,
@@ -67,9 +92,17 @@ def upload_nature(
         )
         for leda_type, count in sorted(type_counts.items())
     ]
-    print_table(
-        ("LEDA type", "Count", "%"),
-        table_rows,
-        title=f"Total rows: {total_uploaded}\n",
-        percent_last_column=True,
-    )
+    if report is not None:
+        report({"type": "progress", "percent": 100})
+        lines = [f"Total rows: {total_uploaded}", f"{'LEDA type':<32} {'Count':>8} {'%':>8}"]
+        for leda_type, count, pct_str in table_rows:
+            lines.append(f"{leda_type:<32} {count:>8} {pct_str:>8}")
+        report({"type": "log", "message": "\n".join(lines)})
+    else:
+        print_table(
+            ("LEDA type", "Count", "%"),
+            table_rows,
+            title=f"Total rows: {total_uploaded}\n",
+            percent_last_column=True,
+        )
+    return total_uploaded
