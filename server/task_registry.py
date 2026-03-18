@@ -2,6 +2,7 @@ from server.forms.structured_designation import (
     StructuredDesignationForm,
     handle_structured_designation,
 )
+from server.forms.structured_icrs import StructuredIcrsForm, handle_structured_icrs
 from server.forms.upload import UploadRawForm, handle_upload_raw
 from server.tasks import TaskDefinition, register_task
 
@@ -24,6 +25,16 @@ def register_all_tasks() -> None:
             description="Upload object designations (names) from a raw table to the structured level.",
             form_model=StructuredDesignationForm,
             handler=handle_structured_designation,
+            group="Upload structured",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="upload-structured-icrs",
+            title="ICRS",
+            description="Upload ICRS coordinates from a raw table to the structured level.",
+            form_model=StructuredIcrsForm,
+            handler=handle_structured_icrs,
             group="Upload structured",
         ),
     )
