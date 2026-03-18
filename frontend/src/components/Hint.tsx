@@ -5,15 +5,7 @@ export type HintPosition =
   | "top"
   | "left"
   | "right"
-  | "bottom"
-  | "bottom-start"
-  | "bottom-end"
-  | "top-start"
-  | "top-end"
-  | "left-start"
-  | "left-end"
-  | "right-start"
-  | "right-end";
+  | "bottom";
 
 interface HintProps {
   children: ReactElement;

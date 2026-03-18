@@ -3,6 +3,7 @@ import threading
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -49,6 +50,11 @@ RUNS: dict[str, TaskRun] = {}
 RUNS_LOCK = threading.Lock()
 
 
+def _log_message_with_time(message: str) -> str:
+    t = datetime.now().astimezone().strftime("%H:%M:%S")
+    return f"[{t}] {message}"
+
+
 def start_task(task_id: str, form_data: dict[str, Any]) -> str:
     defn = TASKS[task_id]
     form = defn.form_model.model_validate(form_data)
@@ -58,12 +64,13 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
     def append_report_event(event: report.Event) -> None:
         match event:
             case report.LogEvent(message=msg):
+                out = _log_message_with_time(msg)
                 logger.info(
                     "log event",
                     task_id=task_id,
-                    message=msg,
+                    message=out,
                 )
-                run.append({"type": "log", "message": msg})
+                run.append({"type": "log", "message": out})
             case report.ProgressEvent(percent=pct):
                 logger.info(
                     "progress event",
