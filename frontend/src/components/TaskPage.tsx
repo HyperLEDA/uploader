@@ -12,18 +12,29 @@ import { ProgressView } from "./ProgressView";
 export function TaskPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const [schema, setSchema] = useState<Record<string, unknown> | null>(null);
+  const [taskTitle, setTaskTitle] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!taskId) return;
+    setSchema(null);
+    setTaskTitle(null);
+    let alive = true;
     fetchTaskSchema(taskId)
-      .then((s) => {
+      .then(({ title, schema: s }) => {
+        if (!alive) return;
         setSchema(s);
+        setTaskTitle(title);
         setLoadError(null);
       })
-      .catch((e) => setLoadError(String(e)));
+      .catch((e) => {
+        if (alive) setLoadError(String(e));
+      });
+    return () => {
+      alive = false;
+    };
   }, [taskId]);
 
   if (!taskId) return null;
@@ -53,7 +64,7 @@ export function TaskPage() {
   return (
     <Box sx={{ maxWidth: 720 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
-        Task: {taskId}
+        {taskTitle ?? taskId}
       </Typography>
       {submitError && (
         <Alert severity="error" sx={{ mb: 2 }}>

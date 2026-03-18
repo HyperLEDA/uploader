@@ -11,9 +11,14 @@ export async function fetchTasks(): Promise<TaskInfo[]> {
   return r.json();
 }
 
+export type TaskSchemaResponse = {
+  title: string;
+  schema: Record<string, unknown>;
+};
+
 export async function fetchTaskSchema(
   taskId: string,
-): Promise<Record<string, unknown>> {
+): Promise<TaskSchemaResponse> {
   const r = await fetch(`/api/tasks/${taskId}/schema`);
   if (!r.ok) throw new Error(`schema: ${r.status}`);
   return r.json();

@@ -13,50 +13,50 @@ def register_all_tasks() -> None:
     register_task(
         TaskDefinition(
             id="upload",
-            title="Upload via plugin",
+            title="Upload raw table",
             description="Upload a raw data table to HyperLEDA using a plugin.",
             form_model=UploadRawForm,
             handler=handle_upload_raw,
-            group="Upload",
+            group="Raw tables",
         ),
     )
     register_task(
         TaskDefinition(
             id="upload-structured-designation",
             title="Designations",
-            description="Upload object designations (names) from a raw table to the structured level.",
+            description="Convert designations to common format and upload them to the database.",
             form_model=StructuredDesignationForm,
             handler=handle_structured_designation,
-            group="Upload structured",
+            group="Catalogs",
         ),
     )
     register_task(
         TaskDefinition(
             id="upload-structured-icrs",
             title="ICRS",
-            description="Upload ICRS coordinates from a raw table to the structured level.",
+            description="Upload ICRS coordinates to the database.",
             form_model=StructuredIcrsForm,
             handler=handle_structured_icrs,
-            group="Upload structured",
+            group="Catalogs",
         ),
     )
     register_task(
         TaskDefinition(
             id="upload-structured-nature",
             title="Nature",
-            description="Upload object nature/type from a raw table to the structured level.",
+            description="Upload object type to the database.",
             form_model=StructuredNatureForm,
             handler=handle_structured_nature,
-            group="Upload structured",
+            group="Catalogs",
         ),
     )
     register_task(
         TaskDefinition(
             id="upload-structured-redshift",
             title="Redshift",
-            description="Upload redshift (cz) from a raw z column to the structured level.",
+            description="Upload redshift to the database.",
             form_model=StructuredRedshiftForm,
             handler=handle_structured_redshift,
-            group="Upload structured",
+            group="Catalogs",
         ),
     )
