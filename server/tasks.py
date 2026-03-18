@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import BaseModel
 
 import app.report as report
+from app.log import logger
 
 
 @dataclass
@@ -57,12 +58,32 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
     def append_report_event(event: report.Event) -> None:
         match event:
             case report.LogEvent(message=msg):
+                logger.info(
+                    "log event",
+                    task_id=task_id,
+                    message=msg,
+                )
                 run.append({"type": "log", "message": msg})
             case report.ProgressEvent(percent=pct):
+                logger.info(
+                    "progress event",
+                    task_id=task_id,
+                    percent=pct,
+                )
                 run.append({"type": "progress", "percent": pct})
             case report.DoneEvent(message=msg):
+                logger.info(
+                    "finish event",
+                    task_id=task_id,
+                    message=msg,
+                )
                 run.append({"type": "done", "message": msg})
             case report.ErrorEvent(message=msg):
+                logger.error(
+                    "error event",
+                    task_id=task_id,
+                    message=msg,
+                )
                 run.append({"type": "error", "message": msg})
 
     def report_func(event: report.Event) -> None:
