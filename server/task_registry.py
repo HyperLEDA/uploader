@@ -4,6 +4,7 @@ from server.forms.structured_designation import (
 )
 from server.forms.structured_icrs import StructuredIcrsForm, handle_structured_icrs
 from server.forms.structured_nature import StructuredNatureForm, handle_structured_nature
+from server.forms.structured_redshift import StructuredRedshiftForm, handle_structured_redshift
 from server.forms.upload import UploadRawForm, handle_upload_raw
 from server.tasks import TaskDefinition, register_task
 
@@ -46,6 +47,16 @@ def register_all_tasks() -> None:
             description="Upload object nature/type from a raw table to the structured level.",
             form_model=StructuredNatureForm,
             handler=handle_structured_nature,
+            group="Upload structured",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="upload-structured-redshift",
+            title="Redshift",
+            description="Upload redshift (cz) from a raw z column to the structured level.",
+            form_model=StructuredRedshiftForm,
+            handler=handle_structured_redshift,
             group="Upload structured",
         ),
     )
