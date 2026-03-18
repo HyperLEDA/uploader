@@ -1,4 +1,8 @@
+from collections.abc import Callable
+from typing import Any
+
 import click
+from psycopg import sql
 
 from app import log
 from app.display import print_table
@@ -22,9 +26,19 @@ def upload_designations(
     *,
     write: bool = False,
     print_unmatched: bool = False,
-) -> None:
+    report: Callable[[dict[str, Any]], None] | None = None,
+) -> int:
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}
     unmatched = 0
+    total_count = 0
+    if report is not None:
+        cnt = storage.query(
+            sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
+            (),
+        )
+        total_count = int(cnt[0]["cnt"]) if cnt else 0
+
+    processed_rows = 0
 
     for rows in rawdata_batches(storage, table_name, [column_name], batch_size):
         batch_ids: list[str] = []
@@ -45,7 +59,10 @@ def upload_designations(
                 unmatched += 1
                 transformed = name_str
                 if print_unmatched:
-                    click.echo(name_str)
+                    if report is not None:
+                        report({"type": "log", "message": name_str})
+                    else:
+                        click.echo(name_str)
             batch_ids.append(internal_id)
             batch_names.append([transformed])
 
@@ -62,6 +79,7 @@ def upload_designations(
                 )
             )
 
+        processed_rows += len(rows)
         total_so_far = sum(rule_counts.values()) + unmatched
 
         def total_pct(n: int, t: int = total_so_far) -> float:
@@ -75,6 +93,18 @@ def upload_designations(
             unmatched=unmatched,
             unmatched_pct=round(total_pct(unmatched), 1),
         )
+        if report is not None:
+            progress_pct = int(100 * processed_rows / total_count) if total_count else 0
+            report({"type": "progress", "percent": min(99, progress_pct)})
+            report(
+                {
+                    "type": "log",
+                    "message": (
+                        f"batch: rows_read={len(rows)} cumulative_names={total_so_far} "
+                        f"matched={sum(rule_counts.values())} unmatched={unmatched}"
+                    ),
+                },
+            )
 
     total = sum(rule_counts.values()) + unmatched
 
@@ -87,8 +117,21 @@ def upload_designations(
         if rule_counts[name] > 0
     ]
     table_rows.append(("(no rule matched)", unmatched, pct(unmatched)))
-    print_table(
-        ("Rule", "Count", "%"),
-        table_rows,
-        title=f"Total names: {total}\n",
-    )
+
+    if report is not None:
+        report({"type": "progress", "percent": 100})
+        lines = [
+            f"Total names: {total}",
+            f"{'Rule':<32} {'Count':>8} {'%':>6}",
+        ]
+        for name, c, p in table_rows:
+            lines.append(f"{name:<32} {c:>8} {p:>5.1f}")
+        report({"type": "log", "message": "\n".join(lines)})
+    else:
+        print_table(
+            ("Rule", "Count", "%"),
+            table_rows,
+            title=f"Total names: {total}\n",
+        )
+
+    return total

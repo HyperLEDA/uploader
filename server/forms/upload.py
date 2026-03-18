@@ -1,19 +1,14 @@
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
 import app
+from app.endpoints import env_map
 from app.gen.client import adminapi
 from app.plugins import get_plugin_instance
 from app.upload import upload_for_web
 from server.tasks import TaskDefinition, register_task
-
-env_map = {
-    "dev": "http://localhost:8080",
-    "test": "https://leda.kraysent.dev",
-    "prod": "https://leda.sao.ru",
-}
 
 
 class UploadRawForm(BaseModel):
@@ -72,31 +67,32 @@ class UploadRawForm(BaseModel):
     )
 
 
-def _handle_upload_raw(form: UploadRawForm, report: Callable[[dict[str, Any]], None]) -> None:
+def _handle_upload_raw(form: BaseModel, report: Callable[[dict[str, Any]], None]) -> None:
+    f = cast(UploadRawForm, form)
     client = adminapi.AuthenticatedClient(
-        base_url=env_map[form.endpoint],
+        base_url=env_map[f.endpoint],
         token="fake",
     )
-    plugins = app.discover_plugins(form.plugin_dir)
-    plugin = get_plugin_instance(form.plugin_name, plugins, form.plugin_args)
+    plugins = app.discover_plugins(f.plugin_dir)
+    plugin = get_plugin_instance(f.plugin_name, plugins, f.plugin_args)
 
-    bibcode = form.bibcode.strip() if form.has_bibcode else ""
-    pub_name = form.pub_name.strip()
-    pub_authors = list(form.pub_authors)
-    pub_year = form.pub_year
-    table_type = (form.table_type or "regular").upper()
+    bibcode = f.bibcode.strip() if f.has_bibcode else ""
+    pub_name = f.pub_name.strip()
+    pub_authors = list(f.pub_authors)
+    pub_year = f.pub_year
+    table_type = (f.table_type or "regular").upper()
 
     total_rows = upload_for_web(
         plugin,
         client,
-        form.table_name.strip(),
-        form.table_description.strip(),
+        f.table_name.strip(),
+        f.table_description.strip(),
         bibcode,
         pub_name,
         pub_authors,
         pub_year,
         table_type,
-        dry_run=form.dry_run,
+        dry_run=f.dry_run,
         report=report,
     )
     report({"type": "done", "total_rows": total_rows})

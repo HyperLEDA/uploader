@@ -14,6 +14,7 @@ from psycopg import connect
 import app
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
 from app.crossmatch.resolver import DefaultResolver, LayeredResolver, TwoRadiiResolver
+from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.plugins import get_plugin_instance
 from app.storage import PgStorage
@@ -24,18 +25,6 @@ from app.structured.photometry.upload import (
     upload_photometry_hyperleda as run_upload_photometry_hyperleda,
 )
 from app.structured.redshift import upload_redshift as run_upload_redshift
-
-env_map = {
-    "dev": "http://localhost:8080",
-    "test": "https://leda.kraysent.dev",
-    "prod": "https://leda.sao.ru",
-}
-
-db_dsn_map = {
-    "dev": "postgresql://{user}:{password}@localhost:5432/hyperleda",
-    "test": "postgresql://{user}:{password}@leda.kraysent.dev:5433/hyperleda",
-    "prod": "postgresql://{user}:{password}@database.leda.sao.ru:5432/hyperleda",
-}
 
 
 @dataclass

@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
-import server.forms.upload  # noqa: F401 — registers upload task
 from server.tasks import TASKS, get_run, start_task
 
 app = FastAPI(title="HyperLEDA Uploader")
