@@ -32,7 +32,9 @@ def task_schema(task_id: str) -> dict[str, object]:
     if task_id not in TASKS:
         raise HTTPException(status_code=404, detail="Unknown task")
     task = TASKS[task_id]
-    return {"title": task.title, "schema": task.form_model.model_json_schema()}
+    schema = task.form_model.model_json_schema()
+    schema.pop("title", None)
+    return {"title": task.title, "schema": schema}
 
 
 @app.post("/api/tasks/{task_id}/submit")
