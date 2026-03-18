@@ -16,6 +16,13 @@ make fix
 
 If the check command fails, make sure to always run the fix command first prior to trying to fix changes yourself.
 
+For the frontend:
+
+```shell
+make check-frontend
+make fix-frontend
+```
+
 ### Scripts and Python Execution
 
 This project uses `uv` for package management. `uv` manages virtual environments as well, meaning that simple running of `python` command will not work. Always use `uv run` instead of raw `python` or `python3`:

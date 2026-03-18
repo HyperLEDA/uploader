@@ -1,6 +1,10 @@
 from collections import Counter
+from collections.abc import Callable
 
-from app.display import print_table
+from psycopg import sql
+
+import app.report as report
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
@@ -23,11 +27,20 @@ def upload_nature(
     client: adminapi.AuthenticatedClient,
     *,
     write: bool = False,
-) -> None:
+    report_func: Callable[[report.Event], None],
+) -> int:
     total_uploaded = 0
     type_counts: Counter[str] = Counter()
 
     columns: list[str] = [] if column_name is None else [column_name]
+    total_count = 0
+    cnt = storage.query(
+        sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
+        (),
+    )
+    total_count = int(cnt[0]["cnt"]) if cnt else 0
+    processed_rows = 0
+
     for rows in rawdata_batches(storage, table_name, columns, batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[str]] = []
@@ -59,17 +72,29 @@ def upload_nature(
                 )
             )
 
-    table_rows: list[tuple[str, int, str]] = [
+        processed_rows += len(rows)
+        batch_pct = int(100 * processed_rows / total_count) if total_count else 0
+        report_func(report.ProgressEvent(percent=min(99, batch_pct)))
+        report_func(
+            report.LogEvent(
+                message=f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
+            ),
+        )
+
+    table_rows: list[tuple[str, int, float | str]] = [
         (
             leda_type,
             count,
-            f"{100.0 * count / total_uploaded:.1f}%" if total_uploaded else "-",
+            (100.0 * count / total_uploaded) if total_uploaded else "-",
         )
         for leda_type, count in sorted(type_counts.items())
     ]
-    print_table(
+    report_func(report.ProgressEvent(percent=100))
+    summary = format_table(
         ("LEDA type", "Count", "%"),
         table_rows,
         title=f"Total rows: {total_uploaded}\n",
-        percent_last_column=True,
     )
+    report_func(report.LogEvent(message=summary))
+    report_func(report.DoneEvent(message=f"Total rows: {total_uploaded}"))
+    return total_uploaded

@@ -1,4 +1,9 @@
-from app.display import print_table
+from collections.abc import Callable
+
+from psycopg import sql
+
+import app.report as report
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
@@ -27,12 +32,20 @@ def upload_redshift(
     *,
     write: bool = False,
     z_error: float,
-) -> None:
+    report_func: Callable[[report.Event], None],
+) -> int:
     uploaded = 0
     skipped = 0
     cz_min = float("inf")
     cz_max = float("-inf")
     cz_sum = 0.0
+    total_count = 0
+    cnt = storage.query(
+        sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
+        (),
+    )
+    total_count = int(cnt[0]["cnt"]) if cnt else 0
+    processed_rows = 0
 
     for rows in rawdata_batches(storage, table_name, [z_column], batch_size):
         batch_ids: list[str] = []
@@ -66,14 +79,23 @@ def upload_redshift(
                 )
             )
 
+        processed_rows += len(rows)
+        batch_pct = int(100 * processed_rows / total_count)
+        report_func(report.ProgressEvent(percent=min(99, batch_pct)))
+        report_func(
+            report.LogEvent(
+                message=f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}",
+            ),
+        )
+
     total = uploaded + skipped
 
-    def pct(n: int) -> float:
+    def row_pct_label(n: int) -> float:
         return (100.0 * n / total) if total else 0.0
 
     table_rows: list[tuple[str, int | float, float | str]] = [
-        ("Uploaded", uploaded, pct(uploaded)),
-        ("Skipped (null)", skipped, pct(skipped)),
+        ("Uploaded", uploaded, row_pct_label(uploaded)),
+        ("Skipped (null)", skipped, row_pct_label(skipped)),
     ]
     if uploaded > 0:
         cz_mean = cz_sum / uploaded
@@ -84,8 +106,12 @@ def upload_redshift(
                 ("cz mean (km/s)", round(cz_mean, 2), "-"),
             ]
         )
-    print_table(
+    report_func(report.ProgressEvent(percent=100))
+    summary = format_table(
         ("Status", "Count", "%"),
         table_rows,
         title=f"Total rows: {total}\n",
     )
+    report_func(report.LogEvent(message=summary))
+    report_func(report.DoneEvent(message=f"Total rows: {total}"))
+    return total

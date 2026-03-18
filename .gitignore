@@ -173,3 +173,5 @@ poetry.toml
 pyrightconfig.json
 
 .vizier_cache
+
+node_modules/

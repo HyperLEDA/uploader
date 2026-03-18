@@ -1,8 +1,14 @@
 install:
 	uv sync
 
+install-frontend:
+	cd frontend && yarn install --frozen-lockfile
+
 install-dev:
 	uv sync --all-extras
+
+install-dev-frontend:
+	cd frontend && yarn install
 
 check:
 	@output=$$(copier check-update --answers-file .template.yaml 2>&1) || true; \
@@ -29,6 +35,11 @@ check:
 		--quiet \
 		--config-file=pyproject.toml
 
+check-frontend:
+	@output=$$(cd frontend && yarn run --silent prettier --check src 2>&1) || { echo "$$output"; exit 1; }
+	@output=$$(cd frontend && yarn run --silent eslint src 2>&1) || { echo "$$output"; exit 1; }
+	@cd frontend && yarn build
+
 fix:
 	@uvx ruff format \
 		--quiet \
@@ -37,6 +48,10 @@ fix:
 		--quiet \
 		--config=pyproject.toml \
 		--fix
+
+fix-frontend:
+	@output=$$(cd frontend && yarn run --silent prettier --write src 2>&1) || { echo "$$output"; exit 1; }
+	@output=$$(cd frontend && yarn run --silent eslint --fix src 2>&1) || { echo "$$output"; exit 1; }
 
 # only for mac as this is faster
 build:
@@ -68,3 +83,11 @@ gen:
 		--meta uv \
 		--config openapigen.yaml \
 		--url https://leda.sao.ru/admin/api/openapi.json
+
+.PHONY: serve frontend check-frontend fix-frontend install-frontend install-dev-frontend
+
+serve:
+	uv run uvicorn server.main:app --reload --port 8000
+
+frontend:
+	cd frontend && yarn dev

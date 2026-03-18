@@ -1,19 +1,17 @@
 from collections.abc import Sequence
 
-import click
 
-
-def print_table(
+def format_table(
     headers: Sequence[str],
     rows: Sequence[Sequence[str | int | float]],
     *,
     title: str = "",
     right_align_last_n: int = 2,
     percent_last_column: bool = True,
-) -> None:
+) -> str:
     ncols = len(headers)
     if ncols == 0:
-        return
+        return ""
 
     def cell_str(val: str | int | float, col_index: int) -> str:
         if percent_last_column and col_index == ncols - 1 and not isinstance(val, str):
@@ -31,8 +29,9 @@ def print_table(
     widths = [col_width(i) for i in range(ncols)]
     right_align_from = ncols - right_align_last_n
 
+    out: list[str] = []
     if title:
-        click.echo(title)
+        out.append(title.rstrip("\n"))
 
     header_parts = []
     for i, h in enumerate(headers):
@@ -41,8 +40,8 @@ def print_table(
             header_parts.append(f"{h:>{w}}")
         else:
             header_parts.append(f"{h:<{w}}")
-    click.echo("  ".join(header_parts))
-    click.echo("-" * (sum(widths) + 2 * (ncols - 1)))
+    out.append("  ".join(header_parts))
+    out.append("-" * (sum(widths) + 2 * (ncols - 1)))
 
     for row in rows:
         parts = []
@@ -53,4 +52,6 @@ def print_table(
                 parts.append(f"{s:>{w}}")
             else:
                 parts.append(f"{s:<{w}}")
-        click.echo("  ".join(parts))
+        out.append("  ".join(parts))
+
+    return "\n".join(out)

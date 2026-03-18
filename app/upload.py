@@ -1,11 +1,13 @@
 import math
 import traceback
+from collections.abc import Callable
 from typing import Any
 
 import click
 
+import app.report as report
 from app import interface, log
-from app.display import print_table
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi import models, types
 from app.gen.client.adminapi.api.default import (
@@ -63,17 +65,23 @@ def _upload(
     table_type: str,
     *,
     dry_run: bool = False,
-) -> None:
+    emit_lines: Callable[[str], None] | None = None,
+    on_progress_percent: Callable[[float], None] | None = None,
+) -> int:
     schema = plugin.get_schema()
 
     schema_rows = [(col.name, col.data_type.value) for col in schema]
-    print_table(
+    schema_text = format_table(
         ("Column", "Type"),
         schema_rows,
         title="\nSchema:",
         right_align_last_n=0,
         percent_last_column=False,
     )
+    if emit_lines is not None:
+        emit_lines(schema_text)
+    else:
+        click.echo(schema_text)
 
     if not dry_run:
         if bibcode == "":
@@ -106,34 +114,92 @@ def _upload(
         log.logger.info("created table", table_id=resp.data.id)
 
     total_rows = 0
+    prev_percent = 0
 
-    with click.progressbar(length=100, label="Reading" if dry_run else "Upload") as bar:
-        prev_percent = 0
-        for data, progress in plugin.get_data():
-            total_rows += len(data)
+    def process_chunk(data: Any) -> None:
+        nonlocal total_rows
+        total_rows += len(data)
 
-            if not dry_run:
-                request_data = []
+        if not dry_run:
+            request_data = []
 
-                for _, row in data.iterrows():
-                    item = models.AddDataRequestDataItem()
-                    for col in data.columns:
-                        item[col] = sanitize_value(row[col])
-                    request_data.append(item)
+            for _, row in data.iterrows():
+                item = models.AddDataRequestDataItem()
+                for col in data.columns:
+                    item[col] = sanitize_value(row[col])
+                request_data.append(item)
 
-                _ = handle_call(
-                    add_data.sync_detailed(
-                        client=client,
-                        body=models.AddDataRequest(
-                            table_name=table_name,
-                            data=request_data,
-                        ),
-                    )
+            _ = handle_call(
+                add_data.sync_detailed(
+                    client=client,
+                    body=models.AddDataRequest(
+                        table_name=table_name,
+                        data=request_data,
+                    ),
                 )
+            )
 
+    data_iter = plugin.get_data()
+    if on_progress_percent is not None:
+        for data, progress in data_iter:
+            process_chunk(data)
             percent = int(progress * 100)
             if percent != prev_percent:
-                bar.update(percent - prev_percent)
+                on_progress_percent(percent)
                 prev_percent = percent
+    else:
+        with click.progressbar(length=100, label="Reading" if dry_run else "Upload") as bar:
+            for data, progress in data_iter:
+                process_chunk(data)
+                percent = int(progress * 100)
+                if percent != prev_percent:
+                    bar.update(percent - prev_percent)
+                    prev_percent = percent
 
-    click.echo(f"\nTotal rows: {total_rows}")
+    msg = f"\nTotal rows: {total_rows}"
+    if emit_lines is not None:
+        emit_lines(msg)
+    else:
+        click.echo(msg)
+    return total_rows
+
+
+def upload_for_web(
+    plugin: interface.UploaderPlugin,
+    client: adminapi.AuthenticatedClient,
+    table_name: str,
+    table_description: str,
+    bibcode: str,
+    pub_name: str,
+    pub_authors: list[str],
+    pub_year: int,
+    table_type: str,
+    *,
+    dry_run: bool = False,
+    report_func: Callable[[report.Event], None],
+) -> None:
+    def emit(msg: str) -> None:
+        report_func(report.LogEvent(message=msg))
+
+    def on_progress(p: float) -> None:
+        report_func(report.ProgressEvent(percent=p))
+
+    plugin.prepare()
+    try:
+        total_rows = _upload(
+            plugin,
+            client,
+            table_name,
+            table_description,
+            bibcode,
+            pub_name,
+            pub_authors,
+            pub_year,
+            table_type,
+            dry_run=dry_run,
+            emit_lines=emit,
+            on_progress_percent=on_progress,
+        )
+        report_func(report.DoneEvent(message=f"Total rows: {total_rows}"))
+    finally:
+        plugin.stop()

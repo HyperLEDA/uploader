@@ -1,5 +1,7 @@
+import click
+
 from app import log
-from app.display import print_table
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
@@ -105,9 +107,11 @@ def upload_photometry_hyperleda(
             avg_str = round(avg_mag, 3) if count else "-"
             table_rows.append((band, count, pct_str, avg_str))
 
-        print_table(
-            ("Status", "Uploaded", "% of total", "Avg mag"),
-            table_rows,
-            title=f"Total source rows: {total}\n",
-            percent_last_column=False,
+        click.echo(
+            format_table(
+                ("Status", "Uploaded", "% of total", "Avg mag"),
+                table_rows,
+                title=f"Total source rows: {total}\n",
+                percent_last_column=False,
+            )
         )

@@ -4,6 +4,7 @@ import math
 from collections import defaultdict
 from typing import cast
 
+import click
 from psycopg import sql
 
 from app import log
@@ -16,7 +17,7 @@ from app.crossmatch.models import (
     TriageStatus,
 )
 from app.crossmatch.resolver import Resolver
-from app.display import print_table
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import set_crossmatch_results
 from app.gen.client.adminapi.models.collided_status_payload import CollidedStatusPayload
@@ -400,8 +401,10 @@ def run_crossmatch(
             )
             if counts[(status, triage, reason)] > 0
         ]
-        print_table(
-            ("Status", "Triage", "Reason", "Count", "%"),
-            summary_rows,
-            title=f"Total records: {total}\n",
+        click.echo(
+            format_table(
+                ("Status", "Triage", "Reason", "Count", "%"),
+                summary_rows,
+                title=f"Total records: {total}\n",
+            )
         )
