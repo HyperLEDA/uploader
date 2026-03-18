@@ -8,7 +8,6 @@ from app.endpoints import env_map
 from app.gen.client import adminapi
 from app.plugins import get_plugin_instance
 from app.upload import upload_for_web
-from server.tasks import TaskDefinition, register_task
 
 
 class UploadRawForm(BaseModel):
@@ -67,7 +66,7 @@ class UploadRawForm(BaseModel):
     )
 
 
-def _handle_upload_raw(form: BaseModel, report: Callable[[dict[str, Any]], None]) -> None:
+def handle_upload_raw(form: BaseModel, report: Callable[[dict[str, Any]], None]) -> None:
     f = cast(UploadRawForm, form)
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],
@@ -96,15 +95,3 @@ def _handle_upload_raw(form: BaseModel, report: Callable[[dict[str, Any]], None]
         report=report,
     )
     report({"type": "done", "total_rows": total_rows})
-
-
-register_task(
-    TaskDefinition(
-        id="upload",
-        title="Upload via plugin",
-        description="Upload a raw data table to HyperLEDA using a plugin.",
-        form_model=UploadRawForm,
-        handler=_handle_upload_raw,
-        group="Upload",
-    ),
-)

@@ -6,7 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
+from server.task_registry import register_all_tasks
 from server.tasks import TASKS, get_run, start_task
+
+register_all_tasks()
 
 app = FastAPI(title="HyperLEDA Uploader")
 

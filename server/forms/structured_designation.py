@@ -9,7 +9,6 @@ from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
 from app.structured.designations import upload_designations as run_upload_designations
-from server.tasks import TaskDefinition, register_task
 
 
 class StructuredDesignationForm(BaseModel):
@@ -31,7 +30,7 @@ class StructuredDesignationForm(BaseModel):
     )
 
 
-def _handle_structured_designation(
+def handle_structured_designation(
     form: BaseModel,
     report: Callable[[dict[str, Any]], None],
 ) -> None:
@@ -57,15 +56,3 @@ def _handle_structured_designation(
             report=report,
         )
     report({"type": "done", "total_rows": total})
-
-
-register_task(
-    TaskDefinition(
-        id="upload-structured-designation",
-        title="Designations",
-        description="Upload object designations (names) from a raw table to the structured level.",
-        form_model=StructuredDesignationForm,
-        handler=_handle_structured_designation,
-        group="Upload structured",
-    ),
-)
