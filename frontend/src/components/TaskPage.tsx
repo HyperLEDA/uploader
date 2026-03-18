@@ -19,8 +19,6 @@ export function TaskPage() {
 
   useEffect(() => {
     if (!taskId) return;
-    setSchema(null);
-    setTaskTitle(null);
     let alive = true;
     fetchTaskSchema(taskId)
       .then(({ title, schema: s }) => {

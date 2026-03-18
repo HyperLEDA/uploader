@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
@@ -11,6 +11,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { fetchTasks, type TaskInfo } from "../api";
+import { Hint } from "./Hint";
 
 const drawerWidth = 260;
 
@@ -77,23 +78,36 @@ export function Layout() {
                       fontWeight: 600,
                     }}
                   />
-                  {open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                  {open ? (
+                    <ExpandLess fontSize="small" />
+                  ) : (
+                    <ExpandMore fontSize="small" />
+                  )}
                 </ListItemButton>
                 <Collapse in={open} timeout="auto">
                   <List dense disablePadding>
-                    {items.map((t) => (
-                      <ListItemButton
-                        key={t.id}
-                        component={Link}
-                        to={`/task/${t.id}`}
-                        sx={{ pl: 2 }}
-                      >
-                        <ListItemText
-                          primary={t.title}
-                          secondary={t.description}
-                        />
-                      </ListItemButton>
-                    ))}
+                    {items.map((t) => {
+                      const row = (
+                        <ListItemButton
+                          component={Link}
+                          to={`/task/${t.id}`}
+                          sx={{ pl: 2 }}
+                        >
+                          <ListItemText primary={t.title} />
+                        </ListItemButton>
+                      );
+                      return t.description ? (
+                        <Hint
+                          key={t.id}
+                          hintContent={t.description}
+                          position="right"
+                        >
+                          {row}
+                        </Hint>
+                      ) : (
+                        <Fragment key={t.id}>{row}</Fragment>
+                      );
+                    })}
                   </List>
                 </Collapse>
               </Box>
