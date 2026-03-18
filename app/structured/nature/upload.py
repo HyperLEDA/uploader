@@ -101,6 +101,7 @@ def upload_nature(
     )
     if report is not None:
         report(report_events.ReportLog(message=summary))
+        report(report_events.ReportDone(total_rows=total_uploaded))
     else:
         click.echo(summary)
     return total_uploaded

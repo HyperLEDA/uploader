@@ -126,6 +126,7 @@ def upload_designations(
     )
     if report is not None:
         report(report_events.ReportLog(message=summary))
+        report(report_events.ReportDone(total_rows=total))
     else:
         click.echo(summary)
 

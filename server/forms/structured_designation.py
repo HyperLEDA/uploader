@@ -46,7 +46,7 @@ def handle_structured_designation(
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)
-        total = run_upload_designations(
+        run_upload_designations(
             storage,
             f.table_name.strip(),
             f.column_name.strip(),
@@ -56,4 +56,3 @@ def handle_structured_designation(
             print_unmatched=f.print_unmatched,
             report=report,
         )
-    report(report_events.ReportDone(total_rows=total))

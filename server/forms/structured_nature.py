@@ -91,7 +91,7 @@ def handle_structured_nature(
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)
-        total = run_upload_nature(
+        run_upload_nature(
             storage,
             f.table_name.strip(),
             col,
@@ -102,4 +102,3 @@ def handle_structured_nature(
             write=f.write,
             report=report,
         )
-    report(report_events.ReportDone(total_rows=total))

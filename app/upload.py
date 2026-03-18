@@ -177,7 +177,7 @@ def upload_for_web(
     *,
     dry_run: bool = False,
     report: Callable[[report_events.ReportEvent], None],
-) -> int:
+) -> None:
     def emit(msg: str) -> None:
         report(report_events.ReportLog(message=msg))
 
@@ -186,7 +186,7 @@ def upload_for_web(
 
     plugin.prepare()
     try:
-        return _upload(
+        total_rows = _upload(
             plugin,
             client,
             table_name,
@@ -200,5 +200,6 @@ def upload_for_web(
             emit_lines=emit,
             on_progress_percent=on_progress,
         )
+        report(report_events.ReportDone(total_rows=total_rows))
     finally:
         plugin.stop()

@@ -46,7 +46,7 @@ def handle_structured_icrs(
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)
-        total = run_upload_icrs(
+        run_upload_icrs(
             storage,
             f.table_name.strip(),
             f.ra_column.strip(),
@@ -60,4 +60,3 @@ def handle_structured_icrs(
             dec_error_unit=f.dec_error_unit.strip(),
             report=report,
         )
-    report(report_events.ReportDone(total_rows=total))

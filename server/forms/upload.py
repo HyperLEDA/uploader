@@ -82,7 +82,7 @@ def handle_upload_raw(form: BaseModel, report: Callable[[report_events.ReportEve
     pub_year = f.pub_year
     table_type = (f.table_type or "regular").upper()
 
-    total_rows = upload_for_web(
+    upload_for_web(
         plugin,
         client,
         f.table_name.strip(),
@@ -95,4 +95,3 @@ def handle_upload_raw(form: BaseModel, report: Callable[[report_events.ReportEve
         dry_run=f.dry_run,
         report=report,
     )
-    report(report_events.ReportDone(total_rows=total_rows))

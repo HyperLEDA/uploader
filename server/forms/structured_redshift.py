@@ -42,7 +42,7 @@ def handle_structured_redshift(
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)
-        total = run_upload_redshift(
+        run_upload_redshift(
             storage,
             f.table_name.strip(),
             f.z_column.strip(),
@@ -52,4 +52,3 @@ def handle_structured_redshift(
             z_error=f.z_error,
             report=report,
         )
-    report(report_events.ReportDone(total_rows=total))
