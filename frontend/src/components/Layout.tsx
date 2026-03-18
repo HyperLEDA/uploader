@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
 import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
 import Drawer from "@mui/material/Drawer";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
-import ListSubheader from "@mui/material/ListSubheader";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { fetchTasks, type TaskInfo } from "../api";
@@ -15,6 +17,7 @@ const drawerWidth = 260;
 export function Layout() {
   const [tasks, setTasks] = useState<TaskInfo[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchTasks()
@@ -53,20 +56,49 @@ export function Layout() {
           </Typography>
         )}
         <List dense>
-          {[...byGroup.entries()].map(([group, items]) => (
-            <Box key={group}>
-              <ListSubheader>{group}</ListSubheader>
-              {items.map((t) => (
+          {[...byGroup.entries()].map(([group, items]) => {
+            const open = sectionOpen[group] !== false;
+            return (
+              <Box key={group}>
                 <ListItemButton
-                  key={t.id}
-                  component={Link}
-                  to={`/task/${t.id}`}
+                  dense
+                  onClick={() =>
+                    setSectionOpen((prev) => ({
+                      ...prev,
+                      [group]: !(prev[group] !== false),
+                    }))
+                  }
+                  sx={{ py: 0.25 }}
                 >
-                  <ListItemText primary={t.title} secondary={t.description} />
+                  <ListItemText
+                    primary={group}
+                    primaryTypographyProps={{
+                      variant: "subtitle2",
+                      fontWeight: 600,
+                    }}
+                  />
+                  {open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                 </ListItemButton>
-              ))}
-            </Box>
-          ))}
+                <Collapse in={open} timeout="auto">
+                  <List dense disablePadding>
+                    {items.map((t) => (
+                      <ListItemButton
+                        key={t.id}
+                        component={Link}
+                        to={`/task/${t.id}`}
+                        sx={{ pl: 2 }}
+                      >
+                        <ListItemText
+                          primary={t.title}
+                          secondary={t.description}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Collapse>
+              </Box>
+            );
+          })}
         </List>
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
