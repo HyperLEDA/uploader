@@ -3,7 +3,7 @@ from collections.abc import Callable
 
 from psycopg import sql
 
-import app.report_events as report_events
+import app.report as report
 from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
@@ -27,7 +27,7 @@ def upload_nature(
     client: adminapi.AuthenticatedClient,
     *,
     write: bool = False,
-    report: Callable[[report_events.ReportEvent], None],
+    report_func: Callable[[report.Event], None],
 ) -> int:
     total_uploaded = 0
     type_counts: Counter[str] = Counter()
@@ -74,9 +74,9 @@ def upload_nature(
 
         processed_rows += len(rows)
         batch_pct = int(100 * processed_rows / total_count) if total_count else 0
-        report(report_events.ReportProgress(percent=min(99, batch_pct)))
-        report(
-            report_events.ReportLog(
+        report_func(report.ProgressEvent(percent=min(99, batch_pct)))
+        report_func(
+            report.LogEvent(
                 message=f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
             ),
         )
@@ -89,12 +89,12 @@ def upload_nature(
         )
         for leda_type, count in sorted(type_counts.items())
     ]
-    report(report_events.ReportProgress(percent=100))
+    report_func(report.ProgressEvent(percent=100))
     summary = format_table(
         ("LEDA type", "Count", "%"),
         table_rows,
         title=f"Total rows: {total_uploaded}\n",
     )
-    report(report_events.ReportLog(message=summary))
-    report(report_events.ReportDone(message=f"Total rows: {total_uploaded}"))
+    report_func(report.LogEvent(message=summary))
+    report_func(report.DoneEvent(message=f"Total rows: {total_uploaded}"))
     return total_uploaded

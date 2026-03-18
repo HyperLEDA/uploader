@@ -5,7 +5,7 @@ from urllib.parse import quote_plus
 from psycopg import connect
 from pydantic import BaseModel, Field
 
-import app.report_events as report_events
+import app.report as report
 from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
@@ -29,7 +29,7 @@ class StructuredRedshiftForm(BaseModel):
 
 def handle_structured_redshift(
     form: BaseModel,
-    report: Callable[[report_events.ReportEvent], None],
+    report_func: Callable[[report.Event], None],
 ) -> None:
     f = cast(StructuredRedshiftForm, form)
     dsn = db_dsn_map[f.endpoint].format(
@@ -50,5 +50,5 @@ def handle_structured_redshift(
             client,
             write=f.write,
             z_error=f.z_error,
-            report=report,
+            report_func=report_func,
         )

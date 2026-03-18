@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 from psycopg import sql
 
-import app.report_events as report_events
+import app.report as report
 from app import log
 from app.display import format_table
 from app.gen.client import adminapi
@@ -25,7 +25,7 @@ def upload_designations(
     *,
     write: bool = False,
     print_unmatched: bool = False,
-    report: Callable[[report_events.ReportEvent], None],
+    report_func: Callable[[report.Event], None],
 ) -> int:
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}
     unmatched = 0
@@ -57,7 +57,7 @@ def upload_designations(
                 unmatched += 1
                 transformed = name_str
                 if print_unmatched:
-                    report(report_events.ReportLog(message=name_str))
+                    report_func(report.LogEvent(message=name_str))
             batch_ids.append(internal_id)
             batch_names.append([transformed])
 
@@ -89,9 +89,9 @@ def upload_designations(
             unmatched_pct=round(total_pct(unmatched), 1),
         )
         progress_pct = int(100 * processed_rows / total_count) if total_count else 0
-        report(report_events.ReportProgress(percent=min(99, progress_pct)))
-        report(
-            report_events.ReportLog(
+        report_func(report.ProgressEvent(percent=min(99, progress_pct)))
+        report_func(
+            report.LogEvent(
                 message=(
                     f"batch: rows_read={len(rows)} cumulative_names={total_so_far} "
                     f"matched={sum(rule_counts.values())} unmatched={unmatched}"
@@ -111,13 +111,13 @@ def upload_designations(
     ]
     table_rows.append(("(no rule matched)", unmatched, pct(unmatched)))
 
-    report(report_events.ReportProgress(percent=100))
+    report_func(report.ProgressEvent(percent=100))
     summary = format_table(
         ("Rule", "Count", "%"),
         table_rows,
         title=f"Total names: {total}\n",
     )
-    report(report_events.ReportLog(message=summary))
-    report(report_events.ReportDone(message=f"Total rows: {total}"))
+    report_func(report.LogEvent(message=summary))
+    report_func(report.DoneEvent(message=f"Total rows: {total}"))
 
     return total

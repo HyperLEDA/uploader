@@ -5,7 +5,7 @@ from typing import Any
 
 import click
 
-import app.report_events as report_events
+import app.report as report
 from app import interface, log
 from app.display import format_table
 from app.gen.client import adminapi
@@ -176,13 +176,13 @@ def upload_for_web(
     table_type: str,
     *,
     dry_run: bool = False,
-    report: Callable[[report_events.ReportEvent], None],
+    report_func: Callable[[report.Event], None],
 ) -> None:
     def emit(msg: str) -> None:
-        report(report_events.ReportLog(message=msg))
+        report_func(report.LogEvent(message=msg))
 
     def on_progress(p: float) -> None:
-        report(report_events.ReportProgress(percent=p))
+        report_func(report.ProgressEvent(percent=p))
 
     plugin.prepare()
     try:
@@ -200,6 +200,6 @@ def upload_for_web(
             emit_lines=emit,
             on_progress_percent=on_progress,
         )
-        report(report_events.ReportDone(message=f"Total rows: {total_rows}"))
+        report_func(report.DoneEvent(message=f"Total rows: {total_rows}"))
     finally:
         plugin.stop()

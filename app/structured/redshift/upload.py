@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 from psycopg import sql
 
-import app.report_events as report_events
+import app.report as report
 from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
@@ -32,7 +32,7 @@ def upload_redshift(
     *,
     write: bool = False,
     z_error: float,
-    report: Callable[[report_events.ReportEvent], None],
+    report_func: Callable[[report.Event], None],
 ) -> int:
     uploaded = 0
     skipped = 0
@@ -80,10 +80,10 @@ def upload_redshift(
             )
 
         processed_rows += len(rows)
-        batch_pct = int(100 * processed_rows / total_count) if total_count else 0
-        report(report_events.ReportProgress(percent=min(99, batch_pct)))
-        report(
-            report_events.ReportLog(
+        batch_pct = int(100 * processed_rows / total_count)
+        report_func(report.ProgressEvent(percent=min(99, batch_pct)))
+        report_func(
+            report.LogEvent(
                 message=f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}",
             ),
         )
@@ -106,12 +106,12 @@ def upload_redshift(
                 ("cz mean (km/s)", round(cz_mean, 2), "-"),
             ]
         )
-    report(report_events.ReportProgress(percent=100))
+    report_func(report.ProgressEvent(percent=100))
     summary = format_table(
         ("Status", "Count", "%"),
         table_rows,
         title=f"Total rows: {total}\n",
     )
-    report(report_events.ReportLog(message=summary))
-    report(report_events.ReportDone(message=f"Total rows: {total}"))
+    report_func(report.LogEvent(message=summary))
+    report_func(report.DoneEvent(message=f"Total rows: {total}"))
     return total

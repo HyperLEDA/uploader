@@ -2,23 +2,23 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class ReportLog:
+class LogEvent:
     message: str
 
 
 @dataclass(frozen=True)
-class ReportProgress:
+class ProgressEvent:
     percent: float
 
 
 @dataclass(frozen=True)
-class ReportDone:
+class DoneEvent:
     message: str
 
 
 @dataclass(frozen=True)
-class ReportError:
+class ErrorEvent:
     message: str
 
 
-ReportEvent = ReportLog | ReportProgress | ReportDone | ReportError
+Event = LogEvent | ProgressEvent | DoneEvent | ErrorEvent

@@ -4,7 +4,7 @@ from typing import Literal, cast
 from pydantic import BaseModel, ConfigDict, Field
 
 import app
-import app.report_events as report_events
+import app.report as report
 from app.endpoints import env_map
 from app.gen.client import adminapi
 from app.plugins import get_plugin_instance
@@ -67,7 +67,7 @@ class UploadRawForm(BaseModel):
     )
 
 
-def handle_upload_raw(form: BaseModel, report: Callable[[report_events.ReportEvent], None]) -> None:
+def handle_upload_raw(form: BaseModel, report_func: Callable[[report.Event], None]) -> None:
     f = cast(UploadRawForm, form)
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],
@@ -93,5 +93,5 @@ def handle_upload_raw(form: BaseModel, report: Callable[[report_events.ReportEve
         pub_year,
         table_type,
         dry_run=f.dry_run,
-        report=report,
+        report_func=report_func,
     )
