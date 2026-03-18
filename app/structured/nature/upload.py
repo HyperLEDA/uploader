@@ -1,9 +1,9 @@
 from collections import Counter
 from collections.abc import Callable
-from typing import Any
 
 from psycopg import sql
 
+import app.report_events as report_events
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
@@ -27,7 +27,7 @@ def upload_nature(
     client: adminapi.AuthenticatedClient,
     *,
     write: bool = False,
-    report: Callable[[dict[str, Any]], None] | None = None,
+    report: Callable[[report_events.ReportEvent], None] | None = None,
 ) -> int:
     total_uploaded = 0
     type_counts: Counter[str] = Counter()
@@ -76,12 +76,11 @@ def upload_nature(
         processed_rows += len(rows)
         if report is not None:
             batch_pct = int(100 * processed_rows / total_count) if total_count else 0
-            report({"type": "progress", "percent": min(99, batch_pct)})
+            report(report_events.ReportProgress(percent=min(99, batch_pct)))
             report(
-                {
-                    "type": "log",
-                    "message": f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
-                },
+                report_events.ReportLog(
+                    message=f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
+                ),
             )
 
     table_rows: list[tuple[str, int, str]] = [
@@ -93,11 +92,11 @@ def upload_nature(
         for leda_type, count in sorted(type_counts.items())
     ]
     if report is not None:
-        report({"type": "progress", "percent": 100})
+        report(report_events.ReportProgress(percent=100))
         lines = [f"Total rows: {total_uploaded}", f"{'LEDA type':<32} {'Count':>8} {'%':>8}"]
         for leda_type, count, pct_str in table_rows:
             lines.append(f"{leda_type:<32} {count:>8} {pct_str:>8}")
-        report({"type": "log", "message": "\n".join(lines)})
+        report(report_events.ReportLog(message="\n".join(lines)))
     else:
         print_table(
             ("LEDA type", "Count", "%"),

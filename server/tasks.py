@@ -7,6 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+import app.report_events as report_events
+
 
 @dataclass
 class TaskDefinition:
@@ -14,7 +16,7 @@ class TaskDefinition:
     title: str
     description: str
     form_model: type[BaseModel]
-    handler: Callable[[BaseModel, Callable[[dict[str, Any]], None]], None]
+    handler: Callable[[BaseModel, Callable[[report_events.ReportEvent], None]], None]
     group: str = "default"
 
 
@@ -52,14 +54,25 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
     run_id = str(uuid.uuid4())
     run = TaskRun(run_id=run_id)
 
-    def report(event: dict[str, Any]) -> None:
-        run.append(event)
+    def append_report_event(event: report_events.ReportEvent) -> None:
+        match event:
+            case report_events.ReportLog(message=msg):
+                run.append({"type": "log", "message": msg})
+            case report_events.ReportProgress(percent=pct):
+                run.append({"type": "progress", "percent": pct})
+            case report_events.ReportDone(total_rows=n):
+                run.append({"type": "done", "total_rows": n})
+            case report_events.ReportError(message=msg):
+                run.append({"type": "error", "message": msg})
+
+    def report(event: report_events.ReportEvent) -> None:
+        append_report_event(event)
 
     def worker() -> None:
         try:
             defn.handler(form, report)
         except Exception as e:
-            run.append({"type": "error", "message": str(e)})
+            append_report_event(report_events.ReportError(message=str(e)))
         finally:
             run.done.set()
 

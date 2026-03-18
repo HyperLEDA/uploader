@@ -1,10 +1,11 @@
 from collections.abc import Callable
-from typing import Any, Literal, cast
+from typing import Literal, cast
 from urllib.parse import quote_plus
 
 from psycopg import connect
 from pydantic import BaseModel, Field
 
+import app.report_events as report_events
 from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
@@ -32,7 +33,7 @@ class StructuredDesignationForm(BaseModel):
 
 def handle_structured_designation(
     form: BaseModel,
-    report: Callable[[dict[str, Any]], None],
+    report: Callable[[report_events.ReportEvent], None],
 ) -> None:
     f = cast(StructuredDesignationForm, form)
     dsn = db_dsn_map[f.endpoint].format(
@@ -55,4 +56,4 @@ def handle_structured_designation(
             print_unmatched=f.print_unmatched,
             report=report,
         )
-    report({"type": "done", "total_rows": total})
+    report(report_events.ReportDone(total_rows=total))

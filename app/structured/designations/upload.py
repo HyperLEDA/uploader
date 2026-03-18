@@ -1,9 +1,9 @@
 from collections.abc import Callable
-from typing import Any
 
 import click
 from psycopg import sql
 
+import app.report_events as report_events
 from app import log
 from app.display import print_table
 from app.gen.client import adminapi
@@ -26,7 +26,7 @@ def upload_designations(
     *,
     write: bool = False,
     print_unmatched: bool = False,
-    report: Callable[[dict[str, Any]], None] | None = None,
+    report: Callable[[report_events.ReportEvent], None] | None = None,
 ) -> int:
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}
     unmatched = 0
@@ -60,7 +60,7 @@ def upload_designations(
                 transformed = name_str
                 if print_unmatched:
                     if report is not None:
-                        report({"type": "log", "message": name_str})
+                        report(report_events.ReportLog(message=name_str))
                     else:
                         click.echo(name_str)
             batch_ids.append(internal_id)
@@ -95,15 +95,14 @@ def upload_designations(
         )
         if report is not None:
             progress_pct = int(100 * processed_rows / total_count) if total_count else 0
-            report({"type": "progress", "percent": min(99, progress_pct)})
+            report(report_events.ReportProgress(percent=min(99, progress_pct)))
             report(
-                {
-                    "type": "log",
-                    "message": (
+                report_events.ReportLog(
+                    message=(
                         f"batch: rows_read={len(rows)} cumulative_names={total_so_far} "
                         f"matched={sum(rule_counts.values())} unmatched={unmatched}"
                     ),
-                },
+                ),
             )
 
     total = sum(rule_counts.values()) + unmatched
@@ -119,14 +118,14 @@ def upload_designations(
     table_rows.append(("(no rule matched)", unmatched, pct(unmatched)))
 
     if report is not None:
-        report({"type": "progress", "percent": 100})
+        report(report_events.ReportProgress(percent=100))
         lines = [
             f"Total names: {total}",
             f"{'Rule':<32} {'Count':>8} {'%':>6}",
         ]
         for name, c, p in table_rows:
             lines.append(f"{name:<32} {c:>8} {p:>5.1f}")
-        report({"type": "log", "message": "\n".join(lines)})
+        report(report_events.ReportLog(message="\n".join(lines)))
     else:
         print_table(
             ("Rule", "Count", "%"),

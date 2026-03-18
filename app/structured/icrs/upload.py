@@ -1,8 +1,8 @@
 from collections.abc import Callable
-from typing import Any
 
 from psycopg import sql
 
+import app.report_events as report_events
 from app.display import print_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import get_table, save_structured_data
@@ -57,7 +57,7 @@ def upload_icrs(
     ra_error_unit: str,
     dec_error: float,
     dec_error_unit: str,
-    report: Callable[[dict[str, Any]], None] | None = None,
+    report: Callable[[report_events.ReportEvent], None] | None = None,
 ) -> int:
     units = _fetch_units(
         client,
@@ -123,12 +123,11 @@ def upload_icrs(
         processed_rows += len(rows)
         if report is not None:
             row_pct = int(100 * processed_rows / total_count) if total_count else 0
-            report({"type": "progress", "percent": min(99, row_pct)})
+            report(report_events.ReportProgress(percent=min(99, row_pct)))
             report(
-                {
-                    "type": "log",
-                    "message": (f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}"),
-                },
+                report_events.ReportLog(
+                    message=f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}",
+                ),
             )
 
     total = uploaded + skipped
@@ -154,12 +153,12 @@ def upload_icrs(
             ]
         )
     if report is not None:
-        report({"type": "progress", "percent": 100})
+        report(report_events.ReportProgress(percent=100))
         lines = [f"Total rows: {total}", f"{'Status':<20} {'Count':>8} {'%':>6}"]
         for label, c, p in table_rows:
             p_str = f"{p:>5.1f}" if isinstance(p, float) else str(p)
             lines.append(f"{label:<20} {c!s:>8} {p_str:>6}")
-        report({"type": "log", "message": "\n".join(lines)})
+        report(report_events.ReportLog(message="\n".join(lines)))
     else:
         print_table(
             ("Status", "Count", "%"),

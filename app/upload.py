@@ -5,6 +5,7 @@ from typing import Any
 
 import click
 
+import app.report_events as report_events
 from app import interface, log
 from app.display import print_table
 from app.gen.client import adminapi
@@ -175,13 +176,13 @@ def upload_for_web(
     table_type: str,
     *,
     dry_run: bool = False,
-    report: Callable[[dict[str, Any]], None],
+    report: Callable[[report_events.ReportEvent], None],
 ) -> int:
     def emit(msg: str) -> None:
-        report({"type": "log", "message": msg})
+        report(report_events.ReportLog(message=msg))
 
     def on_progress(p: int) -> None:
-        report({"type": "progress", "percent": p})
+        report(report_events.ReportProgress(percent=p))
 
     plugin.prepare()
     try:
