@@ -96,5 +96,5 @@ def upload_nature(
         title=f"Total rows: {total_uploaded}\n",
     )
     report(report_events.ReportLog(message=summary))
-    report(report_events.ReportDone(total_rows=total_uploaded))
+    report(report_events.ReportDone(message=f"Total rows: {total_uploaded}"))
     return total_uploaded

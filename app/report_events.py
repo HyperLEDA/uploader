@@ -8,12 +8,12 @@ class ReportLog:
 
 @dataclass(frozen=True)
 class ReportProgress:
-    percent: int
+    percent: float
 
 
 @dataclass(frozen=True)
 class ReportDone:
-    total_rows: int
+    message: str
 
 
 @dataclass(frozen=True)

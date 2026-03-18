@@ -1,7 +1,5 @@
 from collections.abc import Sequence
 
-import click
-
 
 def format_table(
     headers: Sequence[str],
@@ -57,22 +55,3 @@ def format_table(
         out.append("  ".join(parts))
 
     return "\n".join(out)
-
-
-def print_table(
-    headers: Sequence[str],
-    rows: Sequence[Sequence[str | int | float]],
-    *,
-    title: str = "",
-    right_align_last_n: int = 2,
-    percent_last_column: bool = True,
-) -> None:
-    text = format_table(
-        headers,
-        rows,
-        title=title,
-        right_align_last_n=right_align_last_n,
-        percent_last_column=percent_last_column,
-    )
-    if text:
-        click.echo(text)

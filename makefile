@@ -36,8 +36,8 @@ check:
 		--config-file=pyproject.toml
 
 check-frontend:
-	@cd frontend && yarn lint
-	@cd frontend && yarn format:check
+	@output=$$(cd frontend && yarn run --silent prettier --check src 2>&1) || { echo "$$output"; exit 1; }
+	@output=$$(cd frontend && yarn run --silent eslint src 2>&1) || { echo "$$output"; exit 1; }
 	@cd frontend && yarn build
 
 fix:
@@ -50,8 +50,8 @@ fix:
 		--fix
 
 fix-frontend:
-	@cd frontend && yarn format
-	@cd frontend && yarn lint -- --fix
+	@output=$$(cd frontend && yarn run --silent prettier --write src 2>&1) || { echo "$$output"; exit 1; }
+	@output=$$(cd frontend && yarn run --silent eslint --fix src 2>&1) || { echo "$$output"; exit 1; }
 
 # only for mac as this is faster
 build:

@@ -10,7 +10,7 @@ type StreamEvent =
   | { type: "progress"; percent: number }
   | { type: "log"; message: string }
   | { type: "error"; message: string }
-  | { type: "done"; total_rows: number };
+  | { type: "done"; message: string };
 
 export function ProgressView({
   runId,
@@ -21,7 +21,7 @@ export function ProgressView({
 }) {
   const [percent, setPercent] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
-  const [done, setDone] = useState<{ total_rows: number } | null>(null);
+  const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +36,7 @@ export function ProgressView({
           setError(ev.message);
           es.close();
         } else if (ev.type === "done") {
-          setDone({ total_rows: ev.total_rows });
+          setDone(ev.message);
           es.close();
         }
       } catch {
@@ -71,7 +71,7 @@ export function ProgressView({
       )}
       {done && (
         <Alert severity="success" sx={{ mb: 2 }}>
-          Finished. Total rows: {done.total_rows}
+          Finished. {done}
         </Alert>
       )}
       <Paper

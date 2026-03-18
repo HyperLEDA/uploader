@@ -60,8 +60,8 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                 run.append({"type": "log", "message": msg})
             case report_events.ReportProgress(percent=pct):
                 run.append({"type": "progress", "percent": pct})
-            case report_events.ReportDone(total_rows=n):
-                run.append({"type": "done", "total_rows": n})
+            case report_events.ReportDone(message=msg):
+                run.append({"type": "done", "message": msg})
             case report_events.ReportError(message=msg):
                 run.append({"type": "error", "message": msg})
 

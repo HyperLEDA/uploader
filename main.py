@@ -34,8 +34,8 @@ def _structured_cli_report(event: report_events.ReportEvent) -> None:
             click.echo(m)
         case report_events.ReportProgress(percent=p):
             click.echo(f"Progress: {p}%")
-        case report_events.ReportDone(total_rows=n):
-            click.echo(f"Done ({n} rows)")
+        case report_events.ReportDone(message=m):
+            click.echo(m)
         case report_events.ReportError(message=m):
             click.echo(m, err=True)
         case _:

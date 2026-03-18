@@ -66,7 +66,7 @@ def _upload(
     *,
     dry_run: bool = False,
     emit_lines: Callable[[str], None] | None = None,
-    on_progress_percent: Callable[[int], None] | None = None,
+    on_progress_percent: Callable[[float], None] | None = None,
 ) -> int:
     schema = plugin.get_schema()
 
@@ -181,7 +181,7 @@ def upload_for_web(
     def emit(msg: str) -> None:
         report(report_events.ReportLog(message=msg))
 
-    def on_progress(p: int) -> None:
+    def on_progress(p: float) -> None:
         report(report_events.ReportProgress(percent=p))
 
     plugin.prepare()
@@ -200,6 +200,6 @@ def upload_for_web(
             emit_lines=emit,
             on_progress_percent=on_progress,
         )
-        report(report_events.ReportDone(total_rows=total_rows))
+        report(report_events.ReportDone(message=f"Total rows: {total_rows}"))
     finally:
         plugin.stop()
