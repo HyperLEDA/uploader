@@ -1,9 +1,10 @@
 from collections.abc import Callable
 
+import click
 from psycopg import sql
 
 import app.report_events as report_events
-from app.display import print_table
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import get_table, save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
@@ -154,15 +155,13 @@ def upload_icrs(
         )
     if report is not None:
         report(report_events.ReportProgress(percent=100))
-        lines = [f"Total rows: {total}", f"{'Status':<20} {'Count':>8} {'%':>6}"]
-        for label, c, p in table_rows:
-            p_str = f"{p:>5.1f}" if isinstance(p, float) else str(p)
-            lines.append(f"{label:<20} {c!s:>8} {p_str:>6}")
-        report(report_events.ReportLog(message="\n".join(lines)))
+    summary = format_table(
+        ("Status", "Count", "%"),
+        table_rows,
+        title=f"Total rows: {total}\n",
+    )
+    if report is not None:
+        report(report_events.ReportLog(message=summary))
     else:
-        print_table(
-            ("Status", "Count", "%"),
-            table_rows,
-            title=f"Total rows: {total}\n",
-        )
+        click.echo(summary)
     return total

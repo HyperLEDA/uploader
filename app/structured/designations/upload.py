@@ -5,7 +5,7 @@ from psycopg import sql
 
 import app.report_events as report_events
 from app import log
-from app.display import print_table
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
@@ -119,18 +119,14 @@ def upload_designations(
 
     if report is not None:
         report(report_events.ReportProgress(percent=100))
-        lines = [
-            f"Total names: {total}",
-            f"{'Rule':<32} {'Count':>8} {'%':>6}",
-        ]
-        for name, c, p in table_rows:
-            lines.append(f"{name:<32} {c:>8} {p:>5.1f}")
-        report(report_events.ReportLog(message="\n".join(lines)))
+    summary = format_table(
+        ("Rule", "Count", "%"),
+        table_rows,
+        title=f"Total names: {total}\n",
+    )
+    if report is not None:
+        report(report_events.ReportLog(message=summary))
     else:
-        print_table(
-            ("Rule", "Count", "%"),
-            table_rows,
-            title=f"Total names: {total}\n",
-        )
+        click.echo(summary)
 
     return total

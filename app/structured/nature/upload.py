@@ -1,10 +1,11 @@
 from collections import Counter
 from collections.abc import Callable
 
+import click
 from psycopg import sql
 
 import app.report_events as report_events
-from app.display import print_table
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi.api.default import save_structured_data
 from app.gen.client.adminapi.models.save_structured_data_request import (
@@ -83,25 +84,23 @@ def upload_nature(
                 ),
             )
 
-    table_rows: list[tuple[str, int, str]] = [
+    table_rows: list[tuple[str, int, float | str]] = [
         (
             leda_type,
             count,
-            f"{100.0 * count / total_uploaded:.1f}%" if total_uploaded else "-",
+            (100.0 * count / total_uploaded) if total_uploaded else "-",
         )
         for leda_type, count in sorted(type_counts.items())
     ]
     if report is not None:
         report(report_events.ReportProgress(percent=100))
-        lines = [f"Total rows: {total_uploaded}", f"{'LEDA type':<32} {'Count':>8} {'%':>8}"]
-        for leda_type, count, pct_str in table_rows:
-            lines.append(f"{leda_type:<32} {count:>8} {pct_str:>8}")
-        report(report_events.ReportLog(message="\n".join(lines)))
+    summary = format_table(
+        ("LEDA type", "Count", "%"),
+        table_rows,
+        title=f"Total rows: {total_uploaded}\n",
+    )
+    if report is not None:
+        report(report_events.ReportLog(message=summary))
     else:
-        print_table(
-            ("LEDA type", "Count", "%"),
-            table_rows,
-            title=f"Total rows: {total_uploaded}\n",
-            percent_last_column=True,
-        )
+        click.echo(summary)
     return total_uploaded

@@ -7,7 +7,7 @@ import click
 
 import app.report_events as report_events
 from app import interface, log
-from app.display import print_table
+from app.display import format_table
 from app.gen.client import adminapi
 from app.gen.client.adminapi import models, types
 from app.gen.client.adminapi.api.default import (
@@ -71,17 +71,17 @@ def _upload(
     schema = plugin.get_schema()
 
     schema_rows = [(col.name, col.data_type.value) for col in schema]
+    schema_text = format_table(
+        ("Column", "Type"),
+        schema_rows,
+        title="\nSchema:",
+        right_align_last_n=0,
+        percent_last_column=False,
+    )
     if emit_lines is not None:
-        lines = ["Schema:", f"{'Column':<32} Type"] + [f"{n:<32} {t}" for n, t in schema_rows]
-        emit_lines("\n".join(lines))
+        emit_lines(schema_text)
     else:
-        print_table(
-            ("Column", "Type"),
-            schema_rows,
-            title="\nSchema:",
-            right_align_last_n=0,
-            percent_last_column=False,
-        )
+        click.echo(schema_text)
 
     if not dry_run:
         if bibcode == "":
