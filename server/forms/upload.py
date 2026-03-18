@@ -44,14 +44,14 @@ class UploadRawForm(BaseModel):
         title="Use bibcode",
         description="If enabled, provide a NASA ADS bibcode; otherwise provide manual source metadata.",
     )
-    bibcode: str | None = Field(default=None, title="Bibcode")
-    pub_name: str | None = Field(default=None, title="Source name")
+    bibcode: str = Field(default="", title="Bibcode")
+    pub_name: str = Field(default="", title="Source name")
     pub_authors: list[str] = Field(
         default_factory=list,
         title="Authors",
         description="One author per entry when not using bibcode.",
     )
-    pub_year: int | None = Field(default=None, title="Publication year")
+    pub_year: int = Field(default=0, title="Publication year")
     table_type: str = Field(
         default="regular",
         title="Table type",
@@ -80,14 +80,10 @@ def _handle_upload_raw(form: UploadRawForm, report: Callable[[dict[str, Any]], N
     plugins = app.discover_plugins(form.plugin_dir)
     plugin = get_plugin_instance(form.plugin_name, plugins, form.plugin_args)
 
-    if form.has_bibcode:
-        bibcode = (form.bibcode or "").strip()
-    else:
-        bibcode = ""
-
-    pub_name = (form.pub_name or "").strip()
-    pub_authors = list(form.pub_authors or [])
-    pub_year = int(form.pub_year) if form.pub_year is not None else 0
+    bibcode = form.bibcode.strip() if form.has_bibcode else ""
+    pub_name = form.pub_name.strip()
+    pub_authors = list(form.pub_authors)
+    pub_year = form.pub_year
     table_type = (form.table_type or "regular").upper()
 
     total_rows = upload_for_web(
