@@ -1,7 +1,5 @@
 ## Development
 
-The web UI lives in `frontend/`. Use **Yarn** for JavaScript dependencies (`yarn install`, `yarn dev`). Start the API with `make serve` and the UI with `make frontend`.
-
 ### Running checks
 
 To check the code against static checks, run:
@@ -17,6 +15,13 @@ make fix
 ```
 
 If the check command fails, make sure to always run the fix command first prior to trying to fix changes yourself.
+
+For the frontend:
+
+```shell
+make check-frontend
+make fix-frontend
+```
 
 ### Scripts and Python Execution
 

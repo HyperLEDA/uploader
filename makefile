@@ -1,8 +1,14 @@
 install:
 	uv sync
 
+install-frontend:
+	cd frontend && yarn install --frozen-lockfile
+
 install-dev:
 	uv sync --all-extras
+
+install-dev-frontend:
+	cd frontend && yarn install
 
 check:
 	@output=$$(copier check-update --answers-file .template.yaml 2>&1) || true; \
@@ -28,6 +34,8 @@ check:
 	@uv run pytest \
 		--quiet \
 		--config-file=pyproject.toml
+
+check-frontend:
 	@cd frontend && yarn lint
 	@cd frontend && yarn format:check
 	@cd frontend && yarn build
@@ -40,7 +48,10 @@ fix:
 		--quiet \
 		--config=pyproject.toml \
 		--fix
+
+fix-frontend:
 	@cd frontend && yarn format
+	@cd frontend && yarn lint -- --fix
 
 # only for mac as this is faster
 build:
@@ -73,13 +84,10 @@ gen:
 		--config openapigen.yaml \
 		--url https://leda.sao.ru/admin/api/openapi.json
 
-.PHONY: serve frontend frontend-install
+.PHONY: serve frontend check-frontend fix-frontend install-frontend install-dev-frontend
 
 serve:
 	uv run uvicorn server.main:app --reload --port 8000
 
 frontend:
 	cd frontend && yarn dev
-
-frontend-install:
-	cd frontend && yarn install
