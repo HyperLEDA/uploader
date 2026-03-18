@@ -1,11 +1,7 @@
 import Tooltip from "@mui/material/Tooltip";
 import type { ReactElement, ReactNode } from "react";
 
-export type HintPosition =
-  | "top"
-  | "left"
-  | "right"
-  | "bottom";
+export type HintPosition = "top" | "left" | "right" | "bottom";
 
 interface HintProps {
   children: ReactElement;

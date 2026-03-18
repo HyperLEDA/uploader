@@ -18,7 +18,9 @@ export function TaskPage() {
   const [runId, setRunId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!taskId) return;
+    if (!taskId) {
+      return () => {};
+    }
     let alive = true;
     fetchTaskSchema(taskId)
       .then(({ title, schema: s }) => {
@@ -75,18 +77,18 @@ export function TaskPage() {
         onSubmit={async ({ formData }) => {
           setSubmitError(null);
           try {
-            const { run_id } = await submitTask(
+            const submitted = await submitTask(
               taskId,
               formData as Record<string, unknown>,
             );
-            setRunId(run_id);
+            setRunId(submitted.run_id);
           } catch (e: unknown) {
             const err = e as { detail?: unknown };
             const d = err.detail;
             setSubmitError(
               typeof d === "string"
                 ? d
-                : d != null
+                : d !== undefined && d !== null
                   ? JSON.stringify(d, null, 2)
                   : String(e),
             );
