@@ -1,7 +1,6 @@
 from collections import Counter
 from collections.abc import Callable
 
-import click
 from psycopg import sql
 
 import app.report_events as report_events
@@ -28,19 +27,18 @@ def upload_nature(
     client: adminapi.AuthenticatedClient,
     *,
     write: bool = False,
-    report: Callable[[report_events.ReportEvent], None] | None = None,
+    report: Callable[[report_events.ReportEvent], None],
 ) -> int:
     total_uploaded = 0
     type_counts: Counter[str] = Counter()
 
     columns: list[str] = [] if column_name is None else [column_name]
     total_count = 0
-    if report is not None:
-        cnt = storage.query(
-            sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
-            (),
-        )
-        total_count = int(cnt[0]["cnt"]) if cnt else 0
+    cnt = storage.query(
+        sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
+        (),
+    )
+    total_count = int(cnt[0]["cnt"]) if cnt else 0
     processed_rows = 0
 
     for rows in rawdata_batches(storage, table_name, columns, batch_size):
@@ -75,14 +73,13 @@ def upload_nature(
             )
 
         processed_rows += len(rows)
-        if report is not None:
-            batch_pct = int(100 * processed_rows / total_count) if total_count else 0
-            report(report_events.ReportProgress(percent=min(99, batch_pct)))
-            report(
-                report_events.ReportLog(
-                    message=f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
-                ),
-            )
+        batch_pct = int(100 * processed_rows / total_count) if total_count else 0
+        report(report_events.ReportProgress(percent=min(99, batch_pct)))
+        report(
+            report_events.ReportLog(
+                message=f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
+            ),
+        )
 
     table_rows: list[tuple[str, int, float | str]] = [
         (
@@ -92,16 +89,12 @@ def upload_nature(
         )
         for leda_type, count in sorted(type_counts.items())
     ]
-    if report is not None:
-        report(report_events.ReportProgress(percent=100))
+    report(report_events.ReportProgress(percent=100))
     summary = format_table(
         ("LEDA type", "Count", "%"),
         table_rows,
         title=f"Total rows: {total_uploaded}\n",
     )
-    if report is not None:
-        report(report_events.ReportLog(message=summary))
-        report(report_events.ReportDone(total_rows=total_uploaded))
-    else:
-        click.echo(summary)
+    report(report_events.ReportLog(message=summary))
+    report(report_events.ReportDone(total_rows=total_uploaded))
     return total_uploaded

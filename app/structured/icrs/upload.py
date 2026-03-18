@@ -1,6 +1,5 @@
 from collections.abc import Callable
 
-import click
 from psycopg import sql
 
 import app.report_events as report_events
@@ -58,7 +57,7 @@ def upload_icrs(
     ra_error_unit: str,
     dec_error: float,
     dec_error_unit: str,
-    report: Callable[[report_events.ReportEvent], None] | None = None,
+    report: Callable[[report_events.ReportEvent], None],
 ) -> int:
     units = _fetch_units(
         client,
@@ -77,12 +76,11 @@ def upload_icrs(
     ra_sum = 0.0
     dec_sum = 0.0
     total_count = 0
-    if report is not None:
-        cnt = storage.query(
-            sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
-            (),
-        )
-        total_count = int(cnt[0]["cnt"]) if cnt else 0
+    cnt = storage.query(
+        sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
+        (),
+    )
+    total_count = int(cnt[0]["cnt"]) if cnt else 0
     processed_rows = 0
 
     for rows in rawdata_batches(storage, table_name, [ra_column, dec_column], batch_size):
@@ -122,14 +120,13 @@ def upload_icrs(
             )
 
         processed_rows += len(rows)
-        if report is not None:
-            row_pct = int(100 * processed_rows / total_count) if total_count else 0
-            report(report_events.ReportProgress(percent=min(99, row_pct)))
-            report(
-                report_events.ReportLog(
-                    message=f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}",
-                ),
-            )
+        row_pct = int(100 * processed_rows / total_count) if total_count else 0
+        report(report_events.ReportProgress(percent=min(99, row_pct)))
+        report(
+            report_events.ReportLog(
+                message=f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}",
+            ),
+        )
 
     total = uploaded + skipped
 
@@ -153,16 +150,12 @@ def upload_icrs(
                 ("Dec mean", round(dec_mean, 6), "-"),
             ]
         )
-    if report is not None:
-        report(report_events.ReportProgress(percent=100))
+    report(report_events.ReportProgress(percent=100))
     summary = format_table(
         ("Status", "Count", "%"),
         table_rows,
         title=f"Total rows: {total}\n",
     )
-    if report is not None:
-        report(report_events.ReportLog(message=summary))
-        report(report_events.ReportDone(total_rows=total))
-    else:
-        click.echo(summary)
+    report(report_events.ReportLog(message=summary))
+    report(report_events.ReportDone(total_rows=total))
     return total

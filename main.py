@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from psycopg import connect
 
 import app
+import app.report_events as report_events
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
 from app.crossmatch.resolver import DefaultResolver, LayeredResolver, TwoRadiiResolver
 from app.endpoints import db_dsn_map, env_map
@@ -25,6 +26,20 @@ from app.structured.photometry.upload import (
     upload_photometry_hyperleda as run_upload_photometry_hyperleda,
 )
 from app.structured.redshift import upload_redshift as run_upload_redshift
+
+
+def _structured_cli_report(event: report_events.ReportEvent) -> None:
+    match event:
+        case report_events.ReportLog(message=m):
+            click.echo(m)
+        case report_events.ReportProgress(percent=p):
+            click.echo(f"Progress: {p}%")
+        case report_events.ReportDone(total_rows=n):
+            click.echo(f"Done ({n} rows)")
+        case report_events.ReportError(message=m):
+            click.echo(m, err=True)
+        case _:
+            pass
 
 
 @dataclass
@@ -114,6 +129,7 @@ def upload_structured_designation(
             common["client"],
             write=write,
             print_unmatched=print_unmatched,
+            report=_structured_cli_report,
         )
 
 
@@ -157,6 +173,7 @@ def upload_structured_icrs(
             ra_error_unit=ra_error_unit,
             dec_error=dec_error,
             dec_error_unit=dec_error_unit,
+            report=_structured_cli_report,
         )
 
 
@@ -197,6 +214,7 @@ def upload_structured_redshift(
             common["client"],
             write=write,
             z_error=z_error,
+            report=_structured_cli_report,
         )
 
 
@@ -284,6 +302,7 @@ def upload_structured_nature(
             batch_size,
             common["client"],
             write=write,
+            report=_structured_cli_report,
         )
 
 
