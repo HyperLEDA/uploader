@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
 from server.history import load_history
+from server.schema import process_schema
 from server.task_registry import register_all_tasks
 from server.tasks import TASKS, get_run, start_task
 
@@ -50,6 +51,7 @@ def task_schema(task_id: str) -> dict[str, object]:
     task = TASKS[task_id]
     schema = task.form_model.model_json_schema()
     schema.pop("title", None)
+    schema = process_schema(schema)
     return {"title": task.title, "schema": schema}
 
 

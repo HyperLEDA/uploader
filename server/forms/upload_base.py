@@ -20,14 +20,17 @@ class UploadBaseForm(BaseModel):
         title="Use bibcode",
         description="If enabled, provide a NASA ADS bibcode; otherwise provide manual source metadata.",
     )
-    bibcode: str = Field(default="", title="Bibcode")
-    pub_name: str = Field(default="", title="Source name")
+    bibcode: str = Field(default="", title="Bibcode", json_schema_extra={"visible_when": {"has_bibcode": True}})
+    pub_name: str = Field(default="", title="Source name", json_schema_extra={"visible_when": {"has_bibcode": False}})
     pub_authors: list[str] = Field(
         default_factory=list,
         title="Authors",
         description="One author per entry when not using bibcode.",
+        json_schema_extra={"visible_when": {"has_bibcode": False}},
     )
-    pub_year: int = Field(default=0, title="Publication year")
+    pub_year: int = Field(
+        default=0, title="Publication year", json_schema_extra={"visible_when": {"has_bibcode": False}}
+    )
     table_type: str = Field(
         default="regular",
         title="Table type",
