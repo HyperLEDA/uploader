@@ -1,4 +1,5 @@
 import http
+from collections.abc import Generator
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -23,7 +24,7 @@ class StubPlugin(UploaderPlugin):
     def get_schema(self) -> list[models.ColumnDescription]:
         return []
 
-    def get_data(self) -> tuple[pandas.DataFrame, float] | None:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
         if self.should_raise:
             raise Exception("Test error")
         return None

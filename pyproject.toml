@@ -22,7 +22,8 @@ dependencies = [
 dev = [
     "ruff~=0.15.0",
     "pandas-stubs>=2.2.3.250308",
-    "pytest>=8.4.2",
+    "pytest~=9.0.2",
+    "basedpyright~=1.38.3",
 ]
 
 [tool.pytest.ini_options]
@@ -60,6 +61,67 @@ select = [
     "NPY201",
     "PLC0415",
     "S101",
+]
+
+[tool.basedpyright]
+typeCheckingMode = "off"
+venvPath = "."
+venv = ".venv"
+
+### warns
+reportDeprecated = "warning"
+reportIncompatibleMethodOverride = "warning"
+reportIncompatibleVariableOverride = "warning"
+reportMatchNotExhaustive = "warning"
+
+### pyright issues
+reportGeneralTypeIssues = "error"
+reportFunctionMemberAccess = "error"
+reportMissingImports = "error"
+reportMissingModuleSource = "error"
+reportInvalidTypeForm = "error"
+reportUnusedImport = "error"
+reportUnusedClass = "error"
+reportUnusedFunction = "error"
+reportUnusedVariable = "error"
+reportDuplicateImport = "error"
+reportWildcardImportFromLibrary = "error"
+reportAbstractUsage = "error"
+reportAssertTypeFailure = "error"
+reportCallIssue = "error"
+reportInconsistentOverload = "error"
+reportIndexIssue = "error"
+reportInvalidTypeArguments = "error"
+reportNoOverloadImplementation = "error"
+reportRedeclaration = "error"
+reportConstantRedefinition = "error"
+reportPossiblyUnboundVariable = "error"
+reportInvalidStringEscapeSequence = "error"
+reportUnnecessaryIsInstance = "error"
+reportUnnecessaryCast = "error"
+reportUnnecessaryComparison = "error"
+reportUnnecessaryContains = "error"
+reportAssertAlwaysTrue = "error"
+reportSelfClsParameterName = "error"
+reportUndefinedVariable = "error"
+reportUnhashable = "error"
+reportUnsupportedDunderAll = "error"
+reportUnusedCoroutine = "error"
+reportUnusedExcept = "error"
+reportUnusedExpression = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportUnreachable = "error"
+
+### based pyright issues
+reportIgnoreCommentWithoutRule = "error"
+reportImplicitRelativeImport = "error"
+reportUnsafeMultipleInheritance = "error"
+reportImplicitAbstractClass = "error"
+
+exclude = [
+    "frontend/**",
+    "app/gen/**",
+    ".venv/**"
 ]
 
 [tool.ruff.lint.per-file-ignores]
