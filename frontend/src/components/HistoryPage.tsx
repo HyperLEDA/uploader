@@ -109,7 +109,13 @@ export function HistoryPage() {
                         label={entry.status}
                       />
                     </TableCell>
-                    <TableCell sx={{ maxWidth: 420 }}>
+                    <TableCell
+                      sx={{
+                        maxWidth: 420,
+                        whiteSpace: "pre-wrap",
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {entry.message}
                     </TableCell>
                     <TableCell align="right">
