@@ -240,6 +240,7 @@ def upload_structured_photometry_hyperleda(
             common["table_name"],
             batch_size,
             common["client"],
+            _structured_cli_report,
             write=write,
         )
 
@@ -360,6 +361,7 @@ def crossmatch_default(
             common["batch_size"],
             common["client"],
             resolver=resolver,
+            report_func=_structured_cli_report,
             print_pending=common["print_pending"],
             write=common["write"],
         )
@@ -394,6 +396,7 @@ def crossmatch_two_radii(
             common["batch_size"],
             common["client"],
             resolver=resolver,
+            report_func=_structured_cli_report,
             print_pending=common["print_pending"],
             write=common["write"],
         )
@@ -433,6 +436,7 @@ def crossmatch_layered(
             common["batch_size"],
             common["client"],
             resolver=resolver,
+            report_func=_structured_cli_report,
             print_pending=common["print_pending"],
             write=common["write"],
         )

@@ -2,11 +2,13 @@ import dataclasses
 import json
 import math
 from collections import defaultdict
+from collections.abc import Callable
 from typing import cast
 
 import click
 from psycopg import sql
 
+import app.report as report
 from app import log
 from app.crossmatch.models import (
     CrossmatchResult,
@@ -334,6 +336,7 @@ def run_crossmatch(
     batch_size: int,
     client: adminapi.AuthenticatedClient,
     resolver: Resolver,
+    report_func: Callable[[report.Event], None],
     *,
     print_pending: bool = False,
     write: bool = False,
@@ -348,6 +351,17 @@ def run_crossmatch(
     if not rows:
         raise RuntimeError(f"Table not found: {table_name}")
     table_id = rows[0]["id"]
+    total_records = int(
+        storage.query(
+            "SELECT COUNT(*) AS cnt FROM layer0.records WHERE table_id = %s",
+            (table_id,),
+        )[0]["cnt"]
+    )
+    report_func(
+        report.LogEvent(
+            message=f"Starting crossmatch for {table_name} ({total_records} records).",
+        )
+    )
 
     counts: dict[tuple[CrossmatchStatus, TriageStatus, PendingReason | None], int] = defaultdict(int)
     total = 0
@@ -368,6 +382,10 @@ def run_crossmatch(
                 resolver,
                 print_pending,
             )
+            batch_processed = len(batch_results)
+            batch_pending = sum(
+                1 for _record_id, result in batch_results if result.triage_status == TriageStatus.PENDING
+            )
 
             for _record_id, result in batch_results:
                 counts[(result.status, result.triage_status, result.pending_reason)] += 1
@@ -382,8 +400,14 @@ def run_crossmatch(
                 last_id=last_id,
                 total=total,
             )
+            report_func(
+                report.LogEvent(
+                    message=(f"Batch processed: {batch_processed} objects; manual check: {batch_pending} objects.")
+                )
+            )
+            progress = 100.0 if total_records == 0 else (100.0 * total / total_records)
+            report_func(report.ProgressEvent(percent=min(progress, 100.0)))
     finally:
-
         def pct(n: int) -> float:
             return (100.0 * n / total) if total else 0.0
 
@@ -401,10 +425,11 @@ def run_crossmatch(
             )
             if counts[(status, triage, reason)] > 0
         ]
-        click.echo(
-            format_table(
-                ("Status", "Triage", "Reason", "Count", "%"),
-                summary_rows,
-                title=f"Total records: {total}\n",
-            )
+        summary = format_table(
+            ("Status", "Triage", "Reason", "Count", "%"),
+            summary_rows,
+            title=f"Total records: {total}\n",
         )
+
+        report_func(report.ProgressEvent(percent=100))
+        report_func(report.DoneEvent(message=summary))
