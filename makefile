@@ -19,21 +19,34 @@ check:
 	else \
 		echo "$$output"; \
 	fi
+
 	@find . \
 		-name "*.py" \
 		-not -path "./.venv/*" \
 		-not -path "./.git/*" \
 		-exec uv run python -m py_compile {} +
-	@uvx ruff format \
+	@echo "Compilation ok."
+
+	@uv run ruff format \
 		--quiet \
 		--config=pyproject.toml \
 		--check
-	@uvx ruff check \
+	@echo "Formatting ok."
+
+	@uv run ruff check \
 		--quiet \
 		--config=pyproject.toml
+	@echo "Linter ok."
+
+	@output=$$(uv run basedpyright 2>&1); exit_code=$$?; \
+	if [ $$exit_code -ne 0 ]; then echo "$$output"; fi; \
+	exit $$exit_code
+	@echo "Typechecking ok."
+
 	@uv run pytest \
 		--quiet \
 		--config-file=pyproject.toml
+	@echo "Testing ok."
 
 check-frontend:
 	@output=$$(cd frontend && yarn run --silent prettier --check src 2>&1) || { echo "$$output"; exit 1; }
@@ -41,10 +54,11 @@ check-frontend:
 	@cd frontend && yarn build
 
 fix:
-	@uvx ruff format \
+	@uv run ruff format \
 		--quiet \
 		--config=pyproject.toml
-	@uvx ruff check \
+
+	@uv run ruff check \
 		--quiet \
 		--config=pyproject.toml \
 		--fix

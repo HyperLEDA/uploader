@@ -13,7 +13,7 @@ def pgc_resolver(
     if evidence.record_pgc is None:
         return previous_result, None
 
-    if evidence.record_pgc is not None and not evidence.claimed_pgc_exists_in_layer2:
+    if not evidence.claimed_pgc_exists_in_layer2:
         return previous_result, PendingReason.UNKNOWN_PGC
 
     pgc = evidence.record_pgc

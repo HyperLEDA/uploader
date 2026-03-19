@@ -38,8 +38,6 @@ def _structured_cli_report(event: report.Event) -> None:
             click.echo(m)
         case report.ErrorEvent(message=m):
             click.echo(m, err=True)
-        case _:
-            pass
 
 
 @dataclass

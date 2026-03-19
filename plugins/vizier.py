@@ -74,7 +74,7 @@ class VizierPlugin(
         )
 
         vizier_client = vizier.VizierClass(row_limit=-1, columns=["**"])
-        catalogs = vizier_client.get_catalogs(catalog_name)  # type: ignore
+        catalogs = vizier_client.get_catalogs(catalog_name)
 
         table = next((cat for cat in catalogs if cat.meta["name"] == table_name), None)
         if not table:
@@ -188,7 +188,7 @@ def _get_filename(catalog_name: str, table_name: str) -> str:
 
 
 def _get_columns(client: vizier.VizierClass, catalog_name: str, table_name: str) -> list[str]:
-    catalogs = client.get_catalogs(catalog_name)  # type: ignore
+    catalogs = client.get_catalogs(catalog_name)
 
     meta = None
     for cat in catalogs:
