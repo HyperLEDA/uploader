@@ -5,7 +5,6 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import cast
 
-import click
 from psycopg import sql
 
 import app.report as report
@@ -408,6 +407,7 @@ def run_crossmatch(
             progress = 100.0 if total_records == 0 else (100.0 * total / total_records)
             report_func(report.ProgressEvent(percent=min(progress, 100.0)))
     finally:
+
         def pct(n: int) -> float:
             return (100.0 * n / total) if total else 0.0
 
