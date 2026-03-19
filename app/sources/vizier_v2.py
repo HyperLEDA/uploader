@@ -47,7 +47,7 @@ def dtype_to_datatype(dtype: str | np.dtype) -> models.DatatypeEnum:
 
 
 @final
-class VizierV2Plugin(
+class VizierV2Source(
     app.UploaderPlugin,
     app.DefaultTableNamer,
     app.BibcodeProvider,
@@ -153,7 +153,3 @@ class VizierV2Plugin(
 
     def stop(self) -> None:
         pass
-
-
-plugin = VizierV2Plugin
-name = "vizier-v2"

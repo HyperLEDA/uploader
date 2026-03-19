@@ -1,29 +1,10 @@
-from collections.abc import Callable
-from typing import Literal, cast
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-import app
-import app.report as report
-from app.endpoints import env_map
-from app.gen.client import adminapi
-from app.plugins import get_plugin_instance
-from app.upload import upload_for_web
 
-
-class UploadRawForm(BaseModel):
+class UploadBaseForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    plugin_dir: str = Field(default="plugins", title="Plugin directory")
-    plugin_name: str = Field(
-        ...,
-        title="Plugin name",
-        description="Registered plugin id (e.g. csv, fits, vizier).",
-    )
-    plugin_args: list[str] = Field(
-        default_factory=list,
-        title="Plugin arguments",
-        description="Positional constructor arguments, one per row (e.g. file path).",
-    )
     table_name: str = Field(
         ...,
         title="Table name",
@@ -64,34 +45,4 @@ class UploadRawForm(BaseModel):
             "then": {"required": ["bibcode"]},
             "else": {"required": ["pub_name", "pub_authors", "pub_year"]},
         },
-    )
-
-
-def handle_upload_raw(form: BaseModel, report_func: Callable[[report.Event], None]) -> None:
-    f = cast(UploadRawForm, form)
-    client = adminapi.AuthenticatedClient(
-        base_url=env_map[f.endpoint],
-        token="fake",
-    )
-    plugins = app.discover_plugins(f.plugin_dir)
-    plugin = get_plugin_instance(f.plugin_name, plugins, f.plugin_args)
-
-    bibcode = f.bibcode.strip() if f.has_bibcode else ""
-    pub_name = f.pub_name.strip()
-    pub_authors = list(f.pub_authors)
-    pub_year = f.pub_year
-    table_type = (f.table_type or "regular").upper()
-
-    upload_for_web(
-        plugin,
-        client,
-        f.table_name.strip(),
-        f.table_description.strip(),
-        bibcode,
-        pub_name,
-        pub_authors,
-        pub_year,
-        table_type,
-        dry_run=f.dry_run,
-        report_func=report_func,
     )

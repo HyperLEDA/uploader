@@ -15,12 +15,16 @@ from server.credentials import load_credentials
 
 class StructuredDesignationForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    table_name: str = Field(..., title="Rawdata table name")
-    column_name: str = Field(..., title="Name column", description="Column containing the object name.")
+    table_name: str = Field(..., title="Name of the table")
+    column_name: str = Field(
+        ...,
+        title="Object name column",
+        description="Name of the column that represents object designation in the table.",
+    )
     batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
     write: bool = Field(
         default=False,
-        title="Write to API",
+        title="Upload results?",
         description="If enabled, upload results; otherwise dry-run (statistics only).",
     )
     print_unmatched: bool = Field(

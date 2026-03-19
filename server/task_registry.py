@@ -13,7 +13,10 @@ from server.forms.structured_photometry_hyperleda import (
     handle_structured_photometry_hyperleda,
 )
 from server.forms.structured_redshift import StructuredRedshiftForm, handle_structured_redshift
-from server.forms.upload import UploadRawForm, handle_upload_raw
+from server.forms.upload_csv import UploadCsvForm, handle_upload_csv
+from server.forms.upload_fits import UploadFitsForm, handle_upload_fits
+from server.forms.upload_vizier import UploadVizierForm, handle_upload_vizier
+from server.forms.upload_vizier_v2 import UploadVizierV2Form, handle_upload_vizier_v2
 from server.tasks import TaskDefinition, register_task
 
 
@@ -31,11 +34,41 @@ def register_all_tasks() -> None:
     )
     register_task(
         TaskDefinition(
-            id="upload",
-            title="Upload raw table",
-            description="Upload a raw data table to HyperLEDA using a plugin.",
-            form_model=UploadRawForm,
-            handler=handle_upload_raw,
+            id="upload-csv",
+            title="Upload CSV",
+            description="Upload a raw table from a CSV file.",
+            form_model=UploadCsvForm,
+            handler=handle_upload_csv,
+            group="Raw tables",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="upload-fits",
+            title="Upload FITS",
+            description="Upload a raw table from a FITS file.",
+            form_model=UploadFitsForm,
+            handler=handle_upload_fits,
+            group="Raw tables",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="upload-vizier",
+            title="Upload Vizier",
+            description="Upload a raw table from a VizieR catalog.",
+            form_model=UploadVizierForm,
+            handler=handle_upload_vizier,
+            group="Raw tables",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="upload-vizier-v2",
+            title="Upload Vizier V2",
+            description="Upload a raw table from VizieR using TAP queries.",
+            form_model=UploadVizierV2Form,
+            handler=handle_upload_vizier_v2,
             group="Raw tables",
         ),
     )

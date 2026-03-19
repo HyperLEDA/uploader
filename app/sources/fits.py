@@ -19,7 +19,7 @@ type_map = {
 
 
 @final
-class FITSPlugin(app.UploaderPlugin, app.DefaultTableNamer):
+class FITSSource(app.UploaderPlugin, app.DefaultTableNamer):
     def __init__(self, filename: str, hdu_index: int = 1) -> None:
         self.filename = filename
         self.hdu_index = hdu_index
@@ -80,7 +80,3 @@ class FITSPlugin(app.UploaderPlugin, app.DefaultTableNamer):
 
     def get_table_name(self) -> str:
         return pathlib.Path(self.filename).stem
-
-
-plugin = FITSPlugin
-name = "fits"

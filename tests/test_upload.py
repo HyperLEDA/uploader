@@ -9,8 +9,8 @@ import pytest
 from app.gen.client import adminapi
 from app.gen.client.adminapi import models, types
 from app.interface import UploaderPlugin
+from app.sources.csv import CSVSource
 from app.upload import upload
-from plugins.csv_batched import CSVPlugin
 
 
 class StubPlugin(UploaderPlugin):
@@ -62,7 +62,7 @@ def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_so
     mock_add_data_response = models.APIOkResponseAddDataResponse(data=models.AddDataResponse())
     mock_add_data.sync_detailed.return_value = mock_response(mock_add_data_response)
 
-    plugin = CSVPlugin("tests/test_csv.csv")
+    plugin = CSVSource("tests/test_csv.csv")
 
     upload(
         plugin=plugin,

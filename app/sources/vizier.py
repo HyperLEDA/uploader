@@ -48,7 +48,7 @@ def _map_votable_datatype(datatype: str) -> models.DatatypeEnum:
 
 
 @final
-class VizierPlugin(
+class VizierSource(
     app.UploaderPlugin,
     app.DefaultTableNamer,
     app.BibcodeProvider,
@@ -229,7 +229,3 @@ def _download_table(table_name: str, columns: list[str], max_rows: int | None = 
     response = requests.request(http.HTTPMethod.POST, VIZIER_URL, data=data, headers=headers)
 
     return response.text
-
-
-plugin = VizierPlugin
-name = "vizier"
