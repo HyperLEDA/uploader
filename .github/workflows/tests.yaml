@@ -1,4 +1,4 @@
-name: Static checks & tests
+name: "[backend] Static checks & tests"
 
 on:
   - push
