@@ -27,13 +27,13 @@ check:
 		-exec uv run python -m py_compile {} +
 	@echo "Compilation ok."
 
-	@uvx ruff format \
+	@uv run ruff format \
 		--quiet \
 		--config=pyproject.toml \
 		--check
 	@echo "Formatting ok."
 
-	@uvx ruff check \
+	@uv run ruff check \
 		--quiet \
 		--config=pyproject.toml
 	@echo "Linter ok."
@@ -54,11 +54,11 @@ check-frontend:
 	@cd frontend && yarn build
 
 fix:
-	@uvx ruff format \
+	@uv run ruff format \
 		--quiet \
 		--config=pyproject.toml
 
-	@uvx ruff check \
+	@uv run ruff check \
 		--quiet \
 		--config=pyproject.toml \
 		--fix
