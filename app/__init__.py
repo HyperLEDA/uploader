@@ -1,4 +1,3 @@
-from app.discover import discover_plugins
 from app.interface import (
     BibcodeProvider,
     DefaultTableNamer,
@@ -14,7 +13,6 @@ __all__ = [
     "DefaultTableNamer",
     "BibcodeProvider",
     "DescriptionProvider",
-    "discover_plugins",
     "upload",
     "logger",
     "TAPRepository",

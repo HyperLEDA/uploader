@@ -16,17 +16,18 @@ from server.credentials import load_credentials
 
 class CrossmatchLayeredForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    table_name: str = Field(..., title="Layer 0 table name")
-    radius: float = Field(..., title="Search radius (arcsec)", gt=0)
+    table_name: str = Field(..., title="Table name")
+    radius: float = Field(..., title="Search radius in arcseconds", gt=0)
     pgc_column: str = Field(
         default="",
         title="PGC column",
-        description="Column containing claimed PGC in raw table; leave empty to disable.",
+        description="Column containing claimed PGC in raw table; "
+        "will not use PGC numbers for cross-idenitification if left empty.",
     )
     redshift_tolerance: float = Field(
         default=0,
         title="Redshift tolerance",
-        description="Set to 0 to disable redshift check.",
+        description="Tolerance for redshift matching; will not use redshift for cross-identification if left empty",
         ge=0,
     )
     batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
