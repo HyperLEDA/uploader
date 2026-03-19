@@ -1,5 +1,8 @@
-import click
+from collections.abc import Callable
 
+from psycopg import sql
+
+import app.report as report
 from app import log
 from app.display import format_table
 from app.gen.client import adminapi
@@ -34,12 +37,17 @@ def upload_photometry_hyperleda(
     table_name: str,
     batch_size: int,
     client: adminapi.AuthenticatedClient,
+    report_func: Callable[[report.Event], None],
     *,
     write: bool = False,
 ) -> None:
     uploaded_objects = 0
     skipped = 0
     total_source_rows = 0
+    total_rows = int(
+        storage.query(sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{t}").format(t=sql.Identifier(table_name)))[0]["cnt"]
+    )
+    report_func(report.LogEvent(message=f"Starting photometry upload for {table_name} ({total_rows} rows)."))
     band_counts: dict[str, int] = {band: 0 for band, _, _ in BANDS}
     band_mag_sums: dict[str, float] = {band: 0.0 for band, _, _ in BANDS}
 
@@ -88,6 +96,8 @@ def upload_photometry_hyperleda(
                 objects=uploaded_objects,
                 photometry_rows=uploaded_rows,
             )
+            progress = 100.0 if total_rows == 0 else (100.0 * total_source_rows / total_rows)
+            report_func(report.ProgressEvent(percent=min(progress, 100.0)))
     finally:
         total = uploaded_objects + skipped
         total_photometry_rows = sum(band_counts.values())
@@ -107,11 +117,12 @@ def upload_photometry_hyperleda(
             avg_str = round(avg_mag, 3) if count else "-"
             table_rows.append((band, count, pct_str, avg_str))
 
-        click.echo(
-            format_table(
-                ("Status", "Uploaded", "% of total", "Avg mag"),
-                table_rows,
-                title=f"Total source rows: {total}\n",
-                percent_last_column=False,
-            )
+        summary = format_table(
+            ("Status", "Uploaded", "% of total", "Avg mag"),
+            table_rows,
+            title=f"Total source rows: {total}\n",
+            percent_last_column=False,
         )
+
+        report_func(report.ProgressEvent(percent=100))
+        report_func(report.DoneEvent(message=summary))

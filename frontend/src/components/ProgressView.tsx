@@ -30,7 +30,8 @@ export function ProgressView({
     es.onmessage = (e) => {
       try {
         const ev = JSON.parse(e.data) as StreamEvent;
-        if (ev.type === "progress") setPercent(ev.percent);
+        if (ev.type === "progress")
+          setPercent(Math.min(100, Math.max(0, Math.ceil(ev.percent))));
         else if (ev.type === "log") setLogs((x) => [...x, ev.message]);
         else if (ev.type === "error") {
           setError(ev.message);
