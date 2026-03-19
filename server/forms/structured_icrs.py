@@ -10,12 +10,11 @@ from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
 from app.structured.icrs import upload_icrs as run_upload_icrs
+from server.credentials import load_credentials
 
 
 class StructuredIcrsForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    db_user: str = Field(..., title="Database user", description="PostgreSQL user for read access to rawdata.")
-    db_password: str = Field(..., title="Database password", json_schema_extra={"ui:widget": "password"})
     table_name: str = Field(..., title="Rawdata table name")
     ra_column: str = Field(..., title="RA column", description="Column containing right ascension.")
     dec_column: str = Field(..., title="Dec column", description="Column containing declination.")
@@ -36,9 +35,10 @@ def handle_structured_icrs(
     report_func: Callable[[report.Event], None],
 ) -> None:
     f = cast(StructuredIcrsForm, form)
+    db_user, db_password = load_credentials()
     dsn = db_dsn_map[f.endpoint].format(
-        user=quote_plus(f.db_user),
-        password=quote_plus(f.db_password),
+        user=quote_plus(db_user),
+        password=quote_plus(db_password),
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],
