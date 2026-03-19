@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Alert from "@mui/material/Alert";
@@ -11,11 +11,20 @@ import { ProgressView } from "./ProgressView";
 
 export function TaskPage() {
   const { taskId } = useParams<{ taskId: string }>();
+  const location = useLocation();
   const [schema, setSchema] = useState<Record<string, unknown> | null>(null);
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
+  const [prefillData, setPrefillData] = useState<Record<string, unknown>>({});
+
+  useEffect(() => {
+    const state = location.state as {
+      formData?: Record<string, unknown>;
+    } | null;
+    setPrefillData(state?.formData ?? {});
+  }, [location.state, taskId]);
 
   useEffect(() => {
     if (!taskId) {
@@ -74,6 +83,7 @@ export function TaskPage() {
       <Form
         schema={schema}
         validator={validator}
+        formData={prefillData}
         onSubmit={async ({ formData }) => {
           setSubmitError(null);
           try {

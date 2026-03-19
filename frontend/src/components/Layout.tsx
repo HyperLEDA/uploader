@@ -113,6 +113,12 @@ export function Layout() {
               </Box>
             );
           })}
+          <ListItemButton component={Link} to="/history">
+            <ListItemText
+              primary="Run History"
+              slotProps={{ primary: { fontWeight: 600 } }}
+            />
+          </ListItemButton>
         </List>
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>

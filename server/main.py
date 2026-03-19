@@ -1,11 +1,13 @@
 import asyncio
 import json
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
+from server.history import load_history
 from server.task_registry import register_all_tasks
 from server.tasks import TASKS, get_run, start_task
 
@@ -23,8 +25,22 @@ app.add_middleware(
 
 
 @app.get("/api/tasks")
-def list_tasks() -> list[dict[str, str]]:
-    return [{"id": t.id, "title": t.title, "description": t.description, "group": t.group} for t in TASKS.values()]
+def list_tasks() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": t.id,
+            "title": t.title,
+            "description": t.description,
+            "group": t.group,
+            "rerunnable": t.rerunnable,
+        }
+        for t in TASKS.values()
+    ]
+
+
+@app.get("/api/history")
+def list_history() -> list[dict[str, object]]:
+    return [entry.model_dump() for entry in load_history()]
 
 
 @app.get("/api/tasks/{task_id}/schema")

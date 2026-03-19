@@ -3,6 +3,7 @@ export type TaskInfo = {
   title: string;
   description: string;
   group: string;
+  rerunnable: boolean;
 };
 
 export async function fetchTasks(): Promise<TaskInfo[]> {
@@ -41,5 +42,20 @@ export async function submitTask(
       detail,
     });
   }
+  return r.json();
+}
+
+export type HistoryEntry = {
+  timestamp: string;
+  task_id: string;
+  task_title: string;
+  inputs: Record<string, unknown>;
+  status: "success" | "error";
+  message: string;
+};
+
+export async function fetchHistory(): Promise<HistoryEntry[]> {
+  const r = await fetch("/api/history");
+  if (!r.ok) throw new Error(`history: ${r.status}`);
   return r.json();
 }
