@@ -10,12 +10,11 @@ from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
 from app.structured.redshift import upload_redshift as run_upload_redshift
+from server.credentials import load_credentials
 
 
 class StructuredRedshiftForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    db_user: str = Field(..., title="Database user", description="PostgreSQL user for read access to rawdata.")
-    db_password: str = Field(..., title="Database password", json_schema_extra={"ui:widget": "password"})
     table_name: str = Field(..., title="Rawdata table name")
     z_column: str = Field(..., title="z column", description="Column with redshift z.")
     z_error: float = Field(..., title="z error", description="Fixed error on z (same for all rows).")
@@ -32,9 +31,10 @@ def handle_structured_redshift(
     report_func: Callable[[report.Event], None],
 ) -> None:
     f = cast(StructuredRedshiftForm, form)
+    db_user, db_password = load_credentials()
     dsn = db_dsn_map[f.endpoint].format(
-        user=quote_plus(f.db_user),
-        password=quote_plus(f.db_password),
+        user=quote_plus(db_user),
+        password=quote_plus(db_password),
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],

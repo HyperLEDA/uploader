@@ -1,3 +1,4 @@
+from server.forms.authenticate import AuthenticateForm, handle_authenticate
 from server.forms.structured_designation import (
     StructuredDesignationForm,
     handle_structured_designation,
@@ -10,6 +11,16 @@ from server.tasks import TaskDefinition, register_task
 
 
 def register_all_tasks() -> None:
+    register_task(
+        TaskDefinition(
+            id="authenticate",
+            title="Authenticate",
+            description="Save database credentials for use by other tasks.",
+            form_model=AuthenticateForm,
+            handler=handle_authenticate,
+            group="Settings",
+        ),
+    )
     register_task(
         TaskDefinition(
             id="upload",

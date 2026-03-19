@@ -98,10 +98,19 @@ gen:
 		--config openapigen.yaml \
 		--url https://leda.sao.ru/admin/api/openapi.json
 
-.PHONY: serve frontend check-frontend fix-frontend install-frontend install-dev-frontend
+.PHONY: serve frontend dev check-frontend fix-frontend install-frontend install-dev-frontend
 
 serve:
 	uv run uvicorn server.main:app --reload --port 8000
 
 frontend:
 	cd frontend && yarn dev
+
+dev:
+	@set -e; \
+	trap 'kill $$backend_pid $$frontend_pid 2>/dev/null || true; wait $$backend_pid $$frontend_pid 2>/dev/null || true' INT TERM EXIT; \
+	$(MAKE) --no-print-directory serve & \
+	backend_pid=$$!; \
+	$(MAKE) --no-print-directory frontend & \
+	frontend_pid=$$!; \
+	wait $$backend_pid $$frontend_pid

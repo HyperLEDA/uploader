@@ -10,12 +10,11 @@ from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
 from app.structured.nature import upload_nature as run_upload_nature
+from server.credentials import load_credentials
 
 
 class StructuredNatureForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    db_user: str = Field(..., title="Database user", description="PostgreSQL user for read access to rawdata.")
-    db_password: str = Field(..., title="Database password", json_schema_extra={"ui:widget": "password"})
     table_name: str = Field(..., title="Rawdata table name")
     column_name: str = Field(
         default="",
@@ -81,9 +80,10 @@ def handle_structured_nature(
         raise ValueError("Either type column or default LEDA type (or both) must be set.")
     type_mapping = _parse_type_mappings(f.type_mappings)
 
+    db_user, db_password = load_credentials()
     dsn = db_dsn_map[f.endpoint].format(
-        user=quote_plus(f.db_user),
-        password=quote_plus(f.db_password),
+        user=quote_plus(db_user),
+        password=quote_plus(db_password),
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],
