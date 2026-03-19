@@ -51,6 +51,7 @@ check:
 check-frontend:
 	@output=$$(cd frontend && yarn run --silent prettier --check src 2>&1) || { echo "$$output"; exit 1; }
 	@output=$$(cd frontend && yarn run --silent eslint src 2>&1) || { echo "$$output"; exit 1; }
+	@output=$$(cd frontend && yarn run --silent test:run 2>&1) || { echo "$$output"; exit 1; }
 	@cd frontend && yarn build
 
 fix:
