@@ -70,8 +70,11 @@ export function ProgressView({
         </Alert>
       )}
       {done && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Finished. {done}
+        <Alert
+          severity="success"
+          sx={{ mb: 2, whiteSpace: "pre-wrap", fontFamily: "monospace" }}
+        >
+          {done}
         </Alert>
       )}
       <Paper

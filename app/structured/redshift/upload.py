@@ -112,6 +112,5 @@ def upload_redshift(
         table_rows,
         title=f"Total rows: {total}\n",
     )
-    report_func(report.LogEvent(message=summary))
-    report_func(report.DoneEvent(message=f"Total rows: {total}"))
+    report_func(report.DoneEvent(message=summary))
     return total

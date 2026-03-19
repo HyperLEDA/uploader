@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 import app.report as report
 from app.log import logger
+from server import history
 
 
 @dataclass
@@ -20,6 +21,7 @@ class TaskDefinition:
     form_model: type[BaseModel]
     handler: Callable[[BaseModel, Callable[[report.Event], None]], None]
     group: str = "default"
+    rerunnable: bool = True
 
 
 TASKS: dict[str, TaskDefinition] = {}
@@ -60,8 +62,11 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
     form = defn.form_model.model_validate(form_data)
     run_id = str(uuid.uuid4())
     run = TaskRun(run_id=run_id)
+    final_status: history.HistoryStatus | None = None
+    final_message: str = ""
 
     def append_report_event(event: report.Event) -> None:
+        nonlocal final_status, final_message
         match event:
             case report.LogEvent(message=msg):
                 out = _log_message_with_time(msg)
@@ -84,6 +89,8 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                     task_id=task_id,
                     message=msg,
                 )
+                final_status = "success"
+                final_message = msg
                 run.append({"type": "done", "message": msg})
             case report.ErrorEvent(message=msg):
                 logger.error(
@@ -91,6 +98,8 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                     task_id=task_id,
                     message=msg,
                 )
+                final_status = "error"
+                final_message = msg
                 run.append({"type": "error", "message": msg})
 
     def report_func(event: report.Event) -> None:
@@ -103,6 +112,17 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
             append_report_event(report.ErrorEvent(message=str(e)))
         finally:
             run.done.set()
+            if defn.rerunnable and final_status is not None:
+                history.append_entry(
+                    history.HistoryEntry(
+                        timestamp=datetime.now().astimezone().isoformat(),
+                        task_id=defn.id,
+                        task_title=defn.title,
+                        inputs=form_data,
+                        status=final_status,
+                        message=final_message,
+                    ),
+                )
 
     with RUNS_LOCK:
         RUNS[run_id] = run

@@ -117,7 +117,6 @@ def upload_designations(
         table_rows,
         title=f"Total names: {total}\n",
     )
-    report_func(report.LogEvent(message=summary))
-    report_func(report.DoneEvent(message=f"Total rows: {total}"))
+    report_func(report.DoneEvent(message=summary))
 
     return total

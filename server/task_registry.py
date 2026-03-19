@@ -19,6 +19,7 @@ def register_all_tasks() -> None:
             form_model=AuthenticateForm,
             handler=handle_authenticate,
             group="Settings",
+            rerunnable=False,
         ),
     )
     register_task(
