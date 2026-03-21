@@ -177,3 +177,4 @@ pyrightconfig.json
 node_modules/
 
 history.jsonl
+uploader/clients/gen/

@@ -1,0 +1,435 @@
+import dataclasses
+import json
+import math
+from collections import defaultdict
+from collections.abc import Callable
+from typing import cast
+
+from psycopg import sql
+
+import uploader.app.report as report
+from uploader.app import log
+from uploader.app.crossmatch.models import (
+    CrossmatchResult,
+    CrossmatchStatus,
+    Neighbor,
+    PendingReason,
+    RecordEvidence,
+    TriageStatus,
+)
+from uploader.app.crossmatch.resolver import Resolver
+from uploader.app.display import format_table
+from uploader.app.storage import PgStorage
+from uploader.app.upload import handle_call
+from uploader.clients.gen.client import adminapi
+from uploader.clients.gen.client.adminapi.api.default import set_crossmatch_results
+from uploader.clients.gen.client.adminapi.models.collided_status_payload import CollidedStatusPayload
+from uploader.clients.gen.client.adminapi.models.existing_status_payload import ExistingStatusPayload
+from uploader.clients.gen.client.adminapi.models.new_status_payload import NewStatusPayload
+from uploader.clients.gen.client.adminapi.models.record_triage_status import RecordTriageStatus
+from uploader.clients.gen.client.adminapi.models.set_crossmatch_results_request import (
+    SetCrossmatchResultsRequest,
+)
+from uploader.clients.gen.client.adminapi.models.statuses_payload import StatusesPayload
+from uploader.clients.gen.client.adminapi.types import UNSET, Unset
+
+C_M_S = 299792458
+
+BATCH_QUERY = sql.SQL("""
+    WITH batch AS (
+        SELECT rec.id
+        FROM layer0.records rec
+        WHERE rec.table_id = %s AND rec.id > %s
+        ORDER BY rec.id ASC
+        LIMIT %s
+    )
+    SELECT
+        b.id AS new_id,
+        nc.ra AS new_ra,
+        nc.dec AS new_dec,
+        new_desig.design AS new_design,
+        new_cz.cz AS new_cz,
+        rec_nat.type_name AS new_type,
+        l2.pgc AS existing_pgc,
+        l2.ra AS existing_ra,
+        l2.dec AS existing_dec,
+        l2_desig.design AS existing_design,
+        l2_cz.cz AS existing_cz,
+        l2_nat.type_name AS existing_type
+    FROM batch b
+    LEFT JOIN icrs.data nc ON b.id = nc.record_id
+    LEFT JOIN designation.data new_desig ON b.id = new_desig.record_id
+    LEFT JOIN cz.data new_cz ON b.id = new_cz.record_id
+    LEFT JOIN nature.data rec_nat ON b.id = rec_nat.record_id
+    LEFT JOIN layer2.icrs l2
+        ON nc.record_id IS NOT NULL
+        AND ST_DWithin(
+            ST_MakePoint(nc.dec, nc.ra - 180),
+            ST_MakePoint(l2.dec, l2.ra - 180),
+            %s / GREATEST(COS(RADIANS(nc.dec)), 0.01)
+        )
+    LEFT JOIN layer2.designation l2_desig ON l2.pgc = l2_desig.pgc
+    LEFT JOIN layer2.cz l2_cz ON l2.pgc = l2_cz.pgc
+    LEFT JOIN layer2.nature l2_nat ON l2.pgc = l2_nat.pgc
+    ORDER BY b.id ASC
+""")
+
+
+def _evidence_to_dict(evidence: RecordEvidence) -> dict:
+    return {
+        "neighbors": [dataclasses.asdict(n) for n in evidence.neighbors],
+        "record_designation": evidence.record_designation,
+        "same_name_pgcs": evidence.same_name_pgcs,
+        "record_pgc": evidence.record_pgc,
+        "claimed_pgc_exists_in_layer2": evidence.claimed_pgc_exists_in_layer2,
+        "record_redshift": evidence.record_redshift,
+        "record_type_name": evidence.record_type_name,
+    }
+
+
+def angular_distance_deg(ra1: float, dec1: float, ra2: float, dec2: float) -> float:
+    d_dec = dec1 - dec2
+    d_ra = (ra1 - ra2) * math.cos(math.radians((dec1 + dec2) / 2))
+    return math.sqrt(d_dec**2 + d_ra**2)
+
+
+def _fetch_batch(
+    storage: PgStorage,
+    table_id: str,
+    last_id: str,
+    batch_size: int,
+    radius_deg: float,
+) -> tuple[dict[str, dict], str]:
+    rows = storage.query(BATCH_QUERY, (table_id, last_id, batch_size, radius_deg))
+
+    if not rows:
+        return {}, last_id
+
+    by_record: dict[str, dict] = {}
+    for r in rows:
+        new_id = r["new_id"]
+        new_ra = r["new_ra"]
+        new_dec = r["new_dec"]
+        new_design = r["new_design"]
+        new_cz = r["new_cz"]
+        new_type = r.get("new_type")
+        existing_pgc = r["existing_pgc"]
+        existing_ra = r["existing_ra"]
+        existing_dec = r["existing_dec"]
+        existing_design = r["existing_design"]
+        existing_cz = r["existing_cz"]
+        existing_type = r.get("existing_type")
+        last_id = new_id
+        if new_id not in by_record:
+            by_record[new_id] = {
+                "new_ra": None,
+                "new_dec": None,
+                "new_design": None,
+                "new_redshift": None,
+                "new_type": None,
+                "candidates": [],
+            }
+        rec_data = by_record[new_id]
+        if new_ra is not None:
+            rec_data["new_ra"] = new_ra
+            rec_data["new_dec"] = new_dec
+        if new_design is not None:
+            rec_data["new_design"] = new_design
+        if new_cz is not None:
+            rec_data["new_redshift"] = float(new_cz) / C_M_S
+        if new_type is not None:
+            rec_data["new_type"] = new_type
+        if existing_pgc is not None and existing_ra is not None and existing_dec is not None:
+            existing_redshift = float(existing_cz) / C_M_S if existing_cz is not None else None
+            rec_data["candidates"].append(
+                (existing_ra, existing_dec, existing_pgc, existing_design, existing_redshift, existing_type)
+            )
+
+    return by_record, last_id
+
+
+def _enrich_batch(
+    storage: PgStorage,
+    table_name: str,
+    by_record: dict[str, dict],
+    pgc_column: str | None,
+) -> tuple[dict[str, int | None], set[int], dict[str, list[int]]]:
+    record_pgc_by_id: dict[str, int | None] = {}
+    if pgc_column is not None:
+        raw_pgc_query = sql.SQL(
+            "SELECT hyperleda_internal_id, {col} FROM rawdata.{t} WHERE hyperleda_internal_id = ANY(%s)"
+        ).format(
+            col=sql.Identifier(pgc_column),
+            t=sql.Identifier(table_name),
+        )
+        batch_ids = list(by_record.keys())
+        for row in storage.query(raw_pgc_query, (batch_ids,)):
+            record_id = row["hyperleda_internal_id"]
+            pgc_val = row[pgc_column]
+            record_pgc_by_id[record_id] = int(pgc_val) if pgc_val is not None else None
+
+    claimed_pgcs = {p for p in record_pgc_by_id.values() if p is not None}
+    existing_pgcs: set[int] = set()
+    if claimed_pgcs:
+        for row in storage.query(
+            "SELECT pgc FROM layer2.icrs WHERE pgc = ANY(%s)",
+            (list(claimed_pgcs),),
+        ):
+            existing_pgcs.add(row["pgc"])
+
+    designations_in_batch = {
+        rec_data["new_design"] for rec_data in by_record.values() if rec_data["new_design"] is not None
+    }
+    design_to_pgcs: dict[str, list[int]] = {}
+    if designations_in_batch:
+        designs_list = list(designations_in_batch)
+        pgcs_by_design: dict[str, set[int]] = {}
+        for row in storage.query(
+            "SELECT design, pgc FROM layer2.designation WHERE design = ANY(%s)",
+            (designs_list,),
+        ):
+            pgcs_by_design.setdefault(row["design"], set()).add(row["pgc"])
+        for row in storage.query(
+            "SELECT design, pgc FROM layer2.designations WHERE design = ANY(%s)",
+            (designs_list,),
+        ):
+            pgcs_by_design.setdefault(row["design"], set()).add(row["pgc"])
+        design_to_pgcs = {d: list(s) for d, s in pgcs_by_design.items()}
+        for design in designations_in_batch:
+            if design not in design_to_pgcs:
+                design_to_pgcs[design] = []
+
+    return record_pgc_by_id, existing_pgcs, design_to_pgcs
+
+
+def _resolve_batch(
+    by_record: dict[str, dict],
+    record_pgc_by_id: dict[str, int | None],
+    existing_pgcs: set[int],
+    design_to_pgcs: dict[str, list[int]],
+    resolver: Resolver,
+    print_pending: bool,
+) -> list[tuple[str, CrossmatchResult]]:
+    results: list[tuple[str, CrossmatchResult]] = []
+    radius_deg = resolver.search_radius_deg
+    for record_id, rec_data in by_record.items():
+        new_ra = rec_data["new_ra"]
+        new_dec = rec_data["new_dec"]
+        record_designation = rec_data["new_design"]
+        candidates = rec_data["candidates"]
+        global_pgcs = design_to_pgcs.get(record_designation, []) if record_designation is not None else []
+        neighbors: list[Neighbor] = []
+        if new_ra is not None and new_dec is not None:
+            for existing_ra, existing_dec, pgc, existing_design, existing_redshift, existing_type in candidates:
+                dist = angular_distance_deg(new_ra, new_dec, existing_ra, existing_dec)
+                if dist <= radius_deg:
+                    neighbors.append(
+                        Neighbor(
+                            pgc=pgc,
+                            ra=existing_ra,
+                            dec=existing_dec,
+                            distance_deg=dist,
+                            design=existing_design,
+                            redshift=existing_redshift,
+                            type_name=existing_type,
+                        ),
+                    )
+        record_pgc = record_pgc_by_id.get(record_id) if record_pgc_by_id else None
+        claimed_pgc_exists = record_pgc is not None and record_pgc in existing_pgcs
+        record_redshift = rec_data.get("new_redshift")
+        record_type_name = rec_data.get("new_type")
+        evidence = RecordEvidence(
+            neighbors=neighbors,
+            record_designation=record_designation,
+            same_name_pgcs=global_pgcs or None,
+            record_pgc=record_pgc,
+            claimed_pgc_exists_in_layer2=claimed_pgc_exists,
+            record_redshift=record_redshift,
+            record_type_name=record_type_name,
+        )
+        result = resolver.resolve(evidence)
+        results.append((record_id, result))
+        if print_pending and result.triage_status == TriageStatus.PENDING:
+            log.logger.warning(
+                "pending crossmatch",
+                record_id=record_id,
+                status=result.status.value,
+                pending_reason=result.pending_reason.value if result.pending_reason is not None else None,
+                colliding_pgcs=sorted(result.colliding_pgcs) if result.colliding_pgcs else None,
+                matched_pgc=result.matched_pgc,
+                link=f"https://leda.sao.ru/records/{record_id}/crossmatch",
+                evidence=json.dumps(_evidence_to_dict(evidence)),
+            )
+    return results
+
+
+def _write_crossmatch_results(
+    client: adminapi.AuthenticatedClient,
+    results: list[tuple[str, CrossmatchResult]],
+) -> None:
+    new_record_ids_list: list[str] = []
+    new_triage_list: list[RecordTriageStatus] = []
+    existing_record_ids_list: list[str] = []
+    existing_pgc_list: list[int] = []
+    existing_triage_list: list[RecordTriageStatus] = []
+    collided_record_ids_list: list[str] = []
+    collided_matches_list: list[list[int]] = []
+    collided_triage_list: list[RecordTriageStatus] = []
+    for record_id, r in results:
+        triage = RecordTriageStatus(r.triage_status.value)
+        if r.status == CrossmatchStatus.NEW:
+            new_record_ids_list.append(record_id)
+            new_triage_list.append(triage)
+        elif r.status == CrossmatchStatus.EXISTING and r.matched_pgc is not None:
+            existing_record_ids_list.append(record_id)
+            existing_pgc_list.append(r.matched_pgc)
+            existing_triage_list.append(triage)
+        elif r.status == CrossmatchStatus.COLLIDING and r.colliding_pgcs is not None:
+            collided_record_ids_list.append(record_id)
+            collided_matches_list.append(sorted(r.colliding_pgcs))
+            collided_triage_list.append(triage)
+    new_pl = (
+        NewStatusPayload(
+            record_ids=new_record_ids_list,
+            triage_statuses=cast("list[RecordTriageStatus | None] | Unset", new_triage_list),
+        )
+        if new_record_ids_list
+        else None
+    )
+    existing_pl = (
+        ExistingStatusPayload(
+            record_ids=existing_record_ids_list,
+            pgcs=existing_pgc_list,
+            triage_statuses=cast("list[RecordTriageStatus | None] | Unset", existing_triage_list),
+        )
+        if existing_record_ids_list
+        else None
+    )
+    collided_pl = (
+        CollidedStatusPayload(
+            record_ids=collided_record_ids_list,
+            possible_matches=collided_matches_list,
+            triage_statuses=cast("list[RecordTriageStatus | None] | Unset", collided_triage_list),
+        )
+        if collided_record_ids_list
+        else None
+    )
+    if new_pl is not None or existing_pl is not None or collided_pl is not None:
+        handle_call(
+            set_crossmatch_results.sync_detailed(
+                client=client,
+                body=SetCrossmatchResultsRequest(
+                    statuses=StatusesPayload(
+                        new=new_pl if new_pl is not None else UNSET,
+                        existing=existing_pl if existing_pl is not None else UNSET,
+                        collided=collided_pl if collided_pl is not None else UNSET,
+                    ),
+                ),
+            )
+        )
+
+
+def run_crossmatch(
+    storage: PgStorage,
+    table_name: str,
+    batch_size: int,
+    client: adminapi.AuthenticatedClient,
+    resolver: Resolver,
+    report_func: Callable[[report.Event], None],
+    *,
+    print_pending: bool = False,
+    write: bool = False,
+) -> None:
+    radius_deg = resolver.search_radius_deg
+    pgc_column = resolver.pgc_column
+
+    rows = storage.query(
+        "SELECT id FROM layer0.tables WHERE table_name = %s",
+        (table_name,),
+    )
+    if not rows:
+        raise RuntimeError(f"Table not found: {table_name}")
+    table_id = rows[0]["id"]
+    total_records = int(
+        storage.query(
+            "SELECT COUNT(*) AS cnt FROM layer0.records WHERE table_id = %s",
+            (table_id,),
+        )[0]["cnt"]
+    )
+    report_func(
+        report.LogEvent(
+            message=f"Starting crossmatch for {table_name} ({total_records} records).",
+        )
+    )
+
+    counts: dict[tuple[CrossmatchStatus, TriageStatus, PendingReason | None], int] = defaultdict(int)
+    total = 0
+    last_id = ""
+
+    try:
+        while True:
+            by_record, last_id = _fetch_batch(storage, table_id, last_id, batch_size, radius_deg)
+            if not by_record:
+                break
+
+            record_pgc_by_id, existing_pgcs, design_to_pgcs = _enrich_batch(storage, table_name, by_record, pgc_column)
+            batch_results = _resolve_batch(
+                by_record,
+                record_pgc_by_id,
+                existing_pgcs,
+                design_to_pgcs,
+                resolver,
+                print_pending,
+            )
+            batch_processed = len(batch_results)
+            batch_pending = sum(
+                1 for _record_id, result in batch_results if result.triage_status == TriageStatus.PENDING
+            )
+
+            for _record_id, result in batch_results:
+                counts[(result.status, result.triage_status, result.pending_reason)] += 1
+                total += 1
+
+            if write and client and batch_results:
+                _write_crossmatch_results(client, batch_results)
+
+            log.logger.info(
+                "processed batch",
+                rows=len(by_record),
+                last_id=last_id,
+                total=total,
+            )
+            report_func(
+                report.LogEvent(
+                    message=(f"Batch processed: {batch_processed} objects; manual check: {batch_pending} objects.")
+                )
+            )
+            progress = 100.0 if total_records == 0 else (100.0 * total / total_records)
+            report_func(report.ProgressEvent(percent=min(progress, 100.0)))
+    finally:
+
+        def pct(n: int) -> float:
+            return (100.0 * n / total) if total else 0.0
+
+        summary_rows = [
+            (
+                status.value,
+                triage.value,
+                reason.value if reason is not None else "",
+                counts[(status, triage, reason)],
+                pct(counts[(status, triage, reason)]),
+            )
+            for status, triage, reason in sorted(
+                counts.keys(),
+                key=lambda k: (-counts[k], k[0].value, k[1].value, k[2].value if k[2] is not None else ""),
+            )
+            if counts[(status, triage, reason)] > 0
+        ]
+        summary = format_table(
+            ("Status", "Triage", "Reason", "Count", "%"),
+            summary_rows,
+            title=f"Total records: {total}\n",
+        )
+
+        report_func(report.ProgressEvent(percent=100))
+        report_func(report.DoneEvent(message=summary))

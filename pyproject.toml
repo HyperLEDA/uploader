@@ -16,7 +16,15 @@ dependencies = [
     "numpy>=2.3.4",
     "pyvo>=1.8",
     "psycopg[binary]>=3.2.0",
+    "click~=8.3.1",
 ]
+
+[project.scripts]
+"uploader" = "uploader.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
@@ -120,7 +128,7 @@ reportImplicitAbstractClass = "error"
 
 exclude = [
     "frontend/**",
-    "app/gen/**",
+    "uploader/clients/gen/**",
     ".venv/**"
 ]
 

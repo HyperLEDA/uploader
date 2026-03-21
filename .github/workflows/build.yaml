@@ -27,4 +27,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          load: true
           push: false
+          tags: local/test-image:latest
+
+      - name: Run image help
+        run: docker run --rm --entrypoint "${{ github.event.repository.name }}" local/test-image:latest --help

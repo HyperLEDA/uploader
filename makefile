@@ -92,8 +92,9 @@ upgrade:
 	uv sync --all-extras --upgrade
 
 gen:
+	mkdir -p uploader/clients/gen
 	uv run openapi-python-client generate \
-		--output-path app/gen/client \
+		--output-path uploader/clients/gen/client \
 		--overwrite \
 		--meta uv \
 		--config openapigen.yaml \
@@ -102,7 +103,7 @@ gen:
 .PHONY: serve frontend dev check-frontend fix-frontend install-frontend install-dev-frontend
 
 serve:
-	uv run uvicorn server.main:app --reload --port 8000
+	uv run uvicorn uploader.cli:app --reload --port 8000
 
 frontend:
 	cd frontend && yarn dev
