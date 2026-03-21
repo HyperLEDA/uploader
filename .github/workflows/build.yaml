@@ -32,4 +32,4 @@ jobs:
           tags: local/test-image:latest
 
       - name: Run image help
-        run: docker run --rm local/test-image:latest --help
+        run: docker run --rm --entrypoint "${{ github.event.repository.name }}" local/test-image:latest --help
