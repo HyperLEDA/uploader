@@ -26,6 +26,10 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["uploader"]
+force-include = { "uploader/clients/gen" = "uploader/clients/gen" }
+
 [dependency-groups]
 dev = [
     "ruff~=0.15.0",
