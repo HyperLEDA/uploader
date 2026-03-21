@@ -68,11 +68,6 @@ fix-frontend:
 	@output=$$(cd frontend && yarn run --silent prettier --write src 2>&1) || { echo "$$output"; exit 1; }
 	@output=$$(cd frontend && yarn run --silent eslint --fix src 2>&1) || { echo "$$output"; exit 1; }
 
-# only for mac as this is faster
-build:
-	docker build . \
-		--platform linux/arm64
-
 new-branch:
 	@read -p "Branch name: " branch_name && \
 	branch_name=$${branch_name// /-} && \

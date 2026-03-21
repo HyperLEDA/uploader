@@ -1,9 +1,10 @@
 import json
 import threading
-from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel
+
+import server.paths as paths
 
 HistoryStatus = Literal["success", "error"]
 
@@ -17,7 +18,7 @@ class HistoryEntry(BaseModel):
     message: str
 
 
-HISTORY_PATH = Path("history.jsonl")
+HISTORY_PATH = paths.DATA_DIR / "history.jsonl"
 HISTORY_LOCK = threading.Lock()
 
 

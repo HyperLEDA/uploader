@@ -1,8 +1,8 @@
-import pathlib
-
 import dotenv
 
-ENV_PATH = pathlib.Path(".env")
+import server.paths as paths
+
+ENV_PATH = paths.DATA_DIR / ".env"
 
 
 def save_credentials(db_user: str, db_password: str) -> None:

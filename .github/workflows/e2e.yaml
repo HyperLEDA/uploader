@@ -1,0 +1,63 @@
+name: E2E wheel
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - run: corepack enable
+
+      - name: Install Python deps
+        run: make install-dev
+
+      - name: Run codegen
+        run: make gen
+
+      - name: Build wheel
+        run: uv build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: dist/*.whl
+
+  verify:
+    needs: build-wheel
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel
+          path: dist
+
+      - name: Verify uploader
+        run: |
+          set -e
+          WHEEL=$(ls dist/*.whl | head -n1)
+          uvx --python 3.13 --from "$WHEEL" uploader --no-browser &
+          PID=$!
+          sleep 8
+          curl -sf http://127.0.0.1:8000/api/tasks >/dev/null
+          curl -sf http://127.0.0.1:8000/ >/dev/null
+          kill $PID

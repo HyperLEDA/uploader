@@ -1,11 +1,16 @@
 import asyncio
 import json
+import pathlib
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import Response
+from starlette.staticfiles import StaticFiles
+from starlette.types import Scope
 
 from server.history import load_history
 from server.task_registry import register_all_tasks
@@ -86,3 +91,18 @@ async def run_stream(run_id: str) -> StreamingResponse:
             await asyncio.sleep(0.15)
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
+
+
+class SPAStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            return await super().get_response("index.html", scope)
+
+
+_static_dir = pathlib.Path(__file__).parent / "static"
+if _static_dir.is_dir():
+    app.mount("/", SPAStaticFiles(directory=_static_dir, html=True), name="static")

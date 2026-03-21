@@ -6,7 +6,10 @@ import pandas
 from astroquery import vizier
 
 import app
+import server.paths as paths
 from app.gen.client.adminapi import models, types
+
+_DEFAULT_VIZIER_CACHE = str(paths.DATA_DIR / "vizier_cache")
 
 
 def _sanitize_filename(string: str) -> str:
@@ -59,7 +62,7 @@ class VizierV2Source(
         table_name: str,
         index_column: str,
         *constraints: str,
-        cache_path: str = ".vizier_cache/",
+        cache_path: str = _DEFAULT_VIZIER_CACHE,
         batch_size: int = 1000,
     ):
         if len(constraints) % 3 != 0:

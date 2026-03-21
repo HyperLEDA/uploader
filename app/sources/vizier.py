@@ -12,9 +12,12 @@ from astropy.io.votable import tree
 from astroquery import vizier
 
 import app
+import server.paths as paths
 from app.gen.client.adminapi import models, types
 
 VIZIER_URL = "https://vizier.cds.unistra.fr/viz-bin/votable/-tsv"
+
+_DEFAULT_VIZIER_CACHE = str(paths.DATA_DIR / "vizier_cache")
 
 
 def _coerce_row_to_schema(
@@ -58,7 +61,7 @@ class VizierSource(
         self,
         catalog_name: str,
         table_name: str,
-        cache_path: str = ".vizier_cache/",
+        cache_path: str = _DEFAULT_VIZIER_CACHE,
         batch_size: int = 100,
     ):
         self.cache_path = cache_path

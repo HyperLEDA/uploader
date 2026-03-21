@@ -5,16 +5,19 @@ from typing import Literal, cast
 from pydantic import BaseModel, Field
 
 import app.report as report
+import server.paths as paths
 from app.endpoints import env_map
 from app.gen.client import adminapi
 from app.sources.vizier import VizierSource
 from app.upload import upload_for_web
 
+_DEFAULT_VIZIER_CACHE = str(paths.DATA_DIR / "vizier_cache")
+
 
 class UploadVizierForm(BaseModel):
     catalog_name: str = Field(..., title="VizieR catalog name")
     source_table_name: str = Field(..., title="VizieR table name")
-    cache_path: str = Field(default=".vizier_cache/", title="Cache path")
+    cache_path: str = Field(default=_DEFAULT_VIZIER_CACHE, title="Cache path")
     batch_size: int = Field(default=100, title="Batch size", ge=1)
     table_name: str = Field(
         default="",
