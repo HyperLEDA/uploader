@@ -21,7 +21,7 @@ jobs:
         run: make gen
 
       - name: Build wheel
-        run: uv build --wheel
+        run: make build-wheel
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4

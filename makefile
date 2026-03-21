@@ -4,7 +4,7 @@ install:
 install-frontend:
 	cd frontend && yarn install --frozen-lockfile
 
-install-dev:
+install-dev: gen
 	uv sync --all-extras
 
 install-dev-frontend:
@@ -67,6 +67,9 @@ fix:
 fix-frontend:
 	@output=$$(cd frontend && yarn run --silent prettier --write src 2>&1) || { echo "$$output"; exit 1; }
 	@output=$$(cd frontend && yarn run --silent eslint --fix src 2>&1) || { echo "$$output"; exit 1; }
+
+build-wheel: gen
+	uv build --wheel
 
 # only for mac as this is faster
 build:
