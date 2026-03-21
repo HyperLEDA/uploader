@@ -1,3 +1,4 @@
+import urllib.parse
 from collections.abc import Callable
 from typing import Literal, cast
 
@@ -82,14 +83,12 @@ def handle_upload_vizier(form: BaseModel, report_func: Callable[[report.Event], 
         msg = "bibcode is empty: provide one or ensure VizieR metadata includes it"
         raise ValueError(msg)
 
+    report_func(report.LogEvent(message=f"Table name: {resolved_table_name}"))
+    report_func(report.LogEvent(message=f"Description: {resolved_description}"))
+    ads_url = "https://ui.adsabs.harvard.edu/abs/" + urllib.parse.quote(resolved_bibcode, safe="")
     report_func(
         report.LogEvent(
-            message=(
-                "Chosen upload metadata: "
-                f"table_name={resolved_table_name!r}, "
-                f"description={resolved_description!r}, "
-                f"bibcode={resolved_bibcode!r}"
-            ),
+            message=f"Paper: {ads_url}",
         ),
     )
 
