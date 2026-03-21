@@ -93,7 +93,7 @@ upgrade:
 
 gen:
 	uv run openapi-python-client generate \
-		--output-path app/gen/client \
+		--output-path uploader/clients/gen/client \
 		--overwrite \
 		--meta uv \
 		--config openapigen.yaml \
