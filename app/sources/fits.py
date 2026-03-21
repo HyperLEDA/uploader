@@ -19,7 +19,7 @@ type_map = {
 
 
 @final
-class FITSSource(app.UploaderPlugin, app.DefaultTableNamer):
+class FITSSource(app.UploaderSource, app.DefaultTableNamer):
     def __init__(self, filename: str, hdu_index: int = 1) -> None:
         self.filename = filename
         self.hdu_index = hdu_index

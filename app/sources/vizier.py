@@ -49,7 +49,7 @@ def _map_votable_datatype(datatype: str) -> models.DatatypeEnum:
 
 @final
 class VizierSource(
-    app.UploaderPlugin,
+    app.UploaderSource,
     app.DefaultTableNamer,
     app.BibcodeProvider,
     app.DescriptionProvider,

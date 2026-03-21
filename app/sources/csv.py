@@ -18,7 +18,7 @@ type_map = {
 
 
 @final
-class CSVSource(app.UploaderPlugin, app.DefaultTableNamer):
+class CSVSource(app.UploaderSource, app.DefaultTableNamer):
     def __init__(self, filename: str) -> None:
         self.filename = filename
         self._chunk_size = 1000
