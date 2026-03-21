@@ -25,3 +25,27 @@ jobs:
         with:
           name: wheel
           path: dist/*.whl
+
+  test-wheel:
+    runs-on: ubuntu-22.04
+    needs: build-wheel
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: wheel
+          path: dist
+
+      - name: Install wheel
+        run: uv pip install dist/*.whl
+
+      - name: Check CLI help
+        run: uv run uploader --help
