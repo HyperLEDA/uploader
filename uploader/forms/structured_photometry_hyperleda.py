@@ -5,13 +5,13 @@ from urllib.parse import quote_plus
 from psycopg import connect
 from pydantic import BaseModel, Field
 
-import app.report as report
-from app.endpoints import db_dsn_map, env_map
-from app.gen.client import adminapi
-from app.storage import PgStorage
-from app.structured.photometry.upload import (
+import uploader.app.report as report
+from uploader.app.endpoints import db_dsn_map, env_map
+from uploader.app.storage import PgStorage
+from uploader.app.structured.photometry.upload import (
     upload_photometry_hyperleda as run_upload_photometry_hyperleda,
 )
+from uploader.clients.gen.client import adminapi
 from uploader.credentials import load_credentials
 
 

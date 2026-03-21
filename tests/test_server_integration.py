@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-import app.report as report
+import uploader.app.report as report
 import uploader.history as history
 import uploader.tasks as tasks
 from uploader.cli import app

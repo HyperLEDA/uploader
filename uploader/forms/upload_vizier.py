@@ -4,11 +4,11 @@ from typing import Literal, cast
 
 from pydantic import BaseModel, Field
 
-import app.report as report
-from app.endpoints import env_map
-from app.gen.client import adminapi
-from app.sources.vizier import VizierSource
-from app.upload import upload_for_web
+import uploader.app.report as report
+from uploader.app.endpoints import env_map
+from uploader.app.sources.vizier import VizierSource
+from uploader.app.upload import upload_for_web
+from uploader.clients.gen.client import adminapi
 
 
 class UploadVizierForm(BaseModel):

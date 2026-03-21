@@ -3,11 +3,11 @@ from typing import cast
 
 from pydantic import BaseModel, Field
 
-import app.report as report
-from app.endpoints import env_map
-from app.gen.client import adminapi
-from app.sources.vizier_v2 import VizierV2Source
-from app.upload import upload_for_web
+import uploader.app.report as report
+from uploader.app.endpoints import env_map
+from uploader.app.sources.vizier_v2 import VizierV2Source
+from uploader.app.upload import upload_for_web
+from uploader.clients.gen.client import adminapi
 from uploader.forms.upload_base import UploadBaseForm
 
 

@@ -128,7 +128,7 @@ reportImplicitAbstractClass = "error"
 
 exclude = [
     "frontend/**",
-    "app/gen/**",
+    "uploader/clients/gen/**",
     ".venv/**"
 ]
 

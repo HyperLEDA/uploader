@@ -1,4 +1,4 @@
-from app.crossmatch.models import (
+from uploader.app.crossmatch.models import (
     CrossmatchResult,
     CrossmatchStatus,
     Neighbor,
@@ -6,7 +6,7 @@ from app.crossmatch.models import (
     RecordEvidence,
     TriageStatus,
 )
-from app.crossmatch.resolver import (
+from uploader.app.crossmatch.resolver import (
     _apply_redshift_check,
     _resolve_by_radius_coordinate,
     resolve,

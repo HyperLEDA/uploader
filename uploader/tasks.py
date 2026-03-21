@@ -8,9 +8,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
-import app.report as report
-from app.log import logger
+import uploader.app.report as report
 from uploader import history
+from uploader.app.log import logger
 
 
 @dataclass

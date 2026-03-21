@@ -5,8 +5,8 @@ from urllib.parse import quote_plus
 from psycopg import connect
 from pydantic import BaseModel, Field
 
-import app.report as report
-from app.endpoints import db_dsn_map
+import uploader.app.report as report
+from uploader.app.endpoints import db_dsn_map
 from uploader.credentials import save_credentials
 
 

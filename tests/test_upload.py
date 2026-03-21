@@ -6,11 +6,11 @@ from unittest.mock import Mock, patch
 import pandas
 import pytest
 
-from app.gen.client import adminapi
-from app.gen.client.adminapi import models, types
-from app.interface import UploaderSource
-from app.sources.csv import CSVSource
-from app.upload import upload
+from uploader.app.interface import UploaderSource
+from uploader.app.sources.csv import CSVSource
+from uploader.app.upload import upload
+from uploader.clients.gen.client import adminapi
+from uploader.clients.gen.client.adminapi import models, types
 
 
 class StubPlugin(UploaderSource):
@@ -47,9 +47,9 @@ def mock_response[T: Any](resp: T) -> types.Response[T]:
     )
 
 
-@patch("app.upload.create_source")
-@patch("app.upload.create_table")
-@patch("app.upload.add_data")
+@patch("uploader.app.upload.create_source")
+@patch("uploader.app.upload.create_table")
+@patch("uploader.app.upload.add_data")
 def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_source, mock_client):
     mock_create_source_response = models.APIOkResponseCreateSourceResponse(
         data=models.CreateSourceResponse(code="test_bibcode")
@@ -81,8 +81,8 @@ def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_so
     mock_add_data.sync_detailed.assert_called_once()
 
 
-@patch("app.upload.create_source")
-@patch("app.upload.create_table")
+@patch("uploader.app.upload.create_source")
+@patch("uploader.app.upload.create_table")
 def test_plugin_stop_called_on_error(mock_create_table, mock_create_source, mock_client):
     mock_create_source_response = models.APIOkResponseCreateSourceResponse(
         data=models.CreateSourceResponse(code="test_bibcode")

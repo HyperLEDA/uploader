@@ -5,12 +5,12 @@ from urllib.parse import quote_plus
 from psycopg import connect
 from pydantic import BaseModel, Field
 
-import app.report as report
-from app.crossmatch import run_crossmatch as run_crossmatch_cmd
-from app.crossmatch.resolver import TwoRadiiResolver
-from app.endpoints import db_dsn_map, env_map
-from app.gen.client import adminapi
-from app.storage import PgStorage
+import uploader.app.report as report
+from uploader.app.crossmatch import run_crossmatch as run_crossmatch_cmd
+from uploader.app.crossmatch.resolver import TwoRadiiResolver
+from uploader.app.endpoints import db_dsn_map, env_map
+from uploader.app.storage import PgStorage
+from uploader.clients.gen.client import adminapi
 from uploader.credentials import load_credentials
 
 

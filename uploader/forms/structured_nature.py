@@ -5,11 +5,11 @@ from urllib.parse import quote_plus
 from psycopg import connect
 from pydantic import BaseModel, ConfigDict, Field
 
-import app.report as report
-from app.endpoints import db_dsn_map, env_map
-from app.gen.client import adminapi
-from app.storage import PgStorage
-from app.structured.nature import upload_nature as run_upload_nature
+import uploader.app.report as report
+from uploader.app.endpoints import db_dsn_map, env_map
+from uploader.app.storage import PgStorage
+from uploader.app.structured.nature import upload_nature as run_upload_nature
+from uploader.clients.gen.client import adminapi
 from uploader.credentials import load_credentials
 
 
