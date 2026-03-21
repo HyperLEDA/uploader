@@ -68,6 +68,26 @@ fix-frontend:
 	@output=$$(cd frontend && yarn run --silent prettier --write src 2>&1) || { echo "$$output"; exit 1; }
 	@output=$$(cd frontend && yarn run --silent eslint --fix src 2>&1) || { echo "$$output"; exit 1; }
 
+build-frontend:
+	cd frontend && yarn build
+
+build-binary: build-frontend
+	uv run pyinstaller \
+		--onefile \
+		--name hyperleda-uploader \
+		--clean \
+		--noconfirm \
+		--add-data "frontend/dist:frontend/dist" \
+		--hidden-import uvicorn.logging \
+		--hidden-import uvicorn.loops.auto \
+		--hidden-import uvicorn.protocols.http.auto \
+		--hidden-import uvicorn.protocols.websockets.auto \
+		--hidden-import uvicorn.lifespan.on \
+		--collect-data astroquery \
+		--collect-data astropy \
+		run.py
+	@rm -f hyperleda-uploader.spec
+
 # only for mac as this is faster
 build:
 	docker build . \
@@ -99,7 +119,7 @@ gen:
 		--config openapigen.yaml \
 		--url https://leda.sao.ru/admin/api/openapi.json
 
-.PHONY: serve frontend dev check-frontend fix-frontend install-frontend install-dev-frontend
+.PHONY: serve frontend dev check-frontend fix-frontend install-frontend install-dev-frontend build-frontend build-binary
 
 serve:
 	uv run uvicorn server.main:app --reload --port 8000

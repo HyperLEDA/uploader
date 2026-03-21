@@ -24,6 +24,8 @@ dev = [
     "pandas-stubs>=2.2.3.250308",
     "pytest~=9.0.2",
     "basedpyright~=1.38.3",
+    "pyinstaller>=6.10.0",
+    "matplotlib>=3.8.0",
 ]
 
 [tool.pytest.ini_options]

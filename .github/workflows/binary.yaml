@@ -1,0 +1,56 @@
+name: Binary build
+
+on:
+  - push
+
+jobs:
+  binary:
+    runs-on: ubuntu-${{ matrix.ubuntu-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu-version: ["22.04", "24.04"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          make install-dev
+          make install-frontend
+
+      - name: Run codegen
+        run: make gen
+
+      - name: Build binary
+        run: make build-binary
+
+      - name: Smoke test
+        run: |
+          set -e
+          ./dist/hyperleda-uploader --no-browser --port 8765 &
+          pid=$!
+          for i in $(seq 1 120); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8765/api/tasks 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/ | grep -q "<!doctype html"
+          curl -fsS http://127.0.0.1:8765/api/tasks | head -c 500 | grep -q "\["
+          kill "$pid"
+          wait "$pid" 2>/dev/null || true
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperleda-uploader-ubuntu-${{ matrix.ubuntu-version }}
+          path: dist/hyperleda-uploader

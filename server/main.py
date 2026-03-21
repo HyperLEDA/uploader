@@ -1,27 +1,44 @@
 import asyncio
 import json
+import sys
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from server.history import load_history
 from server.task_registry import register_all_tasks
 from server.tasks import TASKS, get_run, start_task
 
+
+def frontend_dist_dir() -> Path | None:
+    meipass = getattr(sys, "_MEIPASS", None)
+    if getattr(sys, "frozen", False) and meipass is not None:
+        base = Path(meipass)
+    else:
+        base = Path(__file__).resolve().parent.parent
+    dist = base / "frontend" / "dist"
+    if dist.is_dir():
+        return dist
+    return None
+
+
 register_all_tasks()
 
 app = FastAPI(title="HyperLEDA Uploader")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if frontend_dist_dir() is None:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 @app.get("/api/tasks")
@@ -86,3 +103,25 @@ async def run_stream(run_id: str) -> StreamingResponse:
             await asyncio.sleep(0.15)
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
+
+
+_static_root = frontend_dist_dir()
+if _static_root is not None:
+    assets_dir = _static_root / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/")
+    def spa_root() -> FileResponse:
+        return FileResponse(_static_root / "index.html")
+
+    @app.get("/{full_path:path}")
+    def spa_fallback(full_path: str) -> FileResponse:
+        candidate = (_static_root / full_path).resolve()
+        try:
+            candidate.relative_to(_static_root.resolve())
+        except ValueError:
+            return FileResponse(_static_root / "index.html")
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_static_root / "index.html")
