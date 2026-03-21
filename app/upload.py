@@ -18,7 +18,7 @@ from app.gen.client.adminapi.api.default import (
 
 
 def upload(
-    plugin: interface.UploaderPlugin,
+    plugin: interface.UploaderSource,
     client: adminapi.AuthenticatedClient,
     *args,
     dry_run: bool = False,
@@ -54,7 +54,7 @@ def sanitize_value(val: Any) -> Any:
 
 
 def _upload(
-    plugin: interface.UploaderPlugin,
+    plugin: interface.UploaderSource,
     client: adminapi.AuthenticatedClient,
     table_name: str,
     table_description: str,
@@ -165,7 +165,7 @@ def _upload(
 
 
 def upload_for_web(
-    plugin: interface.UploaderPlugin,
+    plugin: interface.UploaderSource,
     client: adminapi.AuthenticatedClient,
     table_name: str,
     table_description: str,

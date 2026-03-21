@@ -8,12 +8,12 @@ import pytest
 
 from app.gen.client import adminapi
 from app.gen.client.adminapi import models, types
-from app.interface import UploaderPlugin
+from app.interface import UploaderSource
 from app.sources.csv import CSVSource
 from app.upload import upload
 
 
-class StubPlugin(UploaderPlugin):
+class StubPlugin(UploaderSource):
     def __init__(self, should_raise: bool = False):
         self.should_raise = should_raise
         self.stop_called = False

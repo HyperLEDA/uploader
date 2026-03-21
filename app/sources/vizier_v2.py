@@ -48,7 +48,7 @@ def dtype_to_datatype(dtype: str | np.dtype) -> models.DatatypeEnum:
 
 @final
 class VizierV2Source(
-    app.UploaderPlugin,
+    app.UploaderSource,
     app.DefaultTableNamer,
     app.BibcodeProvider,
     app.DescriptionProvider,

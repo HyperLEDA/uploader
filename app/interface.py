@@ -6,7 +6,7 @@ import pandas
 from app.gen.client.adminapi import models
 
 
-class UploaderPlugin(abc.ABC):
+class UploaderSource(abc.ABC):
     @abc.abstractmethod
     def prepare(self) -> None:
         """
