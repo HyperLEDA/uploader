@@ -45,7 +45,7 @@ jobs:
           path: dist
 
       - name: Install wheel as tool
-        run: uv tool install --from dist/*.whl "{{ project_name }}"
+        run: uv tool install --from dist/*.whl testtool
 
       - name: Check CLI help
-        run: 'uploader --help'
+        run: 'testtool --help'
