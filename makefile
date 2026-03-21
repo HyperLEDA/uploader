@@ -92,6 +92,7 @@ upgrade:
 	uv sync --all-extras --upgrade
 
 gen:
+	mkdir -p uploader/clients/gen
 	uv run openapi-python-client generate \
 		--output-path uploader/clients/gen/client \
 		--overwrite \
