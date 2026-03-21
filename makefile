@@ -73,11 +73,13 @@ build-frontend:
 
 build-binary: build-frontend
 	uv run pyinstaller \
-		--onefile \
+		--onedir \
 		--name hyperleda-uploader \
 		--clean \
 		--noconfirm \
 		--add-data "frontend/dist:frontend/dist" \
+		--exclude-module matplotlib \
+		--exclude-module PIL \
 		--hidden-import uvicorn.logging \
 		--hidden-import uvicorn.loops.auto \
 		--hidden-import uvicorn.protocols.http.auto \
