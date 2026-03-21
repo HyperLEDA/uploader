@@ -17,6 +17,9 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
 
+      - name: Generate API client
+        run: make gen
+
       - name: Build wheel
         run: uv build --wheel
 
