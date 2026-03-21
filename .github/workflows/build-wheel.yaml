@@ -45,7 +45,7 @@ jobs:
           path: dist
 
       - name: Install wheel as tool
-        run: uv tool install --from dist/*.whl testtool
+        run: uv tool install --from dist/*.whl uploader
 
       - name: Check CLI help
-        run: 'testtool --help'
+        run: 'uploader --help'
