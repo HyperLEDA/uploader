@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 import app.report as report
 from app.endpoints import db_dsn_map
-from server.credentials import save_credentials
+from uploader.credentials import save_credentials
 
 
 class AuthenticateForm(BaseModel):

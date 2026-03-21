@@ -10,7 +10,7 @@ from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
 from app.structured.nature import upload_nature as run_upload_nature
-from server.credentials import load_credentials
+from uploader.credentials import load_credentials
 
 
 class StructuredNatureForm(BaseModel):

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 import app.report as report
 from app.log import logger
-from server import history
+from uploader import history
 
 
 @dataclass

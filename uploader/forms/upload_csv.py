@@ -8,7 +8,7 @@ from app.endpoints import env_map
 from app.gen.client import adminapi
 from app.sources.csv import CSVSource
 from app.upload import upload_for_web
-from server.forms.upload_base import UploadBaseForm
+from uploader.forms.upload_base import UploadBaseForm
 
 
 class UploadCsvForm(UploadBaseForm):

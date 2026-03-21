@@ -2,14 +2,16 @@ import asyncio
 import json
 from typing import Any
 
+import click
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
-from server.history import load_history
-from server.task_registry import register_all_tasks
-from server.tasks import TASKS, get_run, start_task
+from uploader.history import load_history
+from uploader.task_registry import register_all_tasks
+from uploader.tasks import TASKS, get_run, start_task
 
 register_all_tasks()
 
@@ -54,7 +56,7 @@ def task_schema(task_id: str) -> dict[str, object]:
 
 
 @app.post("/api/tasks/{task_id}/submit")
-def submit_task(task_id: str, body: dict) -> dict[str, str]:
+def submit_task(task_id: str, body: dict[str, object]) -> dict[str, str]:
     if task_id not in TASKS:
         raise HTTPException(status_code=404, detail="Unknown task")
     try:
@@ -70,7 +72,7 @@ async def run_stream(run_id: str) -> StreamingResponse:
     if run is None:
         raise HTTPException(status_code=404, detail="Unknown run")
 
-    async def event_gen():
+    async def event_gen() -> Any:
         idx = 0
         while True:
             chunk, idx = run.snapshot_from(idx)
@@ -86,3 +88,15 @@ async def run_stream(run_id: str) -> StreamingResponse:
             await asyncio.sleep(0.15)
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
+
+
+@click.group()
+def cli() -> None:
+    return None
+
+
+@cli.command("serve")
+@click.option("--reload", is_flag=True, default=False)
+@click.option("--port", type=int, default=8000)
+def serve_command(reload: bool, port: int) -> None:
+    uvicorn.run("uploader.cli:app", host="0.0.0.0", port=port, reload=reload)

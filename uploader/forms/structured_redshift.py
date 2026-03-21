@@ -10,7 +10,7 @@ from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
 from app.structured.redshift import upload_redshift as run_upload_redshift
-from server.credentials import load_credentials
+from uploader.credentials import load_credentials
 
 
 class StructuredRedshiftForm(BaseModel):

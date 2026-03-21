@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
 import app.report as report
-import server.history as history
-import server.tasks as tasks
-from server.main import app
+import uploader.history as history
+import uploader.tasks as tasks
+from uploader.cli import app
 
 
 class FakeTaskForm(BaseModel):

@@ -7,27 +7,22 @@ from pydantic import BaseModel, Field
 
 import app.report as report
 from app.crossmatch import run_crossmatch as run_crossmatch_cmd
-from app.crossmatch.resolver import LayeredResolver
+from app.crossmatch.resolver import TwoRadiiResolver
 from app.endpoints import db_dsn_map, env_map
 from app.gen.client import adminapi
 from app.storage import PgStorage
-from server.credentials import load_credentials
+from uploader.credentials import load_credentials
 
 
-class CrossmatchLayeredForm(BaseModel):
+class CrossmatchTwoRadiiForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    table_name: str = Field(..., title="Table name")
-    radius: float = Field(..., title="Search radius in arcseconds", gt=0)
-    pgc_column: str = Field(
-        default="",
-        title="PGC column",
-        description="Column containing claimed PGC in raw table; "
-        "will not use PGC numbers for cross-idenitification if left empty.",
-    )
+    table_name: str = Field(..., title="Layer 0 table name")
+    r1: float = Field(..., title="Inner radius (arcsec)", gt=0)
+    r2: float = Field(..., title="Outer radius (arcsec)", gt=0)
     redshift_tolerance: float = Field(
-        default=0,
+        default=0.0003,
         title="Redshift tolerance",
-        description="Tolerance for redshift matching; will not use redshift for cross-identification if left empty",
+        description="Tolerance in z used for redshift-based disambiguation.",
         ge=0,
     )
     batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
@@ -35,11 +30,11 @@ class CrossmatchLayeredForm(BaseModel):
     write: bool = Field(default=False, title="Write to API")
 
 
-def handle_crossmatch_layered(
+def handle_crossmatch_two_radii(
     form: BaseModel,
     report_func: Callable[[report.Event], None],
 ) -> None:
-    f = cast(CrossmatchLayeredForm, form)
+    f = cast(CrossmatchTwoRadiiForm, form)
     db_user, db_password = load_credentials()
     dsn = db_dsn_map[f.endpoint].format(
         user=quote_plus(db_user),
@@ -49,10 +44,10 @@ def handle_crossmatch_layered(
         base_url=env_map[f.endpoint],
         token="fake",
     )
-    resolver = LayeredResolver(
-        radius_deg=f.radius / 3600.0,
-        pgc_column=f.pgc_column.strip() or None,
-        redshift_tolerance=f.redshift_tolerance if f.redshift_tolerance > 0 else None,
+    resolver = TwoRadiiResolver(
+        r1_deg=f.r1 / 3600.0,
+        r2_deg=f.r2 / 3600.0,
+        redshift_tolerance=f.redshift_tolerance,
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)

@@ -1117,7 +1117,7 @@ wheels = [
 [[package]]
 name = "uploader"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "astropy" },
     { name = "astroquery" },
@@ -1145,7 +1145,7 @@ dev = [
 requires-dist = [
     { name = "astropy", specifier = ">=7.1.0" },
     { name = "astroquery", git = "https://github.com/astropy/astroquery.git?branch=main" },
-    { name = "click", specifier = ">=8.3.1" },
+    { name = "click", specifier = "~=8.3.1" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "numpy", specifier = ">=2.3.4" },
     { name = "openapi-python-client", specifier = ">=0.27.1" },

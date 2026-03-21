@@ -1,23 +1,23 @@
-from server.forms.authenticate import AuthenticateForm, handle_authenticate
-from server.forms.crossmatch_default import CrossmatchDefaultForm, handle_crossmatch_default
-from server.forms.crossmatch_layered import CrossmatchLayeredForm, handle_crossmatch_layered
-from server.forms.crossmatch_two_radii import CrossmatchTwoRadiiForm, handle_crossmatch_two_radii
-from server.forms.structured_designation import (
+from uploader.forms.authenticate import AuthenticateForm, handle_authenticate
+from uploader.forms.crossmatch_default import CrossmatchDefaultForm, handle_crossmatch_default
+from uploader.forms.crossmatch_layered import CrossmatchLayeredForm, handle_crossmatch_layered
+from uploader.forms.crossmatch_two_radii import CrossmatchTwoRadiiForm, handle_crossmatch_two_radii
+from uploader.forms.structured_designation import (
     StructuredDesignationForm,
     handle_structured_designation,
 )
-from server.forms.structured_icrs import StructuredIcrsForm, handle_structured_icrs
-from server.forms.structured_nature import StructuredNatureForm, handle_structured_nature
-from server.forms.structured_photometry_hyperleda import (
+from uploader.forms.structured_icrs import StructuredIcrsForm, handle_structured_icrs
+from uploader.forms.structured_nature import StructuredNatureForm, handle_structured_nature
+from uploader.forms.structured_photometry_hyperleda import (
     StructuredPhotometryHyperledaForm,
     handle_structured_photometry_hyperleda,
 )
-from server.forms.structured_redshift import StructuredRedshiftForm, handle_structured_redshift
-from server.forms.upload_csv import UploadCsvForm, handle_upload_csv
-from server.forms.upload_fits import UploadFitsForm, handle_upload_fits
-from server.forms.upload_vizier import UploadVizierForm, handle_upload_vizier
-from server.forms.upload_vizier_v2 import UploadVizierV2Form, handle_upload_vizier_v2
-from server.tasks import TaskDefinition, register_task
+from uploader.forms.structured_redshift import StructuredRedshiftForm, handle_structured_redshift
+from uploader.forms.upload_csv import UploadCsvForm, handle_upload_csv
+from uploader.forms.upload_fits import UploadFitsForm, handle_upload_fits
+from uploader.forms.upload_vizier import UploadVizierForm, handle_upload_vizier
+from uploader.forms.upload_vizier_v2 import UploadVizierV2Form, handle_upload_vizier_v2
+from uploader.tasks import TaskDefinition, register_task
 
 
 def register_all_tasks() -> None:
