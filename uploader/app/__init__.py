@@ -5,7 +5,6 @@ from uploader.app.interface import (
     UploaderSource,
 )
 from uploader.app.log import logger
-from uploader.app.tap import Constraint, TAPRepository
 from uploader.app.upload import upload
 
 __all__ = [
@@ -15,6 +14,4 @@ __all__ = [
     "DescriptionProvider",
     "upload",
     "logger",
-    "TAPRepository",
-    "Constraint",
 ]
