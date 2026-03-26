@@ -29,6 +29,9 @@ class StubPlugin(UploaderSource):
             raise Exception("Test error")
         return None
 
+    def get_total_rows(self) -> int:
+        return 0
+
     def stop(self) -> None:
         self.stop_called = True
 
@@ -74,6 +77,7 @@ def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_so
         pub_authors=["Test Author"],
         pub_year=2024,
         table_type="REGULAR",
+        report_func=lambda _: None,
     )
 
     mock_create_source.sync_detailed.assert_called_once()
@@ -104,6 +108,7 @@ def test_plugin_stop_called_on_error(mock_create_table, mock_create_source, mock
         pub_authors=["Test Author"],
         pub_year=2024,
         table_type="REGULAR",
+        report_func=lambda _: None,
     )
 
     assert plugin.stop_called

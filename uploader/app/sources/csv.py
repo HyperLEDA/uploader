@@ -19,11 +19,12 @@ type_map = {
 
 @final
 class CSVSource(app.UploaderSource, app.DefaultTableNamer):
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, *, chunk_size: int = 10000) -> None:
         self.filename = filename
-        self._chunk_size = 1000
+        self._chunk_size = chunk_size
         self._current_chunk = 0
         self._total_chunks = 0
+        self._total_rows = 0
         self._reader = None
         self._schema = None
 
@@ -35,9 +36,9 @@ class CSVSource(app.UploaderSource, app.DefaultTableNamer):
         self._reader = pandas.read_csv(self.filename, chunksize=self._chunk_size)
 
         with pathlib.Path(self.filename).open() as f:
-            self._total_chunks = sum(1 for _ in f) - 1
+            self._total_rows = sum(1 for _ in f) - 1
 
-        self._total_chunks = (self._total_chunks + self._chunk_size - 1) // self._chunk_size
+        self._total_chunks = (self._total_rows + self._chunk_size - 1) // self._chunk_size
         self._current_chunk = 0
 
     def get_schema(self) -> list[models.ColumnDescription]:
@@ -67,6 +68,9 @@ class CSVSource(app.UploaderSource, app.DefaultTableNamer):
 
     def stop(self) -> None:
         pass
+
+    def get_total_rows(self) -> int:
+        return self._total_rows
 
     def get_table_name(self) -> str:
         return pathlib.Path(self.filename).stem

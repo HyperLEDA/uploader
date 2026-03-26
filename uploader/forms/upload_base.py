@@ -2,19 +2,13 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+import uploader.forms.common as common
+
 
 class UploadBaseForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    table_name: str = Field(
-        ...,
-        title="Table name",
-        description="Machine-readable table id in HyperLEDA (e.g. sdss_dr12).",
-    )
-    table_description: str = Field(
-        default="",
-        title="Table description",
-        description="Human-readable description for search and display.",
-    )
+    table_name: str = common.TableNameField()
+    table_description: str = common.TableDescriptionField()
     has_bibcode: bool = Field(
         default=True,
         title="Use bibcode",
@@ -28,11 +22,7 @@ class UploadBaseForm(BaseModel):
         description="One author per entry when not using bibcode.",
     )
     pub_year: int = Field(default=0, title="Publication year")
-    table_type: str = Field(
-        default="regular",
-        title="Table type",
-        description="regular or COMPILATION (uppercased on submit).",
-    )
+    table_type: common.TableType = common.TableTypeField()
     dry_run: bool = Field(
         default=False,
         title="Dry run",

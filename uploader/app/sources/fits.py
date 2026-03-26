@@ -78,5 +78,10 @@ class FITSSource(app.UploaderSource, app.DefaultTableNamer):
         if self._hdu is not None:
             self._hdu.close()
 
+    def get_total_rows(self) -> int:
+        if self._table is None:
+            raise RuntimeError("Plugin not prepared. Call prepare() first.")
+        return len(self._table.data)
+
     def get_table_name(self) -> str:
         return pathlib.Path(self.filename).stem
