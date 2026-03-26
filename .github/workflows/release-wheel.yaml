@@ -44,13 +44,10 @@ jobs:
           version="${{ inputs.version }}"
           echo "release_tag=v$version" >> "$GITHUB_OUTPUT"
 
-      - name: Rename wheel to stable filename
-        run: mv dist/*.whl dist/uploader-latest-py3-none-any.whl
-
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.normalize.outputs.release_tag }}
           name: Release ${{ steps.normalize.outputs.release_tag }}
           generate_release_notes: true
-          files: dist/uploader-latest-py3-none-any.whl
+          files: dist/*.whl
