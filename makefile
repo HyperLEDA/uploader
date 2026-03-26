@@ -68,6 +68,9 @@ fix-frontend:
 	@output=$$(cd frontend && yarn run --silent prettier --write src 2>&1) || { echo "$$output"; exit 1; }
 	@output=$$(cd frontend && yarn run --silent eslint --fix src 2>&1) || { echo "$$output"; exit 1; }
 
+wheel: gen
+	uv build --wheel
+
 # only for mac as this is faster
 build:
 	docker build . \
