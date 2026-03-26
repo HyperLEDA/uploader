@@ -34,7 +34,7 @@ def register_all_tasks() -> None:
     register_task(
         TaskDefinition(
             id="upload-csv",
-            title="Upload CSV",
+            title="Upload from CSV",
             description="Upload a raw table from a CSV file.",
             form_model=UploadCsvForm,
             handler=handle_upload_csv,
@@ -44,7 +44,7 @@ def register_all_tasks() -> None:
     register_task(
         TaskDefinition(
             id="upload-fits",
-            title="Upload FITS",
+            title="Upload from FITS",
             description="Upload a raw table from a FITS file.",
             form_model=UploadFitsForm,
             handler=handle_upload_fits,
@@ -54,7 +54,7 @@ def register_all_tasks() -> None:
     register_task(
         TaskDefinition(
             id="upload-vizier",
-            title="Upload Vizier",
+            title="Upload from Vizier",
             description="Upload a raw table from a VizieR catalog.",
             form_model=UploadVizierForm,
             handler=handle_upload_vizier,
