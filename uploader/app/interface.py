@@ -34,6 +34,12 @@ class UploaderSource(abc.ABC):
         """
 
     @abc.abstractmethod
+    def get_total_rows(self) -> int:
+        """
+        Returns total number of rows available from this source.
+        """
+
+    @abc.abstractmethod
     def stop(self) -> None:
         """
         Closes any necessary connections and cleans up any residuals after the uploading process.
