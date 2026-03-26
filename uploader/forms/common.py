@@ -1,5 +1,9 @@
+from typing import Literal
+
 from pydantic import Field
 from pydantic.fields import FieldInfo
+
+type TableType = Literal["regular", "compilation"]
 
 
 class BaseTextField:
@@ -29,3 +33,12 @@ class TableDescriptionField(BaseTextField):
     def __new__(cls, *, default: str = "", additional_description: str = "") -> FieldInfo:
         description = cls.build_description(additional_description)
         return Field(default=default, title=cls.title, description=description)
+
+
+class TableTypeField:
+    def __new__(cls, *, default: TableType = "regular") -> FieldInfo:
+        return Field(
+            default=default,
+            title="Table type",
+            description="Type of data that table represents.",
+        )

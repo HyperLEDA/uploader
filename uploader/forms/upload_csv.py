@@ -27,18 +27,14 @@ class UploadCsvForm(BaseModel):
         description="One author per entry when not using bibcode.",
     )
     pub_year: int = Field(default=0, title="Publication year")
-    table_type: str = Field(
-        default="regular",
-        title="Table type",
-        description="regular or COMPILATION (uppercased on submit).",
-    )
+    table_type: common.TableType = common.TableTypeField()
     dry_run: bool = Field(
         default=False,
         title="Dry run",
         description="Show schema and process rows without creating table or uploading.",
     )
     filename: str = Field(..., title="CSV file path")
-    batch_size: int = Field(default=10000, title="Batch size", ge=1)
+    batch_size: int = Field(default=1000000, title="Batch size", ge=1)
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
 
     model_config = ConfigDict(

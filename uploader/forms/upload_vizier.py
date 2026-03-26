@@ -30,11 +30,7 @@ class UploadVizierForm(BaseModel):
         title="Bibcode",
         description="NASA ADS bibcode; leave empty to read from VizieR.",
     )
-    table_type: Literal["regular", "compilation"] = Field(
-        default="regular",
-        title="Table type",
-        description="Type of data that table represents.",
-    )
+    table_type: common.TableType = common.TableTypeField()
     dry_run: bool = Field(
         default=False,
         title="Dry run",
