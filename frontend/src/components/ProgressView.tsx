@@ -5,12 +5,14 @@ import Button from "@mui/material/Button";
 import LinearProgress from "@mui/material/LinearProgress";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
+import { cancelRun } from "../api";
 
 type StreamEvent =
   | { type: "progress"; percent: number }
   | { type: "log"; message: string }
   | { type: "error"; message: string }
-  | { type: "done"; message: string };
+  | { type: "done"; message: string }
+  | { type: "cancelled"; message: string };
 
 export function ProgressView({
   runId,
@@ -22,7 +24,10 @@ export function ProgressView({
   const [percent, setPercent] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
   const [done, setDone] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cancelPending, setCancelPending] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,6 +40,9 @@ export function ProgressView({
         else if (ev.type === "log") setLogs((x) => [...x, ev.message]);
         else if (ev.type === "error") {
           setError(ev.message);
+          es.close();
+        } else if (ev.type === "cancelled") {
+          setCancelled(ev.message);
           es.close();
         } else if (ev.type === "done") {
           setDone(ev.message);
@@ -51,6 +59,8 @@ export function ProgressView({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
+
+  const canCancel = !done && !error && !cancelled && !cancelPending;
 
   return (
     <Box sx={{ maxWidth: 720 }}>
@@ -78,6 +88,19 @@ export function ProgressView({
           {done}
         </Alert>
       )}
+      {cancelled && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2, whiteSpace: "pre-wrap", fontFamily: "monospace" }}
+        >
+          {cancelled}
+        </Alert>
+      )}
+      {cancelError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {cancelError}
+        </Alert>
+      )}
       <Paper
         variant="outlined"
         sx={{
@@ -94,9 +117,29 @@ export function ProgressView({
         ))}
         <div ref={bottomRef} />
       </Paper>
-      <Button sx={{ mt: 2 }} variant="outlined" onClick={onReset}>
-        Back to form
-      </Button>
+      <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
+        <Button
+          variant="outlined"
+          color="warning"
+          disabled={!canCancel}
+          onClick={async () => {
+            setCancelError(null);
+            setCancelPending(true);
+            try {
+              await cancelRun(runId);
+            } catch (e) {
+              setCancelError(String(e));
+            } finally {
+              setCancelPending(false);
+            }
+          }}
+        >
+          Cancel
+        </Button>
+        <Button variant="outlined" onClick={onReset}>
+          Back to form
+        </Button>
+      </Box>
     </Box>
   );
 }

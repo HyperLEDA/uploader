@@ -95,3 +95,57 @@ def test_task_integration_flow(isolated_task_state: None) -> None:
     assert fake_entry["inputs"] == {"name": "alpha"}
     assert fake_entry["status"] == "success"
     assert fake_entry["message"] == "Completed alpha"
+
+
+def test_task_cancel_flow(isolated_task_state: None) -> None:
+    def cancellable_handler(form: FakeTaskForm, emit: Callable[[report.Event], None]) -> None:
+        for idx in range(20):
+            emit(report.LogEvent(message=f"Step {idx} for {form.name}"))
+            emit(report.ProgressEvent(percent=(idx + 1) * 5))
+            time.sleep(0.05)
+        emit(report.DoneEvent(message=f"Completed {form.name}"))
+
+    fake_task = tasks.TaskDefinition(
+        id="fake-task-cancel",
+        title="Fake Task Cancel",
+        description="Task used for cancellation integration testing.",
+        form_model=FakeTaskForm,
+        handler=cancellable_handler,
+        group="Tests",
+    )
+    tasks.register_task(fake_task)
+
+    client = TestClient(app)
+    submit_response = client.post("/api/tasks/fake-task-cancel/submit", json={"name": "beta"})
+    assert submit_response.status_code == 200
+    run_id = submit_response.json()["run_id"]
+
+    cancel_response = client.post(f"/api/runs/{run_id}/cancel")
+    assert cancel_response.status_code == 200
+
+    events: list[dict[str, Any]] = []
+    with client.stream("GET", f"/api/runs/{run_id}/stream") as stream_response:
+        assert stream_response.status_code == 200
+        for line in stream_response.iter_lines():
+            if not line or not line.startswith("data: "):
+                continue
+            event = json.loads(line.removeprefix("data: "))
+            events.append(event)
+            if event.get("type") == "cancelled":
+                break
+
+    assert any(event.get("type") == "cancelled" for event in events)
+
+    deadline = time.time() + 2.0
+    history_data: list[dict[str, Any]] = []
+    while time.time() < deadline:
+        history_response = client.get("/api/history")
+        assert history_response.status_code == 200
+        history_data = history_response.json()
+        if any(item["task_id"] == "fake-task-cancel" for item in history_data):
+            break
+        time.sleep(0.05)
+
+    fake_entry = next(item for item in history_data if item["task_id"] == "fake-task-cancel")
+    assert fake_entry["status"] == "cancelled"
+    assert fake_entry["message"] == "Task was cancelled by user."

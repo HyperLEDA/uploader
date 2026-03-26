@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from uploader.history import load_history
 from uploader.task_registry import register_all_tasks
-from uploader.tasks import TASKS, get_run, start_task
+from uploader.tasks import TASKS, cancel_run, get_run, start_task
 
 register_all_tasks()
 
@@ -78,7 +78,7 @@ async def run_stream(run_id: str) -> StreamingResponse:
             chunk, idx = run.snapshot_from(idx)
             for ev in chunk:
                 yield f"data: {json.dumps(ev)}\n\n"
-                if ev.get("type") in ("done", "error"):
+                if ev.get("type") in ("done", "error", "cancelled"):
                     return
             if run.done.is_set():
                 tail, _ = run.snapshot_from(idx)
@@ -88,6 +88,14 @@ async def run_stream(run_id: str) -> StreamingResponse:
             await asyncio.sleep(0.15)
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
+
+
+@app.post("/api/runs/{run_id}/cancel")
+def cancel_task_run(run_id: str) -> dict[str, str]:
+    ok = cancel_run(run_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Unknown run")
+    return {"status": "ok"}
 
 
 @click.group()
