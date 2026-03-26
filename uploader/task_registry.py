@@ -16,7 +16,6 @@ from uploader.forms.structured_redshift import StructuredRedshiftForm, handle_st
 from uploader.forms.upload_csv import UploadCsvForm, handle_upload_csv
 from uploader.forms.upload_fits import UploadFitsForm, handle_upload_fits
 from uploader.forms.upload_vizier import UploadVizierForm, handle_upload_vizier
-from uploader.forms.upload_vizier_v2 import UploadVizierV2Form, handle_upload_vizier_v2
 from uploader.tasks import TaskDefinition, register_task
 
 
@@ -59,16 +58,6 @@ def register_all_tasks() -> None:
             description="Upload a raw table from a VizieR catalog.",
             form_model=UploadVizierForm,
             handler=handle_upload_vizier,
-            group="Raw tables",
-        ),
-    )
-    register_task(
-        TaskDefinition(
-            id="upload-vizier-v2",
-            title="Upload Vizier V2",
-            description="Upload a raw table from VizieR using TAP queries.",
-            form_model=UploadVizierV2Form,
-            handler=handle_upload_vizier_v2,
             group="Raw tables",
         ),
     )
