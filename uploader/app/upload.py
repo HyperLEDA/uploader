@@ -67,7 +67,7 @@ def _upload(
     dry_run: bool = False,
     emit_lines: Callable[[str], None] | None = None,
     on_progress_percent: Callable[[float], None] | None = None,
-) -> int:
+) -> tuple[int, dict[str, int]]:
     schema = plugin.get_schema()
 
     schema_rows = [(col.name, col.data_type.value) for col in schema]
@@ -114,11 +114,18 @@ def _upload(
         log.logger.info("created table", table_id=resp.data.id)
 
     total_rows = 0
+    non_null_by_column: dict[str, int] = {column.name: 0 for column in schema}
     prev_percent = 0
 
     def process_chunk(data: Any) -> None:
         nonlocal total_rows
-        total_rows += len(data)
+        batch_rows = len(data)
+        total_rows += batch_rows
+        for column, non_null_count in data.count().to_dict().items():
+            non_null_by_column[column] += int(non_null_count)
+
+        if emit_lines is not None:
+            emit_lines(f"batch: uploaded_rows={batch_rows}")
 
         if not dry_run:
             request_data = []
@@ -161,7 +168,7 @@ def _upload(
         emit_lines(msg)
     else:
         click.echo(msg)
-    return total_rows
+    return total_rows, non_null_by_column
 
 
 def upload_for_web(
@@ -186,7 +193,7 @@ def upload_for_web(
 
     plugin.prepare()
     try:
-        total_rows = _upload(
+        total_rows, non_null_by_column = _upload(
             plugin,
             client,
             table_name,
@@ -200,6 +207,14 @@ def upload_for_web(
             emit_lines=emit,
             on_progress_percent=on_progress,
         )
-        report_func(report.DoneEvent(message=f"Total rows: {total_rows}"))
+        non_null_rows = [(column, str(count)) for column, count in non_null_by_column.items()]
+        non_null_table = format_table(
+            ("Column", "Non-null values"),
+            non_null_rows,
+            title=f"\nNon-null values in {table_name}:",
+            right_align_last_n=1,
+            percent_last_column=False,
+        )
+        report_func(report.DoneEvent(message=f"Total rows: {total_rows}\n{non_null_table}"))
     finally:
         plugin.stop()

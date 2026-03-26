@@ -5,6 +5,7 @@ from typing import Literal, cast
 from pydantic import BaseModel, Field
 
 import uploader.app.report as report
+import uploader.forms.common as common
 from uploader.app.endpoints import env_map
 from uploader.app.sources.vizier import VizierSource
 from uploader.app.upload import upload_for_web
@@ -16,15 +17,13 @@ class UploadVizierForm(BaseModel):
     source_table_name: str = Field(..., title="VizieR table name")
     cache_path: str = Field(default=".vizier_cache/", title="Cache path")
     batch_size: int = Field(default=100, title="Batch size", ge=1)
-    table_name: str = Field(
+    table_name: str = common.TableNameField(
         default="",
-        title="Table name",
-        description="Machine-readable HyperLEDA table id; leave empty to derive from VizieR.",
+        additional_description="Leave empty to derive from VizieR.",
     )
-    table_description: str = Field(
+    table_description: str = common.TableDescriptionField(
         default="",
-        title="Table description",
-        description="Human-readable description; leave empty to take from VizieR metadata.",
+        additional_description="Leave empty to take from VizieR metadata.",
     )
     bibcode: str = Field(
         default="",

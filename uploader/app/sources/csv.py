@@ -19,9 +19,9 @@ type_map = {
 
 @final
 class CSVSource(app.UploaderSource, app.DefaultTableNamer):
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, *, chunk_size: int = 1000) -> None:
         self.filename = filename
-        self._chunk_size = 1000
+        self._chunk_size = chunk_size
         self._current_chunk = 0
         self._total_chunks = 0
         self._reader = None
