@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-HistoryStatus = Literal["success", "error"]
+HistoryStatus = Literal["success", "error", "cancelled"]
 
 
 class HistoryEntry(BaseModel):

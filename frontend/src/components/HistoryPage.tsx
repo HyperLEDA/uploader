@@ -132,7 +132,11 @@ export function HistoryPage() {
                         <Chip
                           size="small"
                           color={
-                            entry.status === "success" ? "success" : "error"
+                            entry.status === "success"
+                              ? "success"
+                              : entry.status === "cancelled"
+                                ? "warning"
+                                : "error"
                           }
                           label={entry.status}
                         />

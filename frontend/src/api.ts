@@ -45,12 +45,26 @@ export async function submitTask(
   return r.json();
 }
 
+export async function cancelRun(runId: string): Promise<void> {
+  const r = await fetch(`/api/runs/${runId}/cancel`, {
+    method: "POST",
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    const detail = (body as { detail?: unknown }).detail ?? body;
+    throw Object.assign(new Error("cancel failed"), {
+      status: r.status,
+      detail,
+    });
+  }
+}
+
 export type HistoryEntry = {
   timestamp: string;
   task_id: string;
   task_title: string;
   inputs: Record<string, unknown>;
-  status: "success" | "error";
+  status: "success" | "error" | "cancelled";
   message: string;
 };
 

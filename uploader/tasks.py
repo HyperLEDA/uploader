@@ -37,6 +37,7 @@ class TaskRun:
     events: list[dict[str, Any]] = field(default_factory=list)
     lock: threading.Lock = field(default_factory=threading.Lock)
     done: threading.Event = field(default_factory=threading.Event)
+    cancel_requested: threading.Event = field(default_factory=threading.Event)
     error: str | None = None
 
     def append(self, event: dict[str, Any]) -> None:
@@ -46,6 +47,13 @@ class TaskRun:
     def snapshot_from(self, start: int) -> tuple[list[dict[str, Any]], int]:
         with self.lock:
             return list(self.events[start:]), len(self.events)
+
+    def request_cancel(self) -> None:
+        self.cancel_requested.set()
+
+
+class TaskCancelledError(Exception):
+    pass
 
 
 RUNS: dict[str, TaskRun] = {}
@@ -103,11 +111,18 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                 run.append({"type": "error", "message": msg})
 
     def report_func(event: report.Event) -> None:
+        if run.cancel_requested.is_set():
+            raise TaskCancelledError()
         append_report_event(event)
 
     def worker() -> None:
+        nonlocal final_status, final_message
         try:
             defn.handler(form, report_func)
+        except TaskCancelledError:
+            final_status = "cancelled"
+            final_message = "Task was cancelled by user."
+            run.append({"type": "cancelled", "message": final_message})
         except Exception as e:
             append_report_event(report.ErrorEvent(message=str(e)))
         finally:
@@ -135,6 +150,16 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
 def get_run(run_id: str) -> TaskRun | None:
     with RUNS_LOCK:
         return RUNS.get(run_id)
+
+
+def cancel_run(run_id: str) -> bool:
+    run = get_run(run_id)
+    if run is None:
+        return False
+    if run.done.is_set():
+        return True
+    run.request_cancel()
+    return True
 
 
 def sse_format(event: dict[str, Any]) -> str:
