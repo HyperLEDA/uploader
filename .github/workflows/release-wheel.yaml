@@ -53,7 +53,9 @@ jobs:
 
       - name: Normalize release version
         id: normalize
-        run: echo "release_tag=$version" >> "$GITHUB_OUTPUT"
+        run: |
+          version="${{ inputs.version }}"
+          echo "release_tag=v$version" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
