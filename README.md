@@ -1,3 +1,13 @@
 Swiss knife tool for uploading tables to HyperLEDA database.
 
-Feel free to explore possible commands with `uv run main.py --help`.
+Install latest release wheel with `uv`:
+
+```shell
+uv tool install --upgrade --from "https://github.com/HyperLEDA/uploader/releases/latest/download/uploader-latest-py3-none-any.whl" uploader
+```
+
+Run the CLI:
+
+```shell
+uploader --help
+```
