@@ -2,6 +2,11 @@ name: Release wheels
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (e.g. 1.2.3)
+        required: true
+        type: string
 
 jobs:
   release-wheel:
@@ -32,3 +37,28 @@ jobs:
         with:
           name: wheel-${{ matrix.os }}
           path: dist/*.whl
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: release-wheel
+    permissions:
+      contents: write
+    steps:
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+
+      - name: Normalize release version
+        id: normalize
+        run: echo "release_tag=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.normalize.outputs.release_tag }}
+          name: Release ${{ steps.normalize.outputs.release_tag }}
+          generate_release_notes: true
+          files: dist/*.whl
