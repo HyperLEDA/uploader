@@ -1,4 +1,5 @@
 import asyncio
+import importlib.metadata
 import json
 from typing import Any
 
@@ -99,6 +100,7 @@ def cancel_task_run(run_id: str) -> dict[str, str]:
 
 
 @click.group()
+@click.version_option(version=importlib.metadata.version("uploader"))
 def cli() -> None:
     return None
 

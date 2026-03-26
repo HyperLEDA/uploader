@@ -9,10 +9,28 @@ on:
         type: string
 
 jobs:
-  release-wheel:
+  create-tag:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Create and push release tag
+        run: |
+          git tag "v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+
+  release-wheel:
+    runs-on: ubuntu-latest
+    needs: create-tag
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: "v${{ inputs.version }}"
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6

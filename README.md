@@ -1,9 +1,15 @@
 Swiss knife tool for uploading tables to HyperLEDA database.
 
-Install latest release wheel with `uv`:
+Install `uv` first:
 
 ```shell
-uv tool install --upgrade --from "https://github.com/HyperLEDA/uploader/releases/latest/download/uploader-latest-py3-none-any.whl" uploader
+https://docs.astral.sh/uv/getting-started/installation/
+```
+
+Install or update `uploader`:
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/HyperLEDA/uploader/main/scripts/install.sh | sh
 ```
 
 Run the CLI:
