@@ -102,6 +102,7 @@ def cancel_task_run(run_id: str) -> dict[str, str]:
 
 
 if STATIC_DIR.is_dir():
+
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str) -> FileResponse:
         file_path = STATIC_DIR / full_path
