@@ -1,10 +1,5 @@
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useParams,
-} from "react-router-dom";
+import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
+import Typography from "@mui/material/Typography";
 import { HistoryPage } from "./components/HistoryPage";
 import { Layout } from "./components/Layout";
 import { TaskPage } from "./components/TaskPage";
@@ -14,12 +9,16 @@ function TaskPageRoute() {
   return <TaskPage key={taskId ?? ""} />;
 }
 
+function SelectTaskPage() {
+  return <Typography>Select task to continue.</Typography>;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/task/upload" replace />} />
+          <Route index element={<SelectTaskPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="task/:taskId" element={<TaskPageRoute />} />
         </Route>
