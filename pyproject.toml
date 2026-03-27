@@ -31,7 +31,8 @@ source = "vcs"
 
 [tool.hatch.build]
 artifacts = [
-    "uploader/clients/**/*.py"
+    "uploader/clients/**/*.py",
+    "uploader/static/**",
 ]
 
 [dependency-groups]

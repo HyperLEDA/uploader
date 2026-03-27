@@ -1,13 +1,14 @@
 import asyncio
 import importlib.metadata
 import json
+import pathlib
 from typing import Any
 
 import click
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import ValidationError
 
 from uploader.history import load_history
@@ -17,6 +18,7 @@ from uploader.tasks import TASKS, cancel_run, get_run, start_task
 register_all_tasks()
 
 app = FastAPI(title="HyperLEDA Uploader")
+STATIC_DIR = pathlib.Path(__file__).parent / "static"
 
 app.add_middleware(
     CORSMiddleware,
@@ -97,6 +99,15 @@ def cancel_task_run(run_id: str) -> dict[str, str]:
     if not ok:
         raise HTTPException(status_code=404, detail="Unknown run")
     return {"status": "ok"}
+
+
+if STATIC_DIR.is_dir():
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str) -> FileResponse:
+        file_path = STATIC_DIR / full_path
+        if file_path.is_file() and file_path.resolve().is_relative_to(STATIC_DIR.resolve()):
+            return FileResponse(path=file_path)
+        return FileResponse(path=STATIC_DIR / "index.html")
 
 
 @click.group()
