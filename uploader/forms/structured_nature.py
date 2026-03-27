@@ -3,7 +3,7 @@ from typing import Literal, cast
 from urllib.parse import quote_plus
 
 from psycopg import connect
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 import uploader.app.report as report
 from uploader.app.endpoints import db_dsn_map, env_map
@@ -43,21 +43,6 @@ class StructuredNatureForm(BaseModel):
     advanced: StructuredNatureAdvancedSettings = Field(
         default_factory=StructuredNatureAdvancedSettings,
         title="Advanced settings",
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "anyOf": [
-                {
-                    "properties": {"column_name": {"type": "string", "minLength": 1}},
-                    "required": ["column_name"],
-                },
-                {
-                    "properties": {"default_type": {"type": "string", "minLength": 1}},
-                    "required": ["default_type"],
-                },
-            ],
-        },
     )
 
 
