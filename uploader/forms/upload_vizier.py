@@ -12,25 +12,9 @@ from uploader.app.upload import upload_for_web
 from uploader.clients.gen.client import adminapi
 
 
-class UploadVizierForm(BaseModel):
-    catalog_name: str = Field(..., title="VizieR catalog name")
-    source_table_name: str = Field(..., title="VizieR table name")
+class UploadVizierAdvancedSettings(BaseModel):
     cache_path: str = Field(default=".vizier_cache/", title="Cache path")
     batch_size: int = Field(default=100, title="Batch size", ge=1)
-    table_name: str = common.TableNameField(
-        default="",
-        additional_description="Leave empty to derive from VizieR.",
-    )
-    table_description: str = common.TableDescriptionField(
-        default="",
-        additional_description="Leave empty to take from VizieR metadata.",
-    )
-    bibcode: str = Field(
-        default="",
-        title="Bibcode",
-        description="NASA ADS bibcode; leave empty to read from VizieR.",
-    )
-    table_type: common.TableType = common.TableTypeField()
     dry_run: bool = Field(
         default=False,
         title="Dry run",
@@ -43,17 +27,40 @@ class UploadVizierForm(BaseModel):
     )
 
 
+class UploadVizierForm(BaseModel):
+    catalog_name: str = Field(..., title="VizieR catalog name")
+    source_table_name: str = Field(..., title="VizieR table name")
+    table_name: str = common.TableNameField(
+        default="",
+        additional_description="Leave empty to derive from VizieR.",
+    )
+    table_description: str = common.TableDescriptionField(
+        default="",
+        additional_description="Leave empty to take from VizieR metadata.",
+    )
+    bibcode: str = common.BibcodeField(
+        default="",
+        additional_description="Leave empty to read from VizieR.",
+    )
+    table_type: common.TableType = common.TableTypeField()
+    advanced: UploadVizierAdvancedSettings = Field(
+        default_factory=UploadVizierAdvancedSettings,
+        title="Advanced settings",
+    )
+
+
 def handle_upload_vizier(form: BaseModel, report_func: Callable[[report.Event], None]) -> None:
     f = cast(UploadVizierForm, form)
+    advanced = f.advanced
     client = adminapi.AuthenticatedClient(
-        base_url=env_map[f.endpoint],
+        base_url=env_map[advanced.endpoint],
         token="fake",
     )
     source = VizierSource(
         f.catalog_name,
         f.source_table_name,
-        cache_path=f.cache_path,
-        batch_size=f.batch_size,
+        cache_path=advanced.cache_path,
+        batch_size=advanced.batch_size,
     )
 
     table_name_in = f.table_name.strip()
@@ -99,6 +106,6 @@ def handle_upload_vizier(form: BaseModel, report_func: Callable[[report.Event], 
         [],
         0,
         table_type,
-        dry_run=f.dry_run,
+        dry_run=advanced.dry_run,
         report_func=report_func,
     )

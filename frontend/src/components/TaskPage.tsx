@@ -7,6 +7,7 @@ import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import { fetchTaskSchema, submitTask } from "../api";
+import { FoldableObjectFieldTemplate } from "./FoldableObjectFieldTemplate";
 import { ProgressView } from "./ProgressView";
 
 export function TaskPage() {
@@ -84,6 +85,7 @@ export function TaskPage() {
         schema={schema}
         validator={validator}
         formData={prefillData}
+        templates={{ ObjectFieldTemplate: FoldableObjectFieldTemplate }}
         onSubmit={async ({ formData }) => {
           setSubmitError(null);
           try {

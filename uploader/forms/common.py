@@ -42,3 +42,17 @@ class TableTypeField:
             title="Table type",
             description="Type of data that table represents.",
         )
+
+
+class BibcodeField(BaseTextField):
+    base_description = "NASA ADS bibcode."
+    title = "Bibcode"
+
+    def __new__(cls, *, default: str = "", additional_description: str = "") -> FieldInfo:
+        description = cls.build_description(additional_description)
+        return Field(
+            default=default,
+            title=cls.title,
+            description=description,
+            pattern=r"^$|^\d{4}[A-Za-z0-9.&]{14}[A-Za-z0-9]$",
+        )
