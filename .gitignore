@@ -178,3 +178,4 @@ node_modules/
 
 history.jsonl
 uploader/clients/gen/
+uploader/static/
