@@ -11,6 +11,16 @@ from uploader.app.upload import upload_for_web
 from uploader.clients.gen.client import adminapi
 
 
+class UploadCsvAdvancedSettings(BaseModel):
+    endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
+    batch_size: int = Field(default=1000000, title="Batch size", ge=1)
+    dry_run: bool = Field(
+        default=False,
+        title="Dry run",
+        description="Show schema and process rows without creating table or uploading.",
+    )
+
+
 class UploadCsvForm(BaseModel):
     table_name: str = common.TableNameField()
     table_description: str = common.TableDescriptionField()
@@ -28,14 +38,11 @@ class UploadCsvForm(BaseModel):
     )
     pub_year: int = Field(default=0, title="Publication year")
     table_type: common.TableType = common.TableTypeField()
-    dry_run: bool = Field(
-        default=False,
-        title="Dry run",
-        description="Show schema and process rows without creating table or uploading.",
-    )
     filename: str = Field(..., title="CSV file path")
-    batch_size: int = Field(default=1000000, title="Batch size", ge=1)
-    endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
+    advanced: UploadCsvAdvancedSettings = Field(
+        default_factory=UploadCsvAdvancedSettings,
+        title="Advanced settings",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -48,11 +55,12 @@ class UploadCsvForm(BaseModel):
 
 def handle_upload_csv(form: BaseModel, report_func: Callable[[report.Event], None]) -> None:
     f = cast(UploadCsvForm, form)
+    advanced = f.advanced
     client = adminapi.AuthenticatedClient(
-        base_url=env_map[f.endpoint],
+        base_url=env_map[advanced.endpoint],
         token="fake",
     )
-    source = CSVSource(f.filename, chunk_size=f.batch_size)
+    source = CSVSource(f.filename, chunk_size=advanced.batch_size)
     bibcode = f.bibcode.strip() if f.has_bibcode else ""
     pub_name = f.pub_name.strip()
     pub_authors = list(f.pub_authors)
@@ -69,6 +77,6 @@ def handle_upload_csv(form: BaseModel, report_func: Callable[[report.Event], Non
         pub_authors,
         pub_year,
         table_type,
-        dry_run=f.dry_run,
+        dry_run=advanced.dry_run,
         report_func=report_func,
     )
