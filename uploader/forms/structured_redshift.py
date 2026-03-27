@@ -13,11 +13,8 @@ from uploader.clients.gen.client import adminapi
 from uploader.credentials import load_credentials
 
 
-class StructuredRedshiftForm(BaseModel):
+class StructuredRedshiftAdvancedSettings(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    table_name: str = Field(..., title="Rawdata table name")
-    z_column: str = Field(..., title="z column", description="Column with redshift z.")
-    z_error: float = Field(..., title="z error", description="Fixed error on z (same for all rows).")
     batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
     write: bool = Field(
         default=False,
@@ -26,18 +23,29 @@ class StructuredRedshiftForm(BaseModel):
     )
 
 
+class StructuredRedshiftForm(BaseModel):
+    table_name: str = Field(..., title="Rawdata table name")
+    z_column: str = Field(..., title="z column", description="Column with redshift z.")
+    z_error: float = Field(..., title="z error", description="Fixed error on z (same for all rows).")
+    advanced: StructuredRedshiftAdvancedSettings = Field(
+        default_factory=StructuredRedshiftAdvancedSettings,
+        title="Advanced settings",
+    )
+
+
 def handle_structured_redshift(
     form: BaseModel,
     report_func: Callable[[report.Event], None],
 ) -> None:
     f = cast(StructuredRedshiftForm, form)
+    advanced = f.advanced
     db_user, db_password = load_credentials()
-    dsn = db_dsn_map[f.endpoint].format(
+    dsn = db_dsn_map[advanced.endpoint].format(
         user=quote_plus(db_user),
         password=quote_plus(db_password),
     )
     client = adminapi.AuthenticatedClient(
-        base_url=env_map[f.endpoint],
+        base_url=env_map[advanced.endpoint],
         token="fake",
     )
     with connect(dsn) as conn:
@@ -46,9 +54,9 @@ def handle_structured_redshift(
             storage,
             f.table_name.strip(),
             f.z_column.strip(),
-            f.batch_size,
+            advanced.batch_size,
             client,
-            write=f.write,
+            write=advanced.write,
             z_error=f.z_error,
             report_func=report_func,
         )

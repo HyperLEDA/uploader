@@ -13,8 +13,11 @@ from uploader.clients.gen.client import adminapi
 from uploader.credentials import load_credentials
 
 
-class StructuredNatureForm(BaseModel):
+class StructuredNatureAdvancedSettings(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
+    batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
+
+class StructuredNatureForm(BaseModel):
     table_name: str = Field(..., title="Rawdata table name")
     column_name: str = Field(
         default="",
@@ -31,11 +34,15 @@ class StructuredNatureForm(BaseModel):
         title="Type mappings",
         description='Each entry "raw_value:leda_type" (e.g. G:galaxy).',
     )
-    batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
     write: bool = Field(
         default=False,
         title="Write to API",
         description="If enabled, upload results; otherwise dry-run (statistics only).",
+    )
+
+    advanced: StructuredNatureAdvancedSettings = Field(
+        default_factory=StructuredNatureAdvancedSettings,
+        title="Advanced settings",
     )
 
     model_config = ConfigDict(
@@ -74,6 +81,7 @@ def handle_structured_nature(
     report_func: Callable[[report.Event], None],
 ) -> None:
     f = cast(StructuredNatureForm, form)
+    advanced = f.advanced
     col = f.column_name.strip() or None
     default_t = f.default_type.strip() or None
     if col is None and default_t is None:
@@ -81,12 +89,12 @@ def handle_structured_nature(
     type_mapping = _parse_type_mappings(f.type_mappings)
 
     db_user, db_password = load_credentials()
-    dsn = db_dsn_map[f.endpoint].format(
+    dsn = db_dsn_map[advanced.endpoint].format(
         user=quote_plus(db_user),
         password=quote_plus(db_password),
     )
     client = adminapi.AuthenticatedClient(
-        base_url=env_map[f.endpoint],
+        base_url=env_map[advanced.endpoint],
         token="fake",
     )
     with connect(dsn) as conn:
@@ -97,8 +105,8 @@ def handle_structured_nature(
             col,
             type_mapping,
             default_t,
-            f.batch_size,
+            advanced.batch_size,
             client,
-            write=f.write,
+            write=advanced.write,
             report_func=report_func,
         )

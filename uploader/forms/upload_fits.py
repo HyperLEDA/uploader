@@ -11,8 +11,17 @@ from uploader.app.upload import upload_for_web
 from uploader.clients.gen.client import adminapi
 
 
-class UploadFitsForm(BaseModel):
+class UploadFitsAdvancedSettings(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
+    dry_run: bool = Field(
+        default=False,
+        title="Dry run",
+        description="Show schema and process rows without creating table or uploading.",
+    )
+    hdu_index: int = Field(default=1, title="HDU index", ge=0)
+
+
+class UploadFitsForm(BaseModel):
     table_name: str = common.TableNameField()
     table_description: str = common.TableDescriptionField()
     has_bibcode: bool = Field(
@@ -29,13 +38,11 @@ class UploadFitsForm(BaseModel):
     )
     pub_year: int = Field(default=0, title="Publication year")
     table_type: common.TableType = common.TableTypeField()
-    dry_run: bool = Field(
-        default=False,
-        title="Dry run",
-        description="Show schema and process rows without creating table or uploading.",
-    )
     filename: str = Field(..., title="FITS file path")
-    hdu_index: int = Field(default=1, title="HDU index", ge=0)
+    advanced: UploadFitsAdvancedSettings = Field(
+        default_factory=UploadFitsAdvancedSettings,
+        title="Advanced settings",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -48,11 +55,12 @@ class UploadFitsForm(BaseModel):
 
 def handle_upload_fits(form: BaseModel, report_func: Callable[[report.Event], None]) -> None:
     f = cast(UploadFitsForm, form)
+    advanced = f.advanced
     client = adminapi.AuthenticatedClient(
-        base_url=env_map[f.endpoint],
+        base_url=env_map[advanced.endpoint],
         token="fake",
     )
-    source = FITSSource(f.filename, f.hdu_index)
+    source = FITSSource(f.filename, advanced.hdu_index)
     bibcode = f.bibcode.strip() if f.has_bibcode else ""
     pub_name = f.pub_name.strip()
     pub_authors = list(f.pub_authors)
@@ -69,6 +77,6 @@ def handle_upload_fits(form: BaseModel, report_func: Callable[[report.Event], No
         pub_authors,
         pub_year,
         table_type,
-        dry_run=f.dry_run,
+        dry_run=advanced.dry_run,
         report_func=report_func,
     )
