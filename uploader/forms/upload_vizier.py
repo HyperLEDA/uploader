@@ -25,10 +25,9 @@ class UploadVizierForm(BaseModel):
         default="",
         additional_description="Leave empty to take from VizieR metadata.",
     )
-    bibcode: str = Field(
+    bibcode: str = common.BibcodeField(
         default="",
-        title="Bibcode",
-        description="NASA ADS bibcode; leave empty to read from VizieR.",
+        additional_description="Leave empty to read from VizieR.",
     )
     table_type: common.TableType = common.TableTypeField()
     dry_run: bool = Field(

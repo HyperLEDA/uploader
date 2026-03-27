@@ -19,7 +19,7 @@ class UploadCsvForm(BaseModel):
         title="Use bibcode",
         description="If enabled, provide a NASA ADS bibcode; otherwise provide manual source metadata.",
     )
-    bibcode: str = Field(default="", title="Bibcode")
+    bibcode: str = common.BibcodeField()
     pub_name: str = Field(default="", title="Source name")
     pub_authors: list[str] = Field(
         default_factory=list,
