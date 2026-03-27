@@ -17,6 +17,7 @@ class StructuredNatureAdvancedSettings(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
     batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
 
+
 class StructuredNatureForm(BaseModel):
     table_name: str = Field(..., title="Rawdata table name")
     column_name: str = Field(
