@@ -21,6 +21,16 @@ class UploadCsvAdvancedSettings(BaseModel):
     )
 
 
+class UploadCsvPublicationParameters(BaseModel):
+    pub_name: str = Field(default="", title="Source name")
+    pub_authors: list[str] = Field(
+        default_factory=list,
+        title="Authors",
+        description="List of authors",
+    )
+    pub_year: int = Field(default=0, title="Publication year")
+
+
 class UploadCsvForm(BaseModel):
     table_name: str = common.TableNameField()
     table_description: str = common.TableDescriptionField()
@@ -30,13 +40,11 @@ class UploadCsvForm(BaseModel):
         description="If enabled, provide a NASA ADS bibcode; otherwise provide manual source metadata.",
     )
     bibcode: str = common.BibcodeField()
-    pub_name: str = Field(default="", title="Source name")
-    pub_authors: list[str] = Field(
-        default_factory=list,
-        title="Authors",
-        description="One author per entry when not using bibcode.",
+    publication_params: UploadCsvPublicationParameters = Field(
+        default_factory=UploadCsvPublicationParameters,
+        title="Parameters of publication",
+        description="If bibcode is not provided, will use these parameters for bibliography.",
     )
-    pub_year: int = Field(default=0, title="Publication year")
     table_type: common.TableType = common.TableTypeField()
     filename: str = Field(..., title="CSV file path")
     advanced: UploadCsvAdvancedSettings = Field(
