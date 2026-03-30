@@ -8,6 +8,7 @@ from uploader.forms.structured_designation import (
 )
 from uploader.forms.structured_icrs import StructuredIcrsForm, handle_structured_icrs
 from uploader.forms.structured_nature import StructuredNatureForm, handle_structured_nature
+from uploader.forms.structured_note import StructuredNoteForm, handle_structured_note
 from uploader.forms.structured_photometry_hyperleda import (
     StructuredPhotometryHyperledaForm,
     handle_structured_photometry_hyperleda,
@@ -59,6 +60,16 @@ def register_all_tasks() -> None:
             form_model=UploadVizierForm,
             handler=handle_upload_vizier,
             group="Raw tables",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="upload-structured-note",
+            title="Note",
+            description="Add free text note about a record.",
+            form_model=StructuredNoteForm,
+            handler=handle_structured_note,
+            group="Catalogs",
         ),
     )
     register_task(
