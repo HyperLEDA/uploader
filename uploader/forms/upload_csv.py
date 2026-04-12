@@ -64,15 +64,16 @@ class UploadCsvForm(BaseModel):
 def handle_upload_csv(form: BaseModel, report_func: Callable[[report.Event], None]) -> None:
     f = cast(UploadCsvForm, form)
     advanced = f.advanced
+    publication_params = f.publication_params
     client = adminapi.AuthenticatedClient(
         base_url=env_map[advanced.endpoint],
         token="fake",
     )
     source = CSVSource(f.filename, chunk_size=advanced.batch_size)
     bibcode = f.bibcode.strip() if f.has_bibcode else ""
-    pub_name = f.pub_name.strip()
-    pub_authors = list(f.pub_authors)
-    pub_year = f.pub_year
+    pub_name = publication_params.pub_name.strip()
+    pub_authors = list(publication_params.pub_authors)
+    pub_year = publication_params.pub_year
     table_type = (f.table_type or "regular").upper()
 
     upload_for_web(
