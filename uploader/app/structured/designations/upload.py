@@ -25,6 +25,7 @@ def upload_designations(
     *,
     write: bool = False,
     print_unmatched: bool = False,
+    initial_offset: int = 0,
     report_func: Callable[[report.Event], None],
 ) -> int:
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}
@@ -37,12 +38,27 @@ def upload_designations(
     total_count = int(cnt[0]["cnt"]) if cnt else 0
 
     processed_rows = 0
+    rows_remaining_to_skip = initial_offset
+    progress_total = max(1, total_count - initial_offset)
+    skipped_rows_total = 0
 
     for rows in rawdata_batches(storage, table_name, [column_name], batch_size):
+        batch = rows
+        if rows_remaining_to_skip:
+            n = len(batch)
+            if rows_remaining_to_skip >= n:
+                skipped_rows_total += n
+                rows_remaining_to_skip -= n
+                report_func(report.LogEvent(message=f"skipped rows due to offset: {n}"))
+                continue
+            skipped_rows_total += rows_remaining_to_skip
+            batch = batch[rows_remaining_to_skip:]
+            rows_remaining_to_skip = 0
+
         batch_ids: list[str] = []
         batch_names: list[list[str]] = []
 
-        for row in rows:
+        for row in batch:
             internal_id = row["hyperleda_internal_id"]
             name_val = row[column_name]
             if name_val is None or (isinstance(name_val, str) and not name_val.strip()):
@@ -74,8 +90,9 @@ def upload_designations(
                 callback_func=lambda m: report_func(report.LogEvent(message=m)),
             )
 
-        processed_rows += len(rows)
+        processed_rows += len(batch)
         total_so_far = sum(rule_counts.values()) + unmatched
+        cumulative_names = total_so_far + skipped_rows_total
 
         def total_pct(n: int, t: int = total_so_far) -> float:
             return (100.0 * n / t) if t else 0.0
@@ -88,12 +105,12 @@ def upload_designations(
             unmatched=unmatched,
             unmatched_pct=round(total_pct(unmatched), 1),
         )
-        progress_pct = int(100 * processed_rows / total_count) if total_count else 0
+        progress_pct = int(100 * processed_rows / progress_total) if total_count else 0
         report_func(report.ProgressEvent(percent=min(99, progress_pct)))
         report_func(
             report.LogEvent(
                 message=(
-                    f"batch: rows_read={len(rows)} cumulative_names={total_so_far} "
+                    f"batch: rows_read={len(batch)} cumulative_names={cumulative_names} "
                     f"matched={sum(rule_counts.values())} unmatched={unmatched}"
                 ),
             ),

@@ -16,6 +16,12 @@ from uploader.credentials import load_credentials
 class StructuredDesignationAdvancedSettings(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
     batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
+    initial_offset: int = Field(
+        default=0,
+        title="Initial offset",
+        description="Skip this many leading rows before processing.",
+        ge=0,
+    )
     print_unmatched: bool = Field(
         default=False,
         title="Log unmatched names",
@@ -66,5 +72,6 @@ def handle_structured_designation(
             client,
             write=f.write,
             print_unmatched=advanced.print_unmatched,
+            initial_offset=advanced.initial_offset,
             report_func=report_func,
         )
