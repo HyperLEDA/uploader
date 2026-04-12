@@ -57,7 +57,7 @@ def test_upload_with_csv_plugin(mock_add_data, mock_create_table, mock_create_so
     mock_create_source_response = models.APIOkResponseCreateSourceResponse(
         data=models.CreateSourceResponse(code="test_bibcode")
     )
-    mock_create_source.sync.return_value = mock_create_source_response
+    mock_create_source.sync_detailed.return_value = mock_response(mock_create_source_response)
 
     mock_create_table_response = models.APIOkResponseCreateTableResponse(data=models.CreateTableResponse(id=1))
     mock_create_table.sync_detailed.return_value = mock_response(mock_create_table_response)

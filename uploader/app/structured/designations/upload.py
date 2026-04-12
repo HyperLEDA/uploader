@@ -8,7 +8,7 @@ from uploader.app.display import format_table
 from uploader.app.lib.rawdata import rawdata_batches
 from uploader.app.storage import PgStorage
 from uploader.app.structured.designations.rules import RULES, match
-from uploader.app.upload import handle_call
+from uploader.clients.client import call
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.api.default import save_structured_data
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
@@ -62,16 +62,16 @@ def upload_designations(
             batch_names.append([transformed])
 
         if write and batch_ids:
-            handle_call(
-                save_structured_data.sync_detailed(
-                    client=client,
-                    body=SaveStructuredDataRequest(
-                        catalog="designation",
-                        columns=["design"],
-                        ids=batch_ids,
-                        data=batch_names,
-                    ),
-                )
+            call(
+                client,
+                SaveStructuredDataRequest(
+                    catalog="designation",
+                    columns=["design"],
+                    ids=batch_ids,
+                    data=batch_names,
+                ),
+                save_structured_data.sync_detailed,
+                callback_func=lambda m: report_func(report.LogEvent(message=m)),
             )
 
         processed_rows += len(rows)

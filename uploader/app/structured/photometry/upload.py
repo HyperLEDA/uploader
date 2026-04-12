@@ -7,7 +7,7 @@ from uploader.app import log
 from uploader.app.display import format_table
 from uploader.app.lib.rawdata import rawdata_batches
 from uploader.app.storage import PgStorage
-from uploader.app.upload import handle_call
+from uploader.clients.client import call
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.api.default import save_structured_data
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
@@ -75,17 +75,17 @@ def upload_photometry_hyperleda(
                     skipped += 1
 
             if write and batch_ids:
-                handle_call(
-                    save_structured_data.sync_detailed(
-                        client=client,
-                        body=SaveStructuredDataRequest(
-                            catalog="photometry",
-                            columns=PHOTOMETRY_COLUMNS,
-                            ids=batch_ids,
-                            data=batch_data,
-                            units=PHOTOMETRY_UNITS,
-                        ),
-                    )
+                call(
+                    client,
+                    SaveStructuredDataRequest(
+                        catalog="photometry",
+                        columns=PHOTOMETRY_COLUMNS,
+                        ids=batch_ids,
+                        data=batch_data,
+                        units=PHOTOMETRY_UNITS,
+                    ),
+                    save_structured_data.sync_detailed,
+                    callback_func=lambda m: report_func(report.LogEvent(message=m)),
                 )
 
             uploaded_rows = sum(band_counts.values())

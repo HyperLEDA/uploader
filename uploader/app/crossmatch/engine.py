@@ -20,7 +20,7 @@ from uploader.app.crossmatch.models import (
 from uploader.app.crossmatch.resolver import Resolver
 from uploader.app.display import format_table
 from uploader.app.storage import PgStorage
-from uploader.app.upload import handle_call
+from uploader.clients.client import call
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.api.default import set_crossmatch_results
 from uploader.clients.gen.client.adminapi.models.collided_status_payload import CollidedStatusPayload
@@ -266,6 +266,7 @@ def _resolve_batch(
 def _write_crossmatch_results(
     client: adminapi.AuthenticatedClient,
     results: list[tuple[str, CrossmatchResult]],
+    report_func: Callable[[report.Event], None],
 ) -> None:
     new_record_ids_list: list[str] = []
     new_triage_list: list[RecordTriageStatus] = []
@@ -315,17 +316,17 @@ def _write_crossmatch_results(
         else None
     )
     if new_pl is not None or existing_pl is not None or collided_pl is not None:
-        handle_call(
-            set_crossmatch_results.sync_detailed(
-                client=client,
-                body=SetCrossmatchResultsRequest(
-                    statuses=StatusesPayload(
-                        new=new_pl if new_pl is not None else UNSET,
-                        existing=existing_pl if existing_pl is not None else UNSET,
-                        collided=collided_pl if collided_pl is not None else UNSET,
-                    ),
+        call(
+            client,
+            SetCrossmatchResultsRequest(
+                statuses=StatusesPayload(
+                    new=new_pl if new_pl is not None else UNSET,
+                    existing=existing_pl if existing_pl is not None else UNSET,
+                    collided=collided_pl if collided_pl is not None else UNSET,
                 ),
-            )
+            ),
+            set_crossmatch_results.sync_detailed,
+            callback_func=lambda m: report_func(report.LogEvent(message=m)),
         )
 
 
@@ -391,7 +392,7 @@ def run_crossmatch(
                 total += 1
 
             if write and client and batch_results:
-                _write_crossmatch_results(client, batch_results)
+                _write_crossmatch_results(client, batch_results, report_func)
 
             log.logger.info(
                 "processed batch",

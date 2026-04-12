@@ -9,8 +9,9 @@ import pandas as pd
 import uploader.app.report as report
 from uploader.app import interface, log
 from uploader.app.display import format_table
+from uploader.clients.client import call
 from uploader.clients.gen.client import adminapi
-from uploader.clients.gen.client.adminapi import models, types
+from uploader.clients.gen.client.adminapi import models
 from uploader.clients.gen.client.adminapi.api.default import (
     add_data,
     create_source,
@@ -57,15 +58,6 @@ def upload(
         plugin.stop()
 
 
-def handle_call[T: Any](response: types.Response[T | models.HTTPValidationError]) -> T:
-    if isinstance(response.parsed, models.HTTPValidationError):
-        raise RuntimeError(response)
-    if response.parsed is None:
-        raise RuntimeError(f"Unable to get response: {response.content}")
-
-    return response.parsed
-
-
 def sanitize_value(val: Any) -> Any:
     if isinstance(val, float) and math.isnan(val):
         return None
@@ -100,30 +92,30 @@ def _upload(
 
     if not dry_run:
         if bibcode == "":
-            resp = handle_call(
-                create_source.sync_detailed(
-                    client=client,
-                    body=models.CreateSourceRequest(
-                        title=pub_name,
-                        authors=pub_authors,
-                        year=pub_year,
-                    ),
-                )
+            resp = call(
+                client,
+                models.CreateSourceRequest(
+                    title=pub_name,
+                    authors=pub_authors,
+                    year=pub_year,
+                ),
+                create_source.sync_detailed,
+                callback_func=lambda m: report_func(report.LogEvent(message=m)),
             )
             bibcode = resp.data.code
             log.logger.info("created internal source", id=bibcode)
 
-        resp = handle_call(
-            create_table.sync_detailed(
-                client=client,
-                body=models.CreateTableRequest(
-                    table_name=table_name,
-                    columns=schema,
-                    bibcode=bibcode,
-                    datatype=models.DataType[table_type],
-                    description=table_description,
-                ),
-            )
+        resp = call(
+            client,
+            models.CreateTableRequest(
+                table_name=table_name,
+                columns=schema,
+                bibcode=bibcode,
+                datatype=models.DataType[table_type],
+                description=table_description,
+            ),
+            create_table.sync_detailed,
+            callback_func=lambda m: report_func(report.LogEvent(message=m)),
         )
 
         log.logger.info("created table", table_id=resp.data.id)
@@ -160,14 +152,14 @@ def _upload(
                     item[col] = sanitize_value(row[col])
                 request_data.append(item)
 
-            _ = handle_call(
-                add_data.sync_detailed(
-                    client=client,
-                    body=models.AddDataRequest(
-                        table_name=table_name,
-                        data=request_data,
-                    ),
-                )
+            _ = call(
+                client,
+                models.AddDataRequest(
+                    table_name=table_name,
+                    data=request_data,
+                ),
+                add_data.sync_detailed,
+                callback_func=lambda m: report_func(report.LogEvent(message=m)),
             )
 
     data_iter = plugin.get_data()

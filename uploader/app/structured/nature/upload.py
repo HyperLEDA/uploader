@@ -7,7 +7,7 @@ import uploader.app.report as report
 from uploader.app.display import format_table
 from uploader.app.lib.rawdata import rawdata_batches
 from uploader.app.storage import PgStorage
-from uploader.app.upload import handle_call
+from uploader.clients.client import call
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.api.default import save_structured_data
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
@@ -60,16 +60,16 @@ def upload_nature(
             total_uploaded += 1
 
         if write and batch_ids:
-            handle_call(
-                save_structured_data.sync_detailed(
-                    client=client,
-                    body=SaveStructuredDataRequest(
-                        catalog="nature",
-                        columns=NATURE_COLUMNS,
-                        ids=batch_ids,
-                        data=batch_data,
-                    ),
-                )
+            call(
+                client,
+                SaveStructuredDataRequest(
+                    catalog="nature",
+                    columns=NATURE_COLUMNS,
+                    ids=batch_ids,
+                    data=batch_data,
+                ),
+                save_structured_data.sync_detailed,
+                callback_func=lambda m: report_func(report.LogEvent(message=m)),
             )
 
         processed_rows += len(rows)
