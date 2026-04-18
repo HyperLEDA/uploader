@@ -14,6 +14,7 @@ export function TaskPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const location = useLocation();
   const [schema, setSchema] = useState<Record<string, unknown> | null>(null);
+  const [uiSchema, setUiSchema] = useState<Record<string, unknown>>({});
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -33,9 +34,17 @@ export function TaskPage() {
     }
     let alive = true;
     fetchTaskSchema(taskId)
-      .then(({ title, schema: s }) => {
+      .then(({ title, schema: s, ui_schema: u }) => {
         if (!alive) return;
         setSchema(s);
+        setUiSchema(
+          u !== undefined &&
+            u !== null &&
+            typeof u === "object" &&
+            !Array.isArray(u)
+            ? (u as Record<string, unknown>)
+            : {},
+        );
         setTaskTitle(title);
         setLoadError(null);
       })
@@ -83,6 +92,7 @@ export function TaskPage() {
       )}
       <Form
         schema={schema}
+        uiSchema={uiSchema}
         validator={validator}
         formData={prefillData}
         templates={{ ObjectFieldTemplate: FoldableObjectFieldTemplate }}

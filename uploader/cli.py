@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import ValidationError
 
 from uploader.history import load_history
+from uploader.schema_rjsf import split_rjsf_ui_schema
 from uploader.task_registry import register_all_tasks
 from uploader.tasks import TASKS, cancel_run, get_run, start_task
 
@@ -53,9 +54,10 @@ def task_schema(task_id: str) -> dict[str, object]:
     if task_id not in TASKS:
         raise HTTPException(status_code=404, detail="Unknown task")
     task = TASKS[task_id]
-    schema = task.form_model.model_json_schema()
-    schema.pop("title", None)
-    return {"title": task.title, "schema": schema}
+    raw = task.form_model.model_json_schema()
+    raw.pop("title", None)
+    schema, ui_schema = split_rjsf_ui_schema(raw)
+    return {"title": task.title, "schema": schema, "ui_schema": ui_schema}
 
 
 @app.post("/api/tasks/{task_id}/submit")

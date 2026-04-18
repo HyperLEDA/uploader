@@ -1,3 +1,5 @@
+import csv
+import io
 from collections.abc import Callable
 from typing import Literal, cast
 
@@ -17,31 +19,30 @@ from uploader.clients.gen.client.adminapi.models.set_crossmatch_results_request 
 from uploader.clients.gen.client.adminapi.models.statuses_payload import StatusesPayload
 from uploader.clients.gen.client.adminapi.types import UNSET, Unset
 
-
-class ExistingCrossmatchOverride(BaseModel):
-    record_id: str = Field(..., title="Record ID", min_length=1)
-    pgc: int = Field(..., title="PGC", gt=0)
+_TEXTAREA = {"ui:widget": "textarea", "ui:options": {"rows": 10}}
 
 
 class ResolveCrossmatchConflictsForm(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
-    new_record_ids: list[str] = Field(
-        default_factory=list,
+    new_records_text: str = Field(
+        default="",
         title="New records",
-        description="Record ids to mark as new objects (no PGC).",
+        description="One record id per line; each is marked as a new object (no PGC).",
+        json_schema_extra=_TEXTAREA,
     )
-    existing_overrides: list[ExistingCrossmatchOverride] = Field(
-        default_factory=list,
-        title="Existing-record overrides",
-        description="Each entry links a record id to the chosen existing PGC.",
+    existing_records_csv: str = Field(
+        default="",
+        title="Existing records",
+        description="CSV: first column record id, second column PGC (one row per match).",
+        json_schema_extra=_TEXTAREA,
     )
 
 
-def _normalize_new_record_ids(raw: list[str]) -> list[str]:
+def _normalize_new_record_ids_text(raw: str) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
-    for s in raw:
-        t = s.strip()
+    for line in raw.splitlines():
+        t = line.strip()
         if not t or t in seen:
             continue
         seen.add(t)
@@ -49,17 +50,36 @@ def _normalize_new_record_ids(raw: list[str]) -> list[str]:
     return out
 
 
-def _merge_existing_overrides(
-    overrides: list[ExistingCrossmatchOverride],
-) -> tuple[list[str], list[int]]:
+def _parse_existing_records_csv(text: str) -> tuple[list[str], list[int]]:
+    stripped = text.strip()
+    if not stripped:
+        return [], []
+    reader = csv.reader(io.StringIO(stripped))
+    rows = [r for r in reader if r and any(c.strip() for c in r)]
+    if not rows:
+        return [], []
+    start = 0
+    if len(rows[0]) >= 2:
+        try:
+            int(rows[0][1].strip())
+        except ValueError:
+            start = 1
     by_id: dict[str, int] = {}
-    for o in overrides:
-        rid = o.record_id.strip()
+    for i, row in enumerate(rows[start:], start=start + 1):
+        if len(row) < 2:
+            raise ValueError(f"Existing CSV row {i}: need at least two columns (record id, PGC).")
+        rid = row[0].strip()
         if not rid:
-            raise ValueError("Existing override has empty record_id.")
-        if rid in by_id and by_id[rid] != o.pgc:
+            raise ValueError(f"Existing CSV row {i}: empty record id.")
+        try:
+            pgc = int(row[1].strip())
+        except ValueError as e:
+            raise ValueError(f"Existing CSV row {i}: invalid PGC {row[1]!r}.") from e
+        if pgc <= 0:
+            raise ValueError(f"Existing CSV row {i}: PGC must be positive.")
+        if rid in by_id and by_id[rid] != pgc:
             raise ValueError(f"Conflicting PGC values for record_id {rid!r}.")
-        by_id[rid] = o.pgc
+        by_id[rid] = pgc
     record_ids = list(by_id.keys())
     return record_ids, [by_id[r] for r in record_ids]
 
@@ -69,18 +89,15 @@ def handle_resolve_crossmatch_conflicts(
     report_func: Callable[[report.Event], None],
 ) -> None:
     f = cast(ResolveCrossmatchConflictsForm, form)
-    new_ids = _normalize_new_record_ids(f.new_record_ids)
-    existing_ids, existing_pgcs = _merge_existing_overrides(f.existing_overrides)
+    new_ids = _normalize_new_record_ids_text(f.new_records_text)
+    existing_ids, existing_pgcs = _parse_existing_records_csv(f.existing_records_csv)
 
     if not new_ids and not existing_ids:
         raise ValueError("Provide at least one new record id or one existing override.")
 
     overlap = set(new_ids) & set(existing_ids)
     if overlap:
-        raise ValueError(
-            "The following record ids appear as both new and existing: "
-            f"{', '.join(sorted(overlap))}"
-        )
+        raise ValueError(f"The following record ids appear as both new and existing: {', '.join(sorted(overlap))}")
 
     resolved = RecordTriageStatus.RESOLVED
     new_pl: NewStatusPayload | None = None
