@@ -209,6 +209,7 @@ def _resolve_batch(
     design_to_pgcs: dict[str, list[int]],
     resolver: Resolver,
     print_pending: bool,
+    report_func: Callable[[report.Event], None],
 ) -> list[tuple[str, CrossmatchResult]]:
     results: list[tuple[str, CrossmatchResult]] = []
     radius_deg = resolver.search_radius_deg
@@ -250,15 +251,17 @@ def _resolve_batch(
         result = resolver.resolve(evidence)
         results.append((record_id, result))
         if print_pending and result.triage_status == TriageStatus.PENDING:
-            log.logger.warning(
-                "pending crossmatch",
-                record_id=record_id,
-                status=result.status.value,
-                pending_reason=result.pending_reason.value if result.pending_reason is not None else None,
-                colliding_pgcs=sorted(result.colliding_pgcs) if result.colliding_pgcs else None,
-                matched_pgc=result.matched_pgc,
-                link=f"https://leda.sao.ru/records/{record_id}/crossmatch",
-                evidence=json.dumps(_evidence_to_dict(evidence)),
+            report_func(
+                report.LogEvent(
+                    message=(
+                        f"pending crossmatch: record_id={record_id} status={result.status.value} "
+                        f"reason={result.pending_reason.value if result.pending_reason is not None else ''} "
+                        f"matched_pgc={result.matched_pgc} "
+                        f"colliding_pgcs={sorted(result.colliding_pgcs) if result.colliding_pgcs else []} "
+                        f"link=https://leda.sao.ru/records/{record_id}/crossmatch "
+                        f"evidence={json.dumps(_evidence_to_dict(evidence))}"
+                    )
+                )
             )
     return results
 
@@ -380,6 +383,7 @@ def run_crossmatch(
                 design_to_pgcs,
                 resolver,
                 print_pending,
+                report_func,
             )
             batch_processed = len(batch_results)
             batch_pending = sum(
