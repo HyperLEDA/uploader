@@ -12,7 +12,7 @@ from uploader.app.structured.photometry.upload import (
     upload_photometry_hyperleda as run_upload_photometry_hyperleda,
 )
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_credentials
+from uploader.credentials import load_credentials, load_token
 
 
 class StructuredPhotometryHyperledaAdvancedSettings(BaseModel):
@@ -46,7 +46,7 @@ def handle_structured_photometry_hyperleda(
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[advanced.endpoint],
-        token="fake",
+        token=load_token(),
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)

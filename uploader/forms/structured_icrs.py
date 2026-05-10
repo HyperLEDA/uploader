@@ -10,7 +10,7 @@ from uploader.app.endpoints import db_dsn_map, env_map
 from uploader.app.storage import PgStorage
 from uploader.app.structured.icrs import upload_icrs as run_upload_icrs
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_credentials
+from uploader.credentials import load_credentials, load_token
 
 
 class StructuredIcrsAdvancedSettings(BaseModel):
@@ -50,7 +50,7 @@ def handle_structured_icrs(
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[advanced.endpoint],
-        token="fake",
+        token=load_token(),
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)

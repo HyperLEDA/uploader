@@ -11,7 +11,7 @@ from uploader.app.crossmatch.resolver import TwoRadiiResolver
 from uploader.app.endpoints import db_dsn_map, env_map
 from uploader.app.storage import PgStorage
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_credentials
+from uploader.credentials import load_credentials, load_token
 
 
 class CrossmatchTwoRadiiForm(BaseModel):
@@ -42,7 +42,7 @@ def handle_crossmatch_two_radii(
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],
-        token="fake",
+        token=load_token(),
     )
     resolver = TwoRadiiResolver(
         r1_deg=f.r1 / 3600.0,

@@ -10,7 +10,7 @@ from uploader.app.endpoints import db_dsn_map, env_map
 from uploader.app.storage import PgStorage
 from uploader.app.structured.nature import upload_nature as run_upload_nature
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_credentials
+from uploader.credentials import load_credentials, load_token
 
 
 class StructuredNatureAdvancedSettings(BaseModel):
@@ -81,7 +81,7 @@ def handle_structured_nature(
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[advanced.endpoint],
-        token="fake",
+        token=load_token(),
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)

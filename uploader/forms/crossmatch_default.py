@@ -11,7 +11,7 @@ from uploader.app.crossmatch.resolver import DefaultResolver
 from uploader.app.endpoints import db_dsn_map, env_map
 from uploader.app.storage import PgStorage
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_credentials
+from uploader.credentials import load_credentials, load_token
 
 
 class CrossmatchDefaultForm(BaseModel):
@@ -40,7 +40,7 @@ def handle_crossmatch_default(
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],
-        token="fake",
+        token=load_token(),
     )
     resolver = DefaultResolver(
         radius_deg=f.radius / 3600.0,
