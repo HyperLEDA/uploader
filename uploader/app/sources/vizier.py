@@ -85,12 +85,10 @@ class VizierSource(
 
         app.logger.debug("wrote table cache", location=str(cache_filename))
 
-    def _write_schema_cache(self, catalog_name: str, table_name: str):
-        vizier_client = vizier.VizierClass(row_limit=5, columns=["**"])
-        columns = _get_columns(vizier_client, catalog_name, table_name)
-        raw_header = _download_table(table_name, columns, max_rows=10)
+    def _write_schema_cache(self, table_name: str):
+        raw_header = _download_table(table_name, columns=None, max_rows=10)
 
-        cache_filename = self._obtain_cache_path("schemas", catalog_name, table_name)
+        cache_filename = self._obtain_cache_path("schemas", self.catalog_name, table_name)
         cache_filename.write_text(raw_header)
 
         app.logger.debug("wrote cache", location=str(cache_filename))
@@ -118,14 +116,14 @@ class VizierSource(
     def get_schema(self) -> list[models.ColumnDescription]:
         if not self._obtain_cache_path("schemas", self.catalog_name, self.table_name).exists():
             app.logger.debug("did not hit cache for the schema, downloading")
-            self._write_schema_cache(self.catalog_name, self.table_name)
+            self._write_schema_cache(self.table_name)
 
         schema = self._get_schema_from_cache(self.catalog_name, self.table_name)
 
         table = schema.get_first_table()
         return [
             models.ColumnDescription(
-                name=field.ID,
+                name=_sanitize_column_name(_vo_field_column_name(field)),
                 data_type=_map_votable_datatype(str(field.datatype)),
                 ucd=field.ucd,
                 description=field.description,
@@ -190,26 +188,17 @@ def _sanitize_column_name(name: str) -> str:
     return name.replace("/", "_")
 
 
+def _vo_field_column_name(field: tree.Field) -> str:
+    if field.name:
+        return str(field.name)
+    return str(field.ID)
+
+
 def _get_filename(catalog_name: str, table_name: str) -> str:
     return f"{_sanitize_filename(catalog_name)}_{_sanitize_filename(table_name)}"
 
 
-def _get_columns(client: vizier.VizierClass, catalog_name: str, table_name: str) -> list[str]:
-    catalogs = client.get_catalogs(catalog_name)
-
-    meta = None
-    for cat in catalogs:
-        if cat.meta["name"] == table_name:
-            meta = cat
-            break
-
-    if not meta:
-        raise ValueError("table not found in the catalog")
-
-    return meta.colnames
-
-
-def _download_table(table_name: str, columns: list[str], max_rows: int | None = None) -> str:
+def _download_table(table_name: str, columns: list[str] | None, max_rows: int | None = None) -> str:
     out_max = "unlimited" if max_rows is None else max_rows
 
     payload = [
@@ -225,9 +214,12 @@ def _download_table(table_name: str, columns: list[str], max_rows: int | None = 
         f"-source={table_name}",
     ]
 
-    columns = [f"-out={column}" for column in columns]
+    if columns is None:
+        payload.append("-out.all")
+    else:
+        payload += [f"-out={column}" for column in columns]
 
-    data = "&".join(payload + columns)
+    data = "&".join(payload)
 
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",

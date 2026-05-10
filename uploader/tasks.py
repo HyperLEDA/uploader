@@ -1,5 +1,6 @@
 import json
 import threading
+import traceback
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -124,7 +125,8 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
             final_message = "Task was cancelled by user."
             run.append({"type": "cancelled", "message": final_message})
         except Exception as e:
-            append_report_event(report.ErrorEvent(message=str(e)))
+            message = f"{e}\n\n{traceback.format_exc()}"
+            append_report_event(report.ErrorEvent(message=message))
         finally:
             run.done.set()
             if defn.rerunnable and final_status is not None:
