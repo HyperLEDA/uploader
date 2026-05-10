@@ -18,3 +18,16 @@ def load_credentials() -> tuple[str, str]:
     if not db_user or not db_password:
         raise RuntimeError("Database credentials not configured. Run the 'Authenticate' task first.")
     return str(db_user), str(db_password)
+
+
+def save_token(token: str) -> None:
+    ENV_PATH.touch(exist_ok=True)
+    dotenv.set_key(str(ENV_PATH), "BACKEND_TOKEN", token)
+
+
+def load_token() -> str:
+    values = dotenv.dotenv_values(ENV_PATH)
+    token = values.get("BACKEND_TOKEN", "")
+    if not token:
+        raise RuntimeError("Backend token not configured. Run the 'Authenticate' task first.")
+    return str(token)

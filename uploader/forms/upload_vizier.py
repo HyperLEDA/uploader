@@ -10,6 +10,7 @@ from uploader.app.endpoints import env_map
 from uploader.app.sources.vizier import VizierSource
 from uploader.app.upload import upload_for_web
 from uploader.clients.gen.client import adminapi
+from uploader.credentials import load_token
 
 
 class UploadVizierAdvancedSettings(BaseModel):
@@ -54,7 +55,7 @@ def handle_upload_vizier(form: BaseModel, report_func: Callable[[report.Event], 
     advanced = f.advanced
     client = adminapi.AuthenticatedClient(
         base_url=env_map[advanced.endpoint],
-        token="fake",
+        token=load_token(),
     )
     source = VizierSource(
         f.catalog_name,

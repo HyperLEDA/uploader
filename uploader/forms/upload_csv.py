@@ -9,6 +9,7 @@ from uploader.app.endpoints import env_map
 from uploader.app.sources.csv import CSVSource
 from uploader.app.upload import upload_for_web
 from uploader.clients.gen.client import adminapi
+from uploader.credentials import load_token
 
 
 class UploadCsvAdvancedSettings(BaseModel):
@@ -66,7 +67,7 @@ def handle_upload_csv(form: BaseModel, report_func: Callable[[report.Event], Non
     advanced = f.advanced
     client = adminapi.AuthenticatedClient(
         base_url=env_map[advanced.endpoint],
-        token="fake",
+        token=load_token(),
     )
     source = CSVSource(f.filename, chunk_size=advanced.batch_size)
     bibcode = f.bibcode.strip() if f.has_bibcode else ""
