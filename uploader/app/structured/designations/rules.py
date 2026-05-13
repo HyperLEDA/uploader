@@ -244,6 +244,35 @@ RULES: list[NameRule] = [
         replacement="J{0}{1}{2}{3}{4}{5}{6}",
     ),
     NameRule(
+        name="Eponym N",
+        pattern=re.compile(r"^Arp\s*0*(\d{1,3})$", re.IGNORECASE),
+        replacement="Arp {0}",
+    ),
+    NameRule(
+        name="Eponym N",
+        pattern=re.compile(r"^(?:Frl|Fair|Fairall)\s*0*(\d{1,4})$", re.IGNORECASE),
+        replacement="Frl {0}",
+    ),
+    NameRule(
+        name="Eponym N",
+        pattern=re.compile(r"^Maffei\s*([12])$", re.IGNORECASE),
+        replacement="Maffei {0}",
+    ),
+    NameRule(
+        name="Eponym N",
+        pattern=re.compile(r"^(?:Mkn|Mrk|Markarian|Markarjan)\s*0*(\d{1,4})$", re.IGNORECASE),
+        replacement="Mrk {0}",
+    ),
+    NameRule(
+        name="Eponym N",
+        pattern=re.compile(
+            r"^(?:Ho|Holm|Holmberg)\s*(\d|[IVX]+)$",
+            re.IGNORECASE,
+        ),
+        replacement="",
+        replacer=lambda m: f"Holmberg {int(m.group(1)) if m.group(1).isdigit() else _roman_to_int(m.group(1).upper())}",
+    ),
+    NameRule(
         name="CAT JHHMMSS.sss+DDMMSS.sss",
         pattern=re.compile(
             r"^([A-Za-z0-9]{2,6})J(\d{2})(\d{2})(\d{2}(?:\.\d+)?)([+-])(\d{2})(\d{2})(\d{2}(?:\.\d+)?)$",

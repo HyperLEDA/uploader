@@ -5,12 +5,12 @@ from unittest.mock import Mock, patch
 
 import pandas
 import pytest
+from uploader.clients.gen.client import adminapi
+from uploader.clients.gen.client.adminapi import models, types
 
 from uploader.app.interface import UploaderSource
 from uploader.app.sources.csv import CSVSource
 from uploader.app.upload import upload
-from uploader.clients.gen.client import adminapi
-from uploader.clients.gen.client.adminapi import models, types
 
 
 class StubPlugin(UploaderSource):
