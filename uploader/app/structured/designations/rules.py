@@ -31,15 +31,60 @@ class NameRule:
 
 
 RULES: list[NameRule] = [
+    # Most popular catalogs
     NameRule(
-        name="ISI96",
-        pattern=re.compile(r"^ISI96_(\d{4})([+-])(\d{4})$", re.IGNORECASE),
-        replacement="ISI96_{0}{1}{2}",
+        name="PGC",
+        pattern=re.compile(r"^(?:P|PGC|LEDA|#)?\s*0*(\d+)$", re.IGNORECASE),
+        replacement="PGC {0}",
+    ),
+    NameRule(
+        name="SDSS",
+        pattern=re.compile(r"^SDSS\s*J(\d{6}\.\d{2}[+-]\d{6}\.\d)$", re.IGNORECASE),
+        replacement="SDSS J{0}",
+    ),
+    NameRule(
+        name="2MASS",
+        pattern=re.compile(r"^(2MASS|2MASX)\s*J(\d{8}[+-]\d{7})$", re.IGNORECASE),
+        replacement="{0} J{1}",
+        replacer=lambda m: f"{m.group(1).upper()} J{m.group(2)}",
     ),
     NameRule(
         name="M",
         pattern=re.compile(r"^(?:MESSIER|M)\s*0*(\d+)$", re.IGNORECASE),
         replacement="M {0}",
+    ),
+    NameRule(
+        name="NGC",
+        pattern=re.compile(r"^(?:N|NGC)\s*0*(\d{1,4})\s*([A-Z]?)$", re.IGNORECASE),
+        replacement="NGC {0}{1}",
+        replacer=lambda m: f"NGC {m.group(1).upper()}{m.group(2).upper() or ''}",
+    ),
+    NameRule(
+        name="IC",
+        pattern=re.compile(r"^(?:I|IC)\s*0*(\d{1,4})$", re.IGNORECASE),
+        replacement="IC {0}",
+    ),
+    NameRule(
+        name="UGC",
+        pattern=re.compile(r"^(?:U|UGC|UGCG)\s*0*(\d{1,5})\s*([A-Z]?)$", re.IGNORECASE),
+        replacement="UGC {0}{1}",
+        replacer=lambda m: f"UGC {m.group(1).upper()}{m.group(2).upper() or ''}",
+    ),
+    NameRule(
+        name="UGCA",
+        pattern=re.compile(r"^(?:UA|UGCA)\s*0*(\d{1,3})$", re.IGNORECASE),
+        replacement="UGCA {0}",
+    ),
+    NameRule(
+        name="AGC",
+        pattern=re.compile(r"^AGC\s*0*(\d+)$", re.IGNORECASE),
+        replacement="AGC {0}",
+    ),
+    # Other catalogs
+    NameRule(
+        name="ISI96",
+        pattern=re.compile(r"^ISI96_(\d{4})([+-])(\d{4})$", re.IGNORECASE),
+        replacement="ISI96_{0}{1}{2}",
     ),
     NameRule(
         name="Andromeda",
@@ -209,11 +254,6 @@ RULES: list[NameRule] = [
         ),
         replacement="NGC {0}{1} [{2}] {3}",
         replacer=lambda m: f"NGC {int(m.group(1))}{m.group(2)} [{m.group(3)}] {m.group(4)}",
-    ),
-    NameRule(
-        name="NGC",
-        pattern=re.compile(r"^N\s*0*(\d+)$", re.IGNORECASE),
-        replacement="NGC {0}",
     ),
     NameRule(
         name="NGC",
