@@ -99,12 +99,23 @@ RULES: list[NameRule] = [
         replacement="ACO {0}",
         replacer=lambda m: f"ACO {'S ' if m.group(1) else ''}{m.group(2)}",
     ),
-    # Andromeda
+    # Constellation
     NameRule(
         name="Andromeda",
-        pattern=re.compile(r"^(?:And|Andromeda)\s*(\d+|[IVXLCDM]+)$", re.IGNORECASE),
+        pattern=re.compile(r"^And(?:romeda)?\s*(\d+|[IVXLCDM]+)$", re.IGNORECASE),
         replacement="",
         replacer=lambda m: f"And {int(m.group(1)) if m.group(1).isdigit() else _roman_to_int(m.group(1).upper())}",
+    ),
+    NameRule(
+        name="Cassiopeia",
+        pattern=re.compile(r"^Cas(?:siopeia)?\s*0*(\d+)$", re.IGNORECASE),
+        replacement="Cas {0}",
+    ),
+    NameRule(
+        name="Triangulum",
+        pattern=re.compile(r"^Tri(?:angulum)?\s*(\d+|[IVXLCDM]+)$", re.IGNORECASE),
+        replacement="",
+        replacer=lambda m: f"Tri {int(m.group(1)) if m.group(1).isdigit() else _roman_to_int(m.group(1).upper())}",
     ),
     # Eponym
     NameRule(
@@ -119,22 +130,20 @@ RULES: list[NameRule] = [
     ),
     NameRule(
         name="Eponym",
-        pattern=re.compile(r"^Maffei\s*([12])$", re.IGNORECASE),
-        replacement="Maffei {0}",
-    ),
-    NameRule(
-        name="Eponym",
         pattern=re.compile(r"^(?:Mkn|Mrk|Markarian|Markarjan)\s*0*(\d{1,4})$", re.IGNORECASE),
         replacement="Mrk {0}",
     ),
     NameRule(
         name="Eponym",
-        pattern=re.compile(
-            r"^(?:Ho|Holm|Holmberg)\s*(\d|[IVX]+)$",
-            re.IGNORECASE,
-        ),
+        pattern=re.compile(r"^(?:Ho|Holm|Holmberg)\s*(\d|[IVX]+)$", re.IGNORECASE),
         replacement="",
         replacer=lambda m: f"Holmberg {int(m.group(1)) if m.group(1).isdigit() else _roman_to_int(m.group(1).upper())}",
+    ),
+    NameRule(
+        name="Eponym",
+        pattern=re.compile(r"^(Dwingeloo|Laevens|Maffei)\s*0*(\d)$", re.IGNORECASE),
+        replacement="{0} {1}",
+        replacer=lambda m: f"{m.group(1).capitalize()} {m.group(2)}",
     ),
     # LSB galaxies
     NameRule(
@@ -188,6 +197,12 @@ RULES: list[NameRule] = [
         replacement="USGC {0}{1}",
         replacer=lambda m: f"USGC {m.group(1).upper()}{m.group(2)}",
     ),
+    NameRule(
+        name="3C",
+        pattern=re.compile(r"^3C\s*(\d+(?:\.\d)?)([a-z]?)$", re.IGNORECASE),
+        replacement="3C {0}",
+        replacer=lambda m: f"3C {m.group(1).zfill(3)}{m.group(2).upper()}",
+    ),
     # Non standard
     NameRule(
         name="Dw",
@@ -198,7 +213,7 @@ RULES: list[NameRule] = [
     # General rules
     NameRule(
         name="CAT N",
-        pattern=re.compile(r"^([A-Za-z]{2,7})\s*0*(\d+)([a-z]?)$", re.IGNORECASE),
+        pattern=re.compile(r"^([a-z0-9]{1,5}[a-z])\s*0*(\d+)([a-z]?)$", re.IGNORECASE),
         replacement="",
         replacer=lambda m: f"{m.group(1).upper()} {int(m.group(2))}{m.group(3).lower()}",
     ),
@@ -257,20 +272,20 @@ RULES: list[NameRule] = [
         replacement="CGCG {0}-{1}",
     ),
     NameRule(
-        name="DR8",
-        pattern=re.compile(r"^DR8-(\d{4})([pm])(\d{3})-(\d{1,5})$", re.IGNORECASE),
-        replacement="DR8-{0}{1}{2}-{3}",
-    ),
-    NameRule(
-        name="AM",
-        pattern=re.compile(r"^AM\s*(\d{4})([+-])(\d{2,3})$", re.IGNORECASE),
-        replacement="AM {0}{1}{2}",
-    ),
-    NameRule(
         name="KSP-DW",
         pattern=re.compile(r"^KSP-DW\s*0*(\d+)$", re.IGNORECASE),
         replacement="KSP-DW {0}",
     ),
+    NameRule(
+        name="DR8",
+        pattern=re.compile(r"^DR8-(\d{4})([pm])(\d{3})-(\d{1,5})$", re.IGNORECASE),
+        replacement="DR8-{0}{1}{2}-{3}",
+    ),
+    # NameRule(
+    #     name="AM",
+    #     pattern=re.compile(r"^AM\s*(\d{4})([+-])(\d{2,3})$", re.IGNORECASE),
+    #     replacement="AM {0}{1}{2}",
+    # ),
     NameRule(
         name="LSBC",
         pattern=re.compile(r"^LSBC\s*D\s*0*(\d+)-0*(\d+)$", re.IGNORECASE),
@@ -292,12 +307,12 @@ RULES: list[NameRule] = [
         pattern=re.compile(r"^CNOC2_(\d+)\.(\d+)$", re.IGNORECASE),
         replacement="CNOC2_{0}.{1}",
     ),
-    NameRule(
-        name="2MFGC",
-        pattern=re.compile(r"^2MFGC\s*0*(\d+)$", re.IGNORECASE),
-        replacement="2MFGC {0}",
-        replacer=lambda m: f"2MFGC {int(m.group(1))}",
-    ),
+    # NameRule(
+    #     name="2MFGC",
+    #     pattern=re.compile(r"^2MFGC\s*0*(\d+)$", re.IGNORECASE),
+    #     replacement="2MFGC {0}",
+    #     replacer=lambda m: f"2MFGC {int(m.group(1))}",
+    # ),
     # NameRule(
     #     name="VVDS",
     #     pattern=re.compile(r"^VVDS\s*(\d+)$", re.IGNORECASE),
@@ -356,16 +371,11 @@ RULES: list[NameRule] = [
         pattern=re.compile(r"^N\s*0*(\d+)([a-zA-Z]{1,3})$", re.IGNORECASE),
         replacement="NGC {0}{1}",
     ),
-    NameRule(
-        name="3C",
-        pattern=re.compile(r"^3C\s*(\d+(?:\.\d+)?)$", re.IGNORECASE),
-        replacement="3C {0}",
-    ),
-    NameRule(
-        name="3C",
-        pattern=re.compile(r"^3C\s*(\d+(?:\.\d+)?)([a-zA-Z]{1,3})$", re.IGNORECASE),
-        replacement="3C {0}{1}",
-    ),
+    # NameRule(
+    #     name="3C",
+    #     pattern=re.compile(r"^3C\s*(\d+(?:\.\d+)?)([a-zA-Z]{1,3})$", re.IGNORECASE),
+    #     replacement="3C {0}{1}",
+    # ),
     NameRule(
         name="2dFGRS",
         pattern=re.compile(r"^2dfgrs\s*([NS]\d+Z\d+)$", re.IGNORECASE),
