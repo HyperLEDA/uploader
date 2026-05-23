@@ -141,14 +141,6 @@ export function ProgressView({
           {error}
         </Alert>
       )}
-      {done && (
-        <Alert
-          severity="success"
-          sx={{ mb: 2, whiteSpace: "pre-wrap", fontFamily: "monospace" }}
-        >
-          {done}
-        </Alert>
-      )}
       {cancelled && (
         <Alert
           severity="warning"
@@ -194,6 +186,14 @@ export function ProgressView({
           </Typography>
         )}
       </Paper>
+      {done && (
+        <Alert
+          severity="success"
+          sx={{ mb: 2, whiteSpace: "pre-wrap", fontFamily: "monospace" }}
+        >
+          {done}
+        </Alert>
+      )}
       <Paper
         ref={logContainerRef}
         onScroll={handleLogScroll}
