@@ -6,6 +6,10 @@ from uploader.forms.structured_designation import (
     StructuredDesignationForm,
     handle_structured_designation,
 )
+from uploader.forms.structured_geometry_isophotal import (
+    StructuredGeometryIsophotalForm,
+    handle_structured_geometry_isophotal,
+)
 from uploader.forms.structured_icrs import StructuredIcrsForm, handle_structured_icrs
 from uploader.forms.structured_nature import StructuredNatureForm, handle_structured_nature
 from uploader.forms.structured_note import StructuredNoteForm, handle_structured_note
@@ -119,6 +123,16 @@ def register_all_tasks() -> None:
             description="Upload U/B/V/I/K asymptotic magnitudes to photometry catalog.",
             form_model=StructuredPhotometryHyperledaForm,
             handler=handle_structured_photometry_hyperleda,
+            group="Catalogs",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="upload-structured-geometry-isophotal",
+            title="Isophotal geometry",
+            description="Upload isophotal ellipse geometry (a, b, pa, isophote) from rawdata columns via expressions.",
+            form_model=StructuredGeometryIsophotalForm,
+            handler=handle_structured_geometry_isophotal,
             group="Catalogs",
         ),
     )
