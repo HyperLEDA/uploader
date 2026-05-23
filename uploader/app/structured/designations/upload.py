@@ -16,6 +16,43 @@ from uploader.clients.gen.client.adminapi.models.save_structured_data_request im
     SaveStructuredDataRequest,
 )
 
+CHART_FIGSIZE = (8, 6)
+
+
+def _rule_distribution_bars(
+    rule_counts: dict[str, int],
+    unmatched: int,
+) -> list[tuple[str, int]]:
+    sorted_rules = sorted(rule_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    top = [(name, count) for name, count in sorted_rules[:10] if count > 0]
+    other_total = sum(count for _, count in sorted_rules[10:])
+    bars: list[tuple[str, int]] = list(top)
+    if other_total > 0:
+        bars.append(("(other rules)", other_total))
+    if unmatched > 0:
+        bars.append(("(unparsed)", unmatched))
+    return bars
+
+
+def _emit_rule_distribution_image(
+    report_func: Callable[[report.Event], None],
+    rule_counts: dict[str, int],
+    unmatched: int,
+    *,
+    caption: str,
+) -> None:
+    bars = _rule_distribution_bars(rule_counts, unmatched)
+    if not bars:
+        return
+    labels = [name for name, _ in bars]
+    counts = [count for _, count in bars]
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    ax.barh(labels, counts)
+    ax.invert_yaxis()
+    ax.set_xlabel("Count")
+    ax.set_title("Designation rule distribution")
+    report_func(report.image_event_from_figure(fig, caption=caption))
+
 
 def _report_batch_progress(
     report_func: Callable[[report.Event], None],
@@ -25,6 +62,7 @@ def _report_batch_progress(
     matched: int,
     unmatched: int,
     progress_pct: int,
+    rule_counts: dict[str, int],
 ) -> None:
     report_func(report.ProgressEvent(percent=min(99, progress_pct)))
     report_func(
@@ -33,6 +71,12 @@ def _report_batch_progress(
                 f"batch: rows_read={rows_read} cumulative_names={total_so_far} matched={matched} unmatched={unmatched}"
             ),
         ),
+    )
+    _emit_rule_distribution_image(
+        report_func,
+        rule_counts,
+        unmatched,
+        caption=f"{total_so_far} names processed",
     )
 
 
@@ -54,29 +98,12 @@ def _report_rule_distribution(
 
     report_func(report.ProgressEvent(percent=100))
 
-    sorted_rules = sorted(rule_counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    top = [(name, count) for name, count in sorted_rules[:10] if count > 0]
-    other_total = sum(count for _, count in sorted_rules[10:])
-    bars: list[tuple[str, int]] = list(top)
-    if other_total > 0:
-        bars.append(("(other rules)", other_total))
-    if unmatched > 0:
-        bars.append(("(unparsed)", unmatched))
-
-    if bars:
-        labels = [name for name, _ in bars]
-        counts = [count for _, count in bars]
-        fig, ax = plt.subplots(figsize=(8, max(3, 0.4 * len(bars))))
-        ax.barh(labels, counts)
-        ax.invert_yaxis()
-        ax.set_xlabel("Count")
-        ax.set_title("Designation rule distribution")
-        report_func(
-            report.image_event_from_figure(
-                fig,
-                caption=f"Top {len(top)} rules + other + unparsed",
-            ),
-        )
+    _emit_rule_distribution_image(
+        report_func,
+        rule_counts,
+        unmatched,
+        caption=f"Final: {total} names",
+    )
 
     summary = format_table(
         ("Rule", "Count", "%"),
@@ -166,6 +193,7 @@ def upload_designations(
             matched=sum(rule_counts.values()),
             unmatched=unmatched,
             progress_pct=progress_pct,
+            rule_counts=rule_counts,
         )
 
     total = sum(rule_counts.values()) + unmatched
