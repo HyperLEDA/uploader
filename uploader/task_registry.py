@@ -1,3 +1,4 @@
+from uploader.app.lib.expression import expression_syntax_help
 from uploader.forms.authenticate import AuthenticateForm, handle_authenticate
 from uploader.forms.crossmatch_default import CrossmatchDefaultForm, handle_crossmatch_default
 from uploader.forms.crossmatch_layered import CrossmatchLayeredForm, handle_crossmatch_layered
@@ -130,7 +131,10 @@ def register_all_tasks() -> None:
         TaskDefinition(
             id="upload-structured-geometry-isophotal",
             title="Isophotal geometry",
-            description="Upload isophotal ellipse geometry (a, b, pa, isophote) from rawdata columns via expressions.",
+            description=(
+                "Upload isophotal ellipse geometry (a, b, pa, isophote) from rawdata columns.\n\n"
+                f"{expression_syntax_help()}"
+            ),
             form_model=StructuredGeometryIsophotalForm,
             handler=handle_structured_geometry_isophotal,
             group="Catalogs",

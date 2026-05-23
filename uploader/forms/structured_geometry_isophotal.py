@@ -7,19 +7,10 @@ from pydantic import BaseModel, Field
 
 import uploader.app.report as report
 from uploader.app.endpoints import db_dsn_map, env_map
-from uploader.app.lib.expression import NAMED_CONSTANTS
 from uploader.app.storage import PgStorage
 from uploader.app.structured.geometry import upload_geometry_isophotal
 from uploader.clients.gen.client import adminapi
 from uploader.credentials import load_credentials, load_token
-
-_EXPRESSION_HELP = (
-    "Bare identifiers refer to rawdata column names. "
-    "Identifiers starting with const_ refer to predefined constants. "
-    "Operators: + - * /. Functions: sin(x), cos(x) (argument must be an angle). "
-    "Numbers are dimensionless. "
-    f"Available constants: {', '.join(sorted(NAMED_CONSTANTS))}."
-)
 
 
 class StructuredGeometryIsophotalAdvancedSettings(BaseModel):
@@ -30,13 +21,17 @@ class StructuredGeometryIsophotalAdvancedSettings(BaseModel):
 class StructuredGeometryIsophotalForm(BaseModel):
     table_name: str = Field(..., title="Rawdata table name")
     band: str = Field(..., title="Band", description="Calibrated passband id.")
-    a: str = Field(..., title="a", description=_EXPRESSION_HELP)
-    e_a: str = Field(..., title="e_a", description=_EXPRESSION_HELP)
-    b: str = Field(..., title="b", description=_EXPRESSION_HELP)
-    e_b: str = Field(..., title="e_b", description=_EXPRESSION_HELP)
-    pa: str = Field(..., title="pa", description=_EXPRESSION_HELP)
-    e_pa: str = Field(..., title="e_pa", description=_EXPRESSION_HELP)
-    isophote: str = Field(..., title="isophote", description=_EXPRESSION_HELP)
+    a: str = Field(..., title="a", description="Expression. Semi-major axis length.")
+    e_a: str = Field(..., title="e_a", description="Expression. Error on semi-major axis.")
+    b: str = Field(..., title="b", description="Expression. Semi-minor axis length.")
+    e_b: str = Field(..., title="e_b", description="Expression. Error on semi-minor axis.")
+    pa: str = Field(
+        default="", title="pa", description="Expression. Position angle (east of north). Leave empty to store null."
+    )
+    e_pa: str = Field(
+        default="", title="e_pa", description="Expression. Error on position angle. Leave empty to store null."
+    )
+    isophote: str = Field(..., title="isophote", description="Expression. Surface brightness level.")
     write: bool = Field(
         default=False,
         title="Write to API",
@@ -63,15 +58,17 @@ def handle_structured_geometry_isophotal(
         base_url=env_map[advanced.endpoint],
         token=load_token(),
     )
-    expressions = {
+    expressions: dict[str, str] = {
         "a": f.a.strip(),
         "e_a": f.e_a.strip(),
         "b": f.b.strip(),
         "e_b": f.e_b.strip(),
-        "pa": f.pa.strip(),
-        "e_pa": f.e_pa.strip(),
         "isophote": f.isophote.strip(),
     }
+    if f.pa.strip():
+        expressions["pa"] = f.pa.strip()
+    if f.e_pa.strip():
+        expressions["e_pa"] = f.e_pa.strip()
     with connect(dsn) as conn:
         storage = PgStorage(conn)
         upload_geometry_isophotal(

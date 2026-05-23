@@ -20,6 +20,19 @@ NAMED_CONSTANTS: dict[str, u.Quantity] = {
     "const_mag": 1 * u.mag,
 }
 
+
+def expression_syntax_help() -> str:
+    constants = ", ".join(sorted(NAMED_CONSTANTS))
+    return (
+        "Bare identifiers refer to rawdata column names.\n"
+        "Identifiers starting with const_ refer to predefined constants.\n"
+        "Operators: + - * /.\n"
+        "Functions: sin(x), cos(x) (argument must be an angle).\n"
+        "Numbers are dimensionless.\n"
+        f"Available constants: {constants}."
+    )
+
+
 type _QuantityBinOp = Callable[[u.Quantity, u.Quantity], u.Quantity]
 type _QuantityUnaryOp = Callable[[u.Quantity], u.Quantity]
 type _QuantityFunc = Callable[[u.Quantity], u.Quantity | float]

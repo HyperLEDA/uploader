@@ -18,7 +18,8 @@ from uploader.clients.gen.client.adminapi.models.save_structured_data_request_un
     SaveStructuredDataRequestUnits,
 )
 
-GEOMETRY_COLUMNS = ["band", "method", "isophote", "a", "e_a", "b", "e_b", "pa", "e_pa"]
+BASE_GEOMETRY_COLUMNS = ["band", "method", "isophote", "a", "e_a", "b", "e_b"]
+OPTIONAL_GEOMETRY_COLUMNS = ["pa", "e_pa"]
 
 TARGET_UNITS = {
     "a": "arcsec",
@@ -29,10 +30,6 @@ TARGET_UNITS = {
     "e_pa": "deg",
     "isophote": "mag/arcmin2",
 }
-
-EXPR_FIELDS = ["a", "e_a", "b", "e_b", "pa", "e_pa", "isophote"]
-
-GEOMETRY_UNITS = SaveStructuredDataRequestUnits.from_dict(TARGET_UNITS)
 
 
 def _fetch_column_units(
@@ -85,6 +82,10 @@ def upload_geometry_isophotal(
     report_func: Callable[[report.Event], None],
 ) -> int:
     parsed = _parse_expressions(expressions)
+    geometry_columns = BASE_GEOMETRY_COLUMNS + [col for col in OPTIONAL_GEOMETRY_COLUMNS if col in parsed]
+    geometry_units = SaveStructuredDataRequestUnits.from_dict(
+        {col: TARGET_UNITS[col] for col in geometry_columns if col in TARGET_UNITS},
+    )
     needed_cols = set().union(*(expr.referenced_columns for expr in parsed.values()))
     column_names, column_units = _fetch_column_units(client, table_name)
     _validate_columns(table_name, needed_cols, column_names)
@@ -120,20 +121,21 @@ def upload_geometry_isophotal(
                     f"failed to evaluate expressions for row {row['hyperleda_internal_id']}: {e}",
                 ) from e
 
+            row_data: dict[str, str | float | None] = {
+                "band": band,
+                "method": "isophotal",
+                "isophote": evaluated["isophote"],
+                "a": evaluated["a"],
+                "e_a": evaluated["e_a"],
+                "b": evaluated["b"],
+                "e_b": evaluated["e_b"],
+            }
+            for col in OPTIONAL_GEOMETRY_COLUMNS:
+                if col in parsed:
+                    row_data[col] = evaluated[col]
+
             batch_ids.append(row["hyperleda_internal_id"])
-            batch_data.append(
-                [
-                    band,
-                    "isophotal",
-                    evaluated["isophote"],
-                    evaluated["a"],
-                    evaluated["e_a"],
-                    evaluated["b"],
-                    evaluated["e_b"],
-                    evaluated["pa"],
-                    evaluated["e_pa"],
-                ],
-            )
+            batch_data.append([row_data[col] for col in geometry_columns])
             uploaded += 1
             a_val = evaluated["a"]
             a_min = min(a_min, a_val)
@@ -146,10 +148,10 @@ def upload_geometry_isophotal(
                     client=client,
                     body=SaveStructuredDataRequest(
                         catalog="geometry",
-                        columns=GEOMETRY_COLUMNS,
+                        columns=geometry_columns,
                         ids=batch_ids,
                         data=batch_data,
-                        units=GEOMETRY_UNITS,
+                        units=geometry_units,
                     ),
                 ),
             )

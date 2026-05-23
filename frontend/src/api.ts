@@ -14,6 +14,7 @@ export async function fetchTasks(): Promise<TaskInfo[]> {
 
 export type TaskSchemaResponse = {
   title: string;
+  description: string;
   schema: Record<string, unknown>;
 };
 

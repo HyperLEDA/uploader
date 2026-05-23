@@ -15,6 +15,7 @@ export function TaskPage() {
   const location = useLocation();
   const [schema, setSchema] = useState<Record<string, unknown> | null>(null);
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
+  const [taskDescription, setTaskDescription] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
@@ -33,10 +34,11 @@ export function TaskPage() {
     }
     let alive = true;
     fetchTaskSchema(taskId)
-      .then(({ title, schema: s }) => {
+      .then(({ title, description, schema: s }) => {
         if (!alive) return;
         setSchema(s);
         setTaskTitle(title);
+        setTaskDescription(description);
         setLoadError(null);
       })
       .catch((e) => {
@@ -73,9 +75,18 @@ export function TaskPage() {
 
   return (
     <Box sx={{ maxWidth: 720 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
+      <Typography variant="h6" sx={{ mb: taskDescription ? 1 : 2 }}>
         {taskTitle ?? taskId}
       </Typography>
+      {taskDescription && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 2, whiteSpace: "pre-wrap" }}
+        >
+          {taskDescription}
+        </Typography>
+      )}
       {submitError && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {submitError}

@@ -58,6 +58,7 @@ def test_task_integration_flow(isolated_task_state: None) -> None:
     schema_response = client.get("/api/tasks/fake-task/schema")
     assert schema_response.status_code == 200
     assert schema_response.json()["title"] == "Fake Task"
+    assert schema_response.json()["description"] == "Task used for integration testing."
 
     submit_response = client.post("/api/tasks/fake-task/submit", json={"name": "alpha"})
     assert submit_response.status_code == 200

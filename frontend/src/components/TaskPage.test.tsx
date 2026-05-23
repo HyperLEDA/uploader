@@ -5,6 +5,7 @@ import { TaskPage } from "./TaskPage";
 
 const fakeTaskSchema = {
   title: "Fake Test Task",
+  description: "A task used in tests.",
   schema: {
     type: "object",
     properties: {
@@ -59,6 +60,7 @@ describe("TaskPage", () => {
       expect(screen.getByText("Fake Test Task")).toBeInTheDocument();
     });
 
+    expect(screen.getByText("A task used in tests.")).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/count/i)).toBeInTheDocument();
   });
