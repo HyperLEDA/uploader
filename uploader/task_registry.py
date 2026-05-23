@@ -1,3 +1,4 @@
+from uploader.app.lib.expression import expression_syntax_help
 from uploader.forms.authenticate import AuthenticateForm, handle_authenticate
 from uploader.forms.crossmatch_default import CrossmatchDefaultForm, handle_crossmatch_default
 from uploader.forms.crossmatch_layered import CrossmatchLayeredForm, handle_crossmatch_layered
@@ -5,6 +6,10 @@ from uploader.forms.crossmatch_two_radii import CrossmatchTwoRadiiForm, handle_c
 from uploader.forms.structured_designation import (
     StructuredDesignationForm,
     handle_structured_designation,
+)
+from uploader.forms.structured_geometry_isophotal import (
+    StructuredGeometryIsophotalForm,
+    handle_structured_geometry_isophotal,
 )
 from uploader.forms.structured_icrs import StructuredIcrsForm, handle_structured_icrs
 from uploader.forms.structured_nature import StructuredNatureForm, handle_structured_nature
@@ -119,6 +124,19 @@ def register_all_tasks() -> None:
             description="Upload U/B/V/I/K asymptotic magnitudes to photometry catalog.",
             form_model=StructuredPhotometryHyperledaForm,
             handler=handle_structured_photometry_hyperleda,
+            group="Catalogs",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="upload-structured-geometry-isophotal",
+            title="Isophotal geometry",
+            description=(
+                "Upload isophotal ellipse geometry (a, b, pa, isophote) from rawdata columns.\n\n"
+                f"{expression_syntax_help()}"
+            ),
+            form_model=StructuredGeometryIsophotalForm,
+            handler=handle_structured_geometry_isophotal,
             group="Catalogs",
         ),
     )

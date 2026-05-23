@@ -55,7 +55,7 @@ def task_schema(task_id: str) -> dict[str, object]:
     task = TASKS[task_id]
     schema = task.form_model.model_json_schema()
     schema.pop("title", None)
-    return {"title": task.title, "schema": schema}
+    return {"title": task.title, "description": task.description, "schema": schema}
 
 
 @app.post("/api/tasks/{task_id}/submit")
