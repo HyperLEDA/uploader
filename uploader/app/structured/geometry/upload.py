@@ -1,6 +1,8 @@
 from collections.abc import Callable
 
 import astropy.units as u
+import matplotlib.pyplot as plt
+import numpy as np
 from psycopg import sql
 
 import uploader.app.report as report
@@ -30,6 +32,59 @@ TARGET_UNITS = {
     "e_pa": "deg",
     "isophote": "mag/arcmin2",
 }
+
+CHART_FIGSIZE = (8, 6)
+N_A_BINS = 80
+A_BIN_MIN = 0.05
+A_BIN_MAX = 500.0
+A_BIN_EDGES = np.logspace(np.log10(A_BIN_MIN), np.log10(A_BIN_MAX), N_A_BINS + 1)
+
+
+class _SemiMajorAxisAccumulator:
+    def __init__(self) -> None:
+        self._counts = np.zeros(N_A_BINS, dtype=np.int64)
+
+    def add(self, a_values: list[float]) -> None:
+        if not a_values:
+            return
+        positive = np.asarray([v for v in a_values if v > 0], dtype=np.float64)
+        if positive.size == 0:
+            return
+        batch_counts, _ = np.histogram(positive, bins=A_BIN_EDGES)
+        self._counts += batch_counts.astype(np.int64)
+
+    @property
+    def total(self) -> int:
+        return int(self._counts.sum())
+
+    def emit_image(
+        self,
+        report_func: Callable[[report.Event], None],
+        *,
+        caption: str,
+        a_mean: float | None = None,
+        a_min: float | None = None,
+        a_max: float | None = None,
+    ) -> None:
+        if self.total == 0:
+            return
+        centers = np.sqrt(A_BIN_EDGES[:-1] * A_BIN_EDGES[1:])
+        widths = np.diff(A_BIN_EDGES)
+        fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+        ax.bar(centers, self._counts, width=widths, align="center")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel("a (arcsec)")
+        ax.set_ylabel("Count")
+        ax.set_title("Semi-major axis distribution")
+        if a_min is not None and a_min > 0:
+            ax.axvline(a_min, color="gray", linestyle=":", linewidth=1)
+        if a_max is not None and a_max > 0:
+            ax.axvline(a_max, color="gray", linestyle=":", linewidth=1)
+        if a_mean is not None and a_mean > 0:
+            ax.axvline(a_mean, color="red", linestyle="--", linewidth=1, label=f"mean={a_mean:.2f}")
+            ax.legend(loc="upper right", fontsize="small")
+        report_func(report.image_event_from_figure(fig, caption=caption))
 
 
 def _fetch_column_units(
@@ -101,10 +156,12 @@ def upload_geometry_isophotal(
     )
     total_count = int(cnt[0]["cnt"]) if cnt else 0
     processed_rows = 0
+    a_dist = _SemiMajorAxisAccumulator()
 
     for rows in rawdata_batches(storage, table_name, sorted(needed_cols), batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[str | float]] = []
+        batch_a: list[float] = []
 
         for row in rows:
             if any(row[col] is None for col in needed_cols):
@@ -141,6 +198,9 @@ def upload_geometry_isophotal(
             a_min = min(a_min, a_val)
             a_max = max(a_max, a_val)
             a_sum += a_val
+            batch_a.append(a_val)
+
+        a_dist.add(batch_a)
 
         if write and batch_ids:
             handle_call(
@@ -164,6 +224,14 @@ def upload_geometry_isophotal(
                 message=f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}",
             ),
         )
+        if uploaded > 0:
+            a_dist.emit_image(
+                report_func,
+                caption=f"a distribution: {uploaded} objects",
+                a_mean=a_sum / uploaded,
+                a_min=a_min,
+                a_max=a_max,
+            )
 
     total = uploaded + skipped
 
@@ -184,6 +252,14 @@ def upload_geometry_isophotal(
             ],
         )
     report_func(report.ProgressEvent(percent=100))
+    if uploaded > 0:
+        a_dist.emit_image(
+            report_func,
+            caption=f"Final: {uploaded} objects",
+            a_mean=a_sum / uploaded,
+            a_min=a_min,
+            a_max=a_max,
+        )
     summary = format_table(
         ("Status", "Count", "%"),
         table_rows,
