@@ -55,6 +55,6 @@ def handle_structured_photometry_hyperleda(
             f.table_name.strip(),
             advanced.batch_size,
             client,
-            write=advanced.write,
+            write=f.write,
             report_func=report_func,
         )

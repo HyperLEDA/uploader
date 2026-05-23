@@ -64,7 +64,7 @@ def handle_structured_designation(
             f.column_name.strip(),
             advanced.batch_size,
             client,
-            write=advanced.write,
+            write=f.write,
             print_unmatched=advanced.print_unmatched,
             report_func=report_func,
         )

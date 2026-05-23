@@ -10,9 +10,14 @@ import { cancelRun } from "../api";
 type StreamEvent =
   | { type: "progress"; percent: number }
   | { type: "log"; message: string }
+  | { type: "image"; data_url: string; caption: string | null }
   | { type: "error"; message: string }
   | { type: "done"; message: string }
   | { type: "cancelled"; message: string };
+
+type LogItem =
+  | { kind: "text"; line: string }
+  | { kind: "image"; dataUrl: string; caption: string | null };
 
 export function ProgressView({
   runId,
@@ -22,7 +27,7 @@ export function ProgressView({
   onReset: () => void;
 }) {
   const [percent, setPercent] = useState(0);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [items, setItems] = useState<LogItem[]>([]);
   const [done, setDone] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +42,13 @@ export function ProgressView({
         const ev = JSON.parse(e.data) as StreamEvent;
         if (ev.type === "progress")
           setPercent(Math.min(100, Math.max(0, Math.ceil(ev.percent))));
-        else if (ev.type === "log") setLogs((x) => [...x, ev.message]);
+        else if (ev.type === "log")
+          setItems((x) => [...x, { kind: "text", line: ev.message }]);
+        else if (ev.type === "image")
+          setItems((x) => [
+            ...x,
+            { kind: "image", dataUrl: ev.data_url, caption: ev.caption },
+          ]);
         else if (ev.type === "error") {
           setError(ev.message);
           es.close();
@@ -58,7 +69,7 @@ export function ProgressView({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+  }, [items]);
 
   const canCancel = !done && !error && !cancelled && !cancelPending;
 
@@ -112,9 +123,24 @@ export function ProgressView({
           whiteSpace: "pre-wrap",
         }}
       >
-        {logs.map((line, i) => (
-          <div key={i}>{line}</div>
-        ))}
+        {items.map((item, i) =>
+          item.kind === "text" ? (
+            <div key={i}>{item.line}</div>
+          ) : (
+            <Box component="figure" key={i} sx={{ m: 0, my: 1 }}>
+              <Box
+                component="img"
+                src={item.dataUrl}
+                sx={{ maxWidth: "100%", display: "block" }}
+              />
+              {item.caption && (
+                <Typography variant="caption" component="figcaption">
+                  {item.caption}
+                </Typography>
+              )}
+            </Box>
+          ),
+        )}
         <div ref={bottomRef} />
       </Paper>
       <Box sx={{ mt: 2, display: "flex", gap: 1 }}>
