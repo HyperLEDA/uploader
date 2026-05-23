@@ -8,24 +8,25 @@ import astropy.constants as const
 import astropy.units as u
 import numpy as np
 
-CONST_PREFIX = "const_"
+COL_FUNCTION = "col"
 
 NAMED_CONSTANTS: dict[str, u.Quantity] = {
-    "const_pi": np.pi * u.dimensionless_unscaled,
-    "const_c": const.c,
-    "const_deg": 1 * u.deg,
-    "const_rad": 1 * u.rad,
-    "const_arcmin": 1 * u.arcmin,
-    "const_arcsec": 1 * u.arcsec,
-    "const_mag": 1 * u.mag,
+    "pi": np.pi * u.dimensionless_unscaled,
+    "c": const.c,
+    "deg": 1 * u.deg,
+    "rad": 1 * u.rad,
+    "arcmin": 1 * u.arcmin,
+    "arcsec": 1 * u.arcsec,
+    "mag": 1 * u.mag,
 }
 
 
 def expression_syntax_help() -> str:
     constants = ", ".join(sorted(NAMED_CONSTANTS))
     return (
-        "Bare identifiers refer to rawdata column names.\n"
-        "Identifiers starting with const_ refer to predefined constants.\n"
+        f'Use {COL_FUNCTION}("name") to refer to rawdata columns '
+        '(e.g. col("a"), col("SMASB22.5"), col("PA-LEDA")).\n'
+        "Bare identifiers refer to predefined constants.\n"
         "Operators: + - * /.\n"
         "Functions: sin(x), cos(x) (argument must be an angle).\n"
         "Numbers are dimensionless.\n"
@@ -53,6 +54,17 @@ _FUNCTIONS: dict[str, _QuantityFunc] = {
     "sin": np.sin,
     "cos": np.cos,
 }
+
+
+def _column_from_call(node: ast.Call) -> str | None:
+    if not isinstance(node.func, ast.Name) or node.func.id != COL_FUNCTION:
+        return None
+    if node.keywords or len(node.args) != 1:
+        raise ValueError(f"{COL_FUNCTION}() takes exactly one string argument")
+    arg = node.args[0]
+    if not isinstance(arg, ast.Constant) or not isinstance(arg.value, str):
+        raise ValueError(f"{COL_FUNCTION}() argument must be a string literal")
+    return arg.value
 
 
 @final
@@ -85,12 +97,12 @@ class _ColumnCollector(ast.NodeVisitor):
         return self.columns
 
     def visit_Call(self, node: ast.Call) -> None:
+        column = _column_from_call(node)
+        if column is not None:
+            self.columns.add(column)
+            return
         for arg in node.args:
             self.visit(arg)
-
-    def visit_Name(self, node: ast.Name) -> None:
-        if not node.id.startswith(CONST_PREFIX):
-            self.columns.add(node.id)
 
 
 @final
@@ -105,10 +117,10 @@ class _Evaluator(ast.NodeVisitor):
                 return self._binop(left, op, right)
             case ast.UnaryOp(op=op, operand=operand):
                 return self._unaryop(op, operand)
-            case ast.Call(func=func, args=args, keywords=keywords):
-                return self._call(func, args, keywords)
+            case ast.Call() as call:
+                return self._call(call)
             case ast.Name(id=name):
-                return self._name(name)
+                return self._lookup_constant(name)
             case ast.Constant(value=value):
                 return self._constant(value)
             case _:
@@ -126,28 +138,32 @@ class _Evaluator(ast.NodeVisitor):
             raise ValueError(f"unsupported unary operator: {op_type.__name__}")
         return _UNARYOPS[op_type](self.visit(operand))
 
-    def _call(self, func: ast.AST, args: list[ast.AST], keywords: list[ast.keyword]) -> u.Quantity:
-        if keywords:
+    def _call(self, node: ast.Call) -> u.Quantity:
+        column = _column_from_call(node)
+        if column is not None:
+            return self._lookup_column(column)
+        if node.keywords:
             raise ValueError("keyword arguments are not allowed")
-        if not isinstance(func, ast.Name):
+        if not isinstance(node.func, ast.Name):
             raise ValueError("only simple function calls are allowed")
-        fn = _FUNCTIONS.get(func.id)
+        fn = _FUNCTIONS.get(node.func.id)
         if fn is None:
-            raise ValueError(f"unknown function: {func.id}")
-        if len(args) != 1:
-            raise ValueError(f"{func.id}() takes exactly one argument")
-        arg = self.visit(args[0]).to(u.rad)
+            raise ValueError(f"unknown function: {node.func.id}")
+        if len(node.args) != 1:
+            raise ValueError(f"{node.func.id}() takes exactly one argument")
+        arg = self.visit(node.args[0]).to(u.rad)
         result = fn(arg)
         if isinstance(result, u.Quantity):
             return result
         return float(result) * u.dimensionless_unscaled
 
-    def _name(self, name: str) -> u.Quantity:
-        if name.startswith(CONST_PREFIX):
-            constant = NAMED_CONSTANTS.get(name)
-            if constant is None:
-                raise ValueError(f"unknown constant {name!r}")
-            return constant
+    def _lookup_constant(self, name: str) -> u.Quantity:
+        constant = NAMED_CONSTANTS.get(name)
+        if constant is None:
+            raise ValueError(f"unknown constant {name!r}")
+        return constant
+
+    def _lookup_column(self, name: str) -> u.Quantity:
         if name not in self._values:
             raise ValueError(f"unknown column {name!r}")
         unit_str = self._units.get(name, "")
