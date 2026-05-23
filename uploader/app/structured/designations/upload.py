@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+import matplotlib.pyplot as plt
 from psycopg import sql
 
 import uploader.app.report as report
@@ -14,6 +15,102 @@ from uploader.clients.gen.client.adminapi.api.default import save_structured_dat
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
+
+CHART_FIGSIZE = (8, 6)
+
+
+def _rule_distribution_bars(
+    rule_counts: dict[str, int],
+    unmatched: int,
+) -> list[tuple[str, int]]:
+    sorted_rules = sorted(rule_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    top = [(name, count) for name, count in sorted_rules[:10] if count > 0]
+    other_total = sum(count for _, count in sorted_rules[10:])
+    bars: list[tuple[str, int]] = list(top)
+    if other_total > 0:
+        bars.append(("(other rules)", other_total))
+    if unmatched > 0:
+        bars.append(("(unparsed)", unmatched))
+    return bars
+
+
+def _emit_rule_distribution_image(
+    report_func: Callable[[report.Event], None],
+    rule_counts: dict[str, int],
+    unmatched: int,
+    *,
+    caption: str,
+) -> None:
+    bars = _rule_distribution_bars(rule_counts, unmatched)
+    if not bars:
+        return
+    labels = [name for name, _ in bars]
+    counts = [count for _, count in bars]
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    ax.barh(labels, counts)
+    ax.invert_yaxis()
+    ax.set_xlabel("Count")
+    ax.set_title("Designation rule distribution")
+    report_func(report.image_event_from_figure(fig, caption=caption))
+
+
+def _report_batch_progress(
+    report_func: Callable[[report.Event], None],
+    *,
+    rows_read: int,
+    total_so_far: int,
+    matched: int,
+    unmatched: int,
+    progress_pct: int,
+    rule_counts: dict[str, int],
+) -> None:
+    report_func(report.ProgressEvent(percent=min(99, progress_pct)))
+    report_func(
+        report.LogEvent(
+            message=(
+                f"batch: rows_read={rows_read} cumulative_names={total_so_far} matched={matched} unmatched={unmatched}"
+            ),
+        ),
+    )
+    _emit_rule_distribution_image(
+        report_func,
+        rule_counts,
+        unmatched,
+        caption=f"{total_so_far} names processed",
+    )
+
+
+def _report_rule_distribution(
+    report_func: Callable[[report.Event], None],
+    rule_counts: dict[str, int],
+    unmatched: int,
+    total: int,
+) -> None:
+    def pct(n: int) -> float:
+        return (100.0 * n / total) if total else 0.0
+
+    table_rows = [
+        (name, rule_counts[name], pct(rule_counts[name]))
+        for name in sorted(rule_counts.keys(), key=lambda n: (-rule_counts[n], n))
+        if rule_counts[name] > 0
+    ]
+    table_rows.append(("(no rule matched)", unmatched, pct(unmatched)))
+
+    report_func(report.ProgressEvent(percent=100))
+
+    _emit_rule_distribution_image(
+        report_func,
+        rule_counts,
+        unmatched,
+        caption=f"Final: {total} names",
+    )
+
+    summary = format_table(
+        ("Rule", "Count", "%"),
+        table_rows,
+        title=f"Total names: {total}\n",
+    )
+    report_func(report.DoneEvent(message=summary))
 
 
 def upload_designations(
@@ -89,34 +186,17 @@ def upload_designations(
             unmatched_pct=round(total_pct(unmatched), 1),
         )
         progress_pct = int(100 * processed_rows / total_count) if total_count else 0
-        report_func(report.ProgressEvent(percent=min(99, progress_pct)))
-        report_func(
-            report.LogEvent(
-                message=(
-                    f"batch: rows_read={len(rows)} cumulative_names={total_so_far} "
-                    f"matched={sum(rule_counts.values())} unmatched={unmatched}"
-                ),
-            ),
+        _report_batch_progress(
+            report_func,
+            rows_read=len(rows),
+            total_so_far=total_so_far,
+            matched=sum(rule_counts.values()),
+            unmatched=unmatched,
+            progress_pct=progress_pct,
+            rule_counts=rule_counts,
         )
 
     total = sum(rule_counts.values()) + unmatched
-
-    def pct(n: int) -> float:
-        return (100.0 * n / total) if total else 0.0
-
-    table_rows = [
-        (name, rule_counts[name], pct(rule_counts[name]))
-        for name in sorted(rule_counts.keys(), key=lambda n: (-rule_counts[n], n))
-        if rule_counts[name] > 0
-    ]
-    table_rows.append(("(no rule matched)", unmatched, pct(unmatched)))
-
-    report_func(report.ProgressEvent(percent=100))
-    summary = format_table(
-        ("Rule", "Count", "%"),
-        table_rows,
-        title=f"Total names: {total}\n",
-    )
-    report_func(report.DoneEvent(message=summary))
+    _report_rule_distribution(report_func, rule_counts, unmatched, total)
 
     return total

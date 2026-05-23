@@ -61,7 +61,7 @@ def handle_structured_icrs(
             f.dec_column.strip(),
             advanced.batch_size,
             client,
-            write=advanced.write,
+            write=f.write,
             ra_error=f.ra_error,
             ra_error_unit=f.ra_error_unit.strip(),
             dec_error=f.dec_error,

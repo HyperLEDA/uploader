@@ -1,6 +1,7 @@
 from collections import Counter
 from collections.abc import Callable
 
+import matplotlib.pyplot as plt
 from psycopg import sql
 
 import uploader.app.report as report
@@ -15,6 +16,37 @@ from uploader.clients.gen.client.adminapi.models.save_structured_data_request im
 )
 
 NATURE_COLUMNS = ["type_name"]
+
+CHART_FIGSIZE = (8, 6)
+
+
+def _type_distribution_bars(type_counts: Counter[str]) -> list[tuple[str, int]]:
+    sorted_types = sorted(type_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    top = [(name, count) for name, count in sorted_types[:10] if count > 0]
+    other_total = sum(count for _, count in sorted_types[10:])
+    bars: list[tuple[str, int]] = list(top)
+    if other_total > 0:
+        bars.append(("(other types)", other_total))
+    return bars
+
+
+def _emit_type_distribution_image(
+    report_func: Callable[[report.Event], None],
+    type_counts: Counter[str],
+    *,
+    caption: str,
+) -> None:
+    bars = _type_distribution_bars(type_counts)
+    if not bars:
+        return
+    labels = [name for name, _ in bars]
+    counts = [count for _, count in bars]
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    ax.barh(labels, counts)
+    ax.invert_yaxis()
+    ax.set_xlabel("Count")
+    ax.set_title("LEDA type distribution")
+    report_func(report.image_event_from_figure(fig, caption=caption))
 
 
 def upload_nature(
@@ -80,6 +112,11 @@ def upload_nature(
                 message=f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
             ),
         )
+        _emit_type_distribution_image(
+            report_func,
+            type_counts,
+            caption=f"{total_uploaded} rows classified",
+        )
 
     table_rows: list[tuple[str, int, float | str]] = [
         (
@@ -90,6 +127,11 @@ def upload_nature(
         for leda_type, count in sorted(type_counts.items())
     ]
     report_func(report.ProgressEvent(percent=100))
+    _emit_type_distribution_image(
+        report_func,
+        type_counts,
+        caption=f"Final: {total_uploaded} rows",
+    )
     summary = format_table(
         ("LEDA type", "Count", "%"),
         table_rows,

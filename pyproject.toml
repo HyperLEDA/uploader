@@ -14,6 +14,7 @@ dependencies = [
     "openapi-python-client>=0.27.1",
     "pandas>=2.3.3",
     "numpy>=2.3.4",
+    "matplotlib>=3.9",
     "pyvo>=1.8",
     "psycopg[binary]>=3.2.0",
     "click~=8.3.1",

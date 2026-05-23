@@ -110,6 +110,15 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                 final_status = "error"
                 final_message = msg
                 run.append({"type": "error", "message": msg})
+            case report.ImageEvent(data_url=url, caption=cap):
+                run.append(
+                    {
+                        "type": "image",
+                        "data_url": url,
+                        "caption": cap,
+                        "timestamp": datetime.now().astimezone().isoformat(),
+                    },
+                )
 
     def report_func(event: report.Event) -> None:
         if run.cancel_requested.is_set():

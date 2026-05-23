@@ -93,6 +93,6 @@ def handle_structured_nature(
             default_t,
             advanced.batch_size,
             client,
-            write=advanced.write,
+            write=f.write,
             report_func=report_func,
         )

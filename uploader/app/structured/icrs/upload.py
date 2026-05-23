@@ -1,5 +1,7 @@
 from collections.abc import Callable
 
+import matplotlib.pyplot as plt
+import numpy as np
 from psycopg import sql
 
 import uploader.app.report as report
@@ -17,6 +19,51 @@ from uploader.clients.gen.client.adminapi.models.save_structured_data_request_un
 )
 
 ICRS_COLUMNS = ["ra", "dec", "e_ra", "e_dec"]
+
+CHART_FIGSIZE = (10, 5)
+N_RA_BINS = 72
+N_DEC_BINS = 36
+RA_BIN_EDGES = np.linspace(-180.0, 180.0, N_RA_BINS + 1)
+DEC_BIN_EDGES = np.linspace(-90.0, 90.0, N_DEC_BINS + 1)
+
+
+def _ra_to_longitude_deg(ra: np.ndarray) -> np.ndarray:
+    return (np.mod(ra, 360.0) + 180.0) % 360.0 - 180.0
+
+
+class _SkyCoverageAccumulator:
+    def __init__(self) -> None:
+        self._counts = np.zeros((N_RA_BINS, N_DEC_BINS), dtype=np.int64)
+
+    def add(self, ra: list[float], dec: list[float]) -> None:
+        if not ra:
+            return
+        ra_arr = _ra_to_longitude_deg(np.asarray(ra, dtype=np.float64))
+        dec_arr = np.clip(np.asarray(dec, dtype=np.float64), -90.0, 90.0)
+        batch_counts, _, _ = np.histogram2d(ra_arr, dec_arr, bins=[RA_BIN_EDGES, DEC_BIN_EDGES])
+        self._counts += batch_counts.astype(np.int64)
+
+    @property
+    def total(self) -> int:
+        return int(self._counts.sum())
+
+    def emit_image(
+        self,
+        report_func: Callable[[report.Event], None],
+        *,
+        caption: str,
+    ) -> None:
+        if self.total == 0:
+            return
+        ra_centers = 0.5 * (RA_BIN_EDGES[:-1] + RA_BIN_EDGES[1:])
+        dec_centers = 0.5 * (DEC_BIN_EDGES[:-1] + DEC_BIN_EDGES[1:])
+        theta, phi = np.meshgrid(-np.deg2rad(ra_centers), np.deg2rad(dec_centers))
+        fig = plt.figure(figsize=CHART_FIGSIZE)
+        ax = fig.add_subplot(111, projection="aitoff")
+        ax.pcolormesh(theta, phi, self._counts.T, shading="auto", cmap="viridis")
+        ax.set_title("ICRS sky coverage")
+        ax.grid(True)
+        report_func(report.image_event_from_figure(fig, caption=caption))
 
 
 def _fetch_units(
@@ -82,10 +129,13 @@ def upload_icrs(
     )
     total_count = int(cnt[0]["cnt"]) if cnt else 0
     processed_rows = 0
+    sky = _SkyCoverageAccumulator()
 
     for rows in rawdata_batches(storage, table_name, [ra_column, dec_column], batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[float]] = []
+        batch_ra: list[float] = []
+        batch_dec: list[float] = []
 
         for row in rows:
             ra_val = row[ra_column]
@@ -104,6 +154,10 @@ def upload_icrs(
             dec_max = max(dec_max, dec_f)
             ra_sum += ra_f
             dec_sum += dec_f
+            batch_ra.append(ra_f)
+            batch_dec.append(dec_f)
+
+        sky.add(batch_ra, batch_dec)
 
         if write and batch_ids:
             handle_call(
@@ -127,6 +181,7 @@ def upload_icrs(
                 message=f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}",
             ),
         )
+        sky.emit_image(report_func, caption=f"Sky coverage: {uploaded} objects")
 
     total = uploaded + skipped
 
@@ -151,6 +206,7 @@ def upload_icrs(
             ]
         )
     report_func(report.ProgressEvent(percent=100))
+    sky.emit_image(report_func, caption=f"Final: {uploaded} objects")
     summary = format_table(
         ("Status", "Count", "%"),
         table_rows,
