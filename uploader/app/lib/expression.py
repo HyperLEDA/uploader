@@ -7,6 +7,7 @@ from typing import final
 import astropy.constants as const
 import astropy.units as u
 import numpy as np
+from astropy.units.function.core import FunctionUnitBase
 
 COL_FUNCTION = "col"
 
@@ -24,10 +25,10 @@ NAMED_CONSTANTS: dict[str, u.Quantity] = {
 def expression_syntax_help() -> str:
     constants = ", ".join(sorted(NAMED_CONSTANTS))
     return (
-        f'Use {COL_FUNCTION}("name") to refer to rawdata columns '
-        '(e.g. col("a"), col("SMASB22.5"), col("PA-LEDA")).\n'
-        "Bare identifiers refer to predefined constants.\n"
-        "Operators: + - * /.\n"
+        f'Use {COL_FUNCTION}("name") or bare identifiers to refer to rawdata columns '
+        '(e.g. col("a"), e_logd25).\n'
+        "Bare identifiers that match predefined constants use those constants.\n"
+        "Operators: + - * / ** %.\n"
         "Functions: sin(x), cos(x) (argument must be an angle).\n"
         "Numbers are dimensionless.\n"
         f"Available constants: {constants}."
@@ -38,11 +39,44 @@ type _QuantityBinOp = Callable[[u.Quantity, u.Quantity], u.Quantity]
 type _QuantityUnaryOp = Callable[[u.Quantity], u.Quantity]
 type _QuantityFunc = Callable[[u.Quantity], u.Quantity | float]
 
+
+def _mod(left: u.Quantity, right: u.Quantity) -> u.Quantity:
+    if not right.unit.is_equivalent(u.dimensionless_unscaled):
+        raise ValueError("modulo divisor must be dimensionless")
+    return (left.value % right.value) * left.unit
+
+
+def _is_logarithmic_column_unit(unit: u.Unit) -> bool:
+    return unit == u.mag or unit == u.dex or isinstance(unit, FunctionUnitBase)
+
+
+def _column_quantity(value: float, unit_str: str) -> u.Quantity:
+    if not unit_str:
+        return value * u.dimensionless_unscaled
+    unit = u.Unit(unit_str)
+    if _is_logarithmic_column_unit(unit):
+        return value * u.dimensionless_unscaled
+    return value * unit
+
+
+def _pow(base: u.Quantity, exp: u.Quantity) -> u.Quantity:
+    if not exp.unit.is_equivalent(u.dimensionless_unscaled):
+        exp = float(exp.value) * u.dimensionless_unscaled
+    try:
+        return operator.pow(base, exp)
+    except u.UnitTypeError:
+        if base.unit.is_equivalent(u.dimensionless_unscaled):
+            return float(base.value**exp.value) * u.dimensionless_unscaled
+        raise
+
+
 _BINOPS: dict[type[ast.operator], _QuantityBinOp] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: operator.mul,
     ast.Div: operator.truediv,
+    ast.Pow: _pow,
+    ast.Mod: _mod,
 }
 
 _UNARYOPS: dict[type[ast.unaryop], _QuantityUnaryOp] = {
@@ -104,6 +138,11 @@ class _ColumnCollector(ast.NodeVisitor):
         for arg in node.args:
             self.visit(arg)
 
+    def visit_Name(self, node: ast.Name) -> None:
+        if node.id in NAMED_CONSTANTS or node.id in _FUNCTIONS:
+            return
+        self.columns.add(node.id)
+
 
 @final
 class _Evaluator(ast.NodeVisitor):
@@ -120,7 +159,7 @@ class _Evaluator(ast.NodeVisitor):
             case ast.Call() as call:
                 return self._call(call)
             case ast.Name(id=name):
-                return self._lookup_constant(name)
+                return self._lookup_name(name)
             case ast.Constant(value=value):
                 return self._constant(value)
             case _:
@@ -157,18 +196,16 @@ class _Evaluator(ast.NodeVisitor):
             return result
         return float(result) * u.dimensionless_unscaled
 
-    def _lookup_constant(self, name: str) -> u.Quantity:
+    def _lookup_name(self, name: str) -> u.Quantity:
         constant = NAMED_CONSTANTS.get(name)
-        if constant is None:
-            raise ValueError(f"unknown constant {name!r}")
-        return constant
+        if constant is not None:
+            return constant
+        return self._lookup_column(name)
 
     def _lookup_column(self, name: str) -> u.Quantity:
         if name not in self._values:
             raise ValueError(f"unknown column {name!r}")
-        unit_str = self._units.get(name, "")
-        unit = u.Unit(unit_str) if unit_str else u.dimensionless_unscaled
-        return self._values[name] * unit
+        return _column_quantity(self._values[name], self._units.get(name, ""))
 
     def _constant(self, value: object) -> u.Quantity:
         if isinstance(value, bool):
