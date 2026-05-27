@@ -5,6 +5,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import cast
 
+import matplotlib.pyplot as plt
 from psycopg import sql
 
 import uploader.app.report as report
@@ -34,6 +35,41 @@ from uploader.clients.gen.client.adminapi.models.statuses_payload import Statuse
 from uploader.clients.gen.client.adminapi.types import UNSET, Unset
 
 C_M_S = 299792458
+
+CHART_FIGSIZE = (8, 6)
+
+
+def _emit_status_distribution_image(
+    report_func: Callable[[report.Event], None],
+    counts: dict[tuple[CrossmatchStatus, TriageStatus, PendingReason | None], int],
+    *,
+    caption: str,
+) -> None:
+    triage_counts: dict[str, int] = defaultdict(int)
+    for (status, triage, reason), count in counts.items():
+        if triage == TriageStatus.RESOLVED:
+            if status == CrossmatchStatus.NEW:
+                triage_counts["new"] += count
+            elif status == CrossmatchStatus.EXISTING:
+                triage_counts["existing"] += count
+        elif reason is not None:
+            triage_counts[reason.value] += count
+
+    if not triage_counts:
+        return
+
+    sorted_items = sorted(triage_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    labels = [name for name, _ in sorted_items]
+    values = [count for _, count in sorted_items]
+    fig, ax = plt.subplots(figsize=CHART_FIGSIZE)
+    ax.barh(labels, values)
+    ax.invert_yaxis()
+    ax.set_xscale("log")
+    ax.set_xlabel("Count")
+    ax.set_title("Crossmatch triage distribution")
+    fig.tight_layout()
+    report_func(report.image_event_from_figure(fig, caption=caption))
+
 
 BATCH_QUERY = sql.SQL("""
     WITH batch AS (
@@ -209,6 +245,7 @@ def _resolve_batch(
     design_to_pgcs: dict[str, list[int]],
     resolver: Resolver,
     print_pending: bool,
+    report_func: Callable[[report.Event], None],
 ) -> list[tuple[str, CrossmatchResult]]:
     results: list[tuple[str, CrossmatchResult]] = []
     radius_deg = resolver.search_radius_deg
@@ -259,6 +296,12 @@ def _resolve_batch(
                 matched_pgc=result.matched_pgc,
                 link=f"https://leda.sao.ru/records/{record_id}/crossmatch",
                 evidence=json.dumps(_evidence_to_dict(evidence)),
+            )
+            reason = result.pending_reason.value if result.pending_reason is not None else "unknown"
+            report_func(
+                report.LogEvent(
+                    message=f"Pending crossmatch: record {record_id}, reason: {reason}",
+                )
             )
     return results
 
@@ -380,6 +423,7 @@ def run_crossmatch(
                 design_to_pgcs,
                 resolver,
                 print_pending,
+                report_func,
             )
             batch_processed = len(batch_results)
             batch_pending = sum(
@@ -406,6 +450,7 @@ def run_crossmatch(
             )
             progress = 100.0 if total_records == 0 else (100.0 * total / total_records)
             report_func(report.ProgressEvent(percent=min(progress, 100.0)))
+            _emit_status_distribution_image(report_func, counts, caption=f"{total} records crossmatched")
     finally:
 
         def pct(n: int) -> float:
@@ -432,4 +477,5 @@ def run_crossmatch(
         )
 
         report_func(report.ProgressEvent(percent=100))
+        _emit_status_distribution_image(report_func, counts, caption=f"Final: {total} records")
         report_func(report.DoneEvent(message=summary))

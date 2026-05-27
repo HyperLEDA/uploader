@@ -1,11 +1,13 @@
 from collections.abc import Callable
 
+import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 from psycopg import sql
 
 import uploader.app.report as report
 from uploader.app.display import format_table
+from uploader.app.lib.expression import Expression, parse
 from uploader.app.lib.rawdata import rawdata_batches
 from uploader.app.storage import PgStorage
 from uploader.app.upload import handle_call
@@ -66,29 +68,38 @@ class _SkyCoverageAccumulator:
         report_func(report.image_event_from_figure(fig, caption=caption))
 
 
-def _fetch_units(
+TARGET_ERROR_UNITS = {
+    "e_ra": "arcsec",
+    "e_dec": "arcsec",
+}
+
+
+def _parse_expressions(expressions: dict[str, str]) -> dict[str, Expression]:
+    return {field: parse(source) for field, source in expressions.items()}
+
+
+def _evaluate_error_field(
+    expr: Expression,
+    values: dict[str, float],
+    column_units: dict[str, str],
+    field: str,
+) -> float:
+    quantity = expr.evaluate(values, column_units).to(u.Unit(TARGET_ERROR_UNITS[field]))
+    return float(quantity.value)
+
+
+def _fetch_column_units(
     client: adminapi.AuthenticatedClient,
     table_name: str,
-    ra_column: str,
-    dec_column: str,
-    ra_error_unit: str,
-    dec_error_unit: str,
-) -> SaveStructuredDataRequestUnits:
+) -> tuple[set[str], dict[str, str]]:
     resp = handle_call(get_table.sync_detailed(client=client, table_name=table_name))
+    column_names: set[str] = set()
     column_units: dict[str, str] = {}
     for col in resp.data.column_info:
+        column_names.add(col.name)
         if isinstance(col.unit, str):
             column_units[col.name] = col.unit
-    missing = [c for c in (ra_column, dec_column) if c not in column_units]
-    if missing:
-        raise RuntimeError(f"Table {table_name} has no unit for column(s): {missing}")
-    units_dict = {
-        "ra": column_units[ra_column],
-        "dec": column_units[dec_column],
-        "e_ra": ra_error_unit,
-        "e_dec": dec_error_unit,
-    }
-    return SaveStructuredDataRequestUnits.from_dict(units_dict)
+    return column_names, column_units
 
 
 def upload_icrs(
@@ -96,24 +107,34 @@ def upload_icrs(
     table_name: str,
     ra_column: str,
     dec_column: str,
+    expressions: dict[str, str],
     batch_size: int,
     client: adminapi.AuthenticatedClient,
     *,
     write: bool = False,
-    ra_error: float,
-    ra_error_unit: str,
-    dec_error: float,
-    dec_error_unit: str,
     report_func: Callable[[report.Event], None],
 ) -> int:
-    units = _fetch_units(
-        client,
-        table_name,
-        ra_column,
-        dec_column,
-        ra_error_unit,
-        dec_error_unit,
+    parsed = _parse_expressions(expressions)
+    column_names, column_units = _fetch_column_units(client, table_name)
+
+    error_cols = set().union(*(expr.referenced_columns for expr in parsed.values()))
+    all_needed_cols = {ra_column, dec_column} | error_cols
+    missing = sorted(col for col in all_needed_cols if col not in column_names)
+    if missing:
+        raise RuntimeError(f"Table {table_name} has no column(s): {missing}")
+
+    missing_units = [c for c in (ra_column, dec_column) if c not in column_units]
+    if missing_units:
+        raise RuntimeError(f"Table {table_name} has no unit for column(s): {missing_units}")
+
+    units = SaveStructuredDataRequestUnits.from_dict(
+        {
+            "ra": column_units[ra_column],
+            "dec": column_units[dec_column],
+            **TARGET_ERROR_UNITS,
+        }
     )
+
     uploaded = 0
     skipped = 0
     ra_min = float("inf")
@@ -122,7 +143,6 @@ def upload_icrs(
     dec_max = float("-inf")
     ra_sum = 0.0
     dec_sum = 0.0
-    total_count = 0
     cnt = storage.query(
         sql.SQL("SELECT COUNT(*) AS cnt FROM rawdata.{}").format(sql.Identifier(table_name)),
         (),
@@ -131,22 +151,32 @@ def upload_icrs(
     processed_rows = 0
     sky = _SkyCoverageAccumulator()
 
-    for rows in rawdata_batches(storage, table_name, [ra_column, dec_column], batch_size):
+    fetch_columns = sorted(all_needed_cols)
+    for rows in rawdata_batches(storage, table_name, fetch_columns, batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[float]] = []
         batch_ra: list[float] = []
         batch_dec: list[float] = []
 
         for row in rows:
-            ra_val = row[ra_column]
-            dec_val = row[dec_column]
-            if ra_val is None or dec_val is None:
+            if any(row[col] is None for col in all_needed_cols):
                 skipped += 1
                 continue
-            ra_f = float(ra_val)
-            dec_f = float(dec_val)
+
+            ra_f = float(row[ra_column])
+            dec_f = float(row[dec_column])
+
+            values = {col: float(row[col]) for col in error_cols}
+            try:
+                e_ra_val = _evaluate_error_field(parsed["e_ra"], values, column_units, "e_ra")
+                e_dec_val = _evaluate_error_field(parsed["e_dec"], values, column_units, "e_dec")
+            except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
+                raise RuntimeError(
+                    f"failed to evaluate expressions for row {row['hyperleda_internal_id']}: {e}",
+                ) from e
+
             batch_ids.append(row["hyperleda_internal_id"])
-            batch_data.append([ra_f, dec_f, float(ra_error), float(dec_error)])
+            batch_data.append([ra_f, dec_f, e_ra_val, e_dec_val])
             uploaded += 1
             ra_min = min(ra_min, ra_f)
             ra_max = max(ra_max, ra_f)

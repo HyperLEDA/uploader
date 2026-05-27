@@ -22,10 +22,8 @@ class StructuredIcrsForm(BaseModel):
     table_name: str = Field(..., title="Rawdata table name")
     ra_column: str = Field(..., title="RA column", description="Column containing right ascension.")
     dec_column: str = Field(..., title="Dec column", description="Column containing declination.")
-    ra_error: float = Field(..., title="RA error", description="Positional error for RA (all rows).")
-    ra_error_unit: str = Field(..., title="RA error unit", description="e.g. arcsec")
-    dec_error: float = Field(..., title="Dec error", description="Positional error for Dec (all rows).")
-    dec_error_unit: str = Field(..., title="Dec error unit", description="e.g. arcsec")
+    e_ra: str = Field(..., title="e_ra", description="Expression. Positional error for RA.")
+    e_dec: str = Field(..., title="e_dec", description="Expression. Positional error for Dec.")
     write: bool = Field(
         default=False,
         title="Write to API",
@@ -52,6 +50,10 @@ def handle_structured_icrs(
         base_url=env_map[advanced.endpoint],
         token=load_token(),
     )
+    expressions: dict[str, str] = {
+        "e_ra": f.e_ra.strip(),
+        "e_dec": f.e_dec.strip(),
+    }
     with connect(dsn) as conn:
         storage = PgStorage(conn)
         run_upload_icrs(
@@ -59,12 +61,9 @@ def handle_structured_icrs(
             f.table_name.strip(),
             f.ra_column.strip(),
             f.dec_column.strip(),
+            expressions,
             advanced.batch_size,
             client,
             write=f.write,
-            ra_error=f.ra_error,
-            ra_error_unit=f.ra_error_unit.strip(),
-            dec_error=f.dec_error,
-            dec_error_unit=f.dec_error_unit.strip(),
             report_func=report_func,
         )
