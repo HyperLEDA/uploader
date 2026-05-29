@@ -17,6 +17,7 @@ from uploader.forms.structured_photometry_hyperleda import (
     handle_structured_photometry_hyperleda,
 )
 from uploader.forms.structured_redshift import StructuredRedshiftForm, handle_structured_redshift
+from uploader.forms.submit_crossmatch import SubmitCrossmatchForm, handle_submit_crossmatch
 from uploader.forms.upload_csv import UploadCsvForm, handle_upload_csv
 from uploader.forms.upload_fits import UploadFitsForm, handle_upload_fits
 from uploader.forms.upload_vizier import UploadVizierForm, handle_upload_vizier
@@ -145,6 +146,18 @@ def register_all_tasks() -> None:
             description="Cross-identify objects",
             form_model=CrossmatchLayeredForm,
             handler=handle_crossmatch_layered,
+            group="Crossmatch",
+        ),
+    )
+    register_task(
+        TaskDefinition(
+            id="submit-crossmatch",
+            title="Submit crossmatch",
+            description=(
+                "Submit resolved crossmatch results to the backend, assigning PGCs and promoting records to layer 2."
+            ),
+            form_model=SubmitCrossmatchForm,
+            handler=handle_submit_crossmatch,
             group="Crossmatch",
         ),
     )
