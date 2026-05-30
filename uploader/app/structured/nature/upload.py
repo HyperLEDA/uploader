@@ -4,6 +4,7 @@ from collections.abc import Callable
 import matplotlib.pyplot as plt
 from psycopg import sql
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app.display import format_table
 from uploader.app.lib.rawdata import rawdata_batches
@@ -95,11 +96,13 @@ def upload_nature(
             handle_call(
                 save_structured_data.sync_detailed(
                     client=client,
-                    body=SaveStructuredDataRequest(
-                        catalog="nature",
-                        columns=NATURE_COLUMNS,
-                        ids=batch_ids,
-                        data=batch_data,
+                    body=action_description.apply(
+                        SaveStructuredDataRequest(
+                            catalog="nature",
+                            columns=NATURE_COLUMNS,
+                            ids=batch_ids,
+                            data=batch_data,
+                        ),
                     ),
                 )
             )

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from psycopg import sql
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app.display import format_table
 from uploader.app.lib.rawdata import rawdata_batches
@@ -125,12 +126,14 @@ def upload_redshift(
             handle_call(
                 save_structured_data.sync_detailed(
                     client=client,
-                    body=SaveStructuredDataRequest(
-                        catalog="redshift",
-                        columns=REDSHIFT_COLUMNS,
-                        ids=batch_ids,
-                        data=batch_data,
-                        units=REDSHIFT_UNITS,
+                    body=action_description.apply(
+                        SaveStructuredDataRequest(
+                            catalog="redshift",
+                            columns=REDSHIFT_COLUMNS,
+                            ids=batch_ids,
+                            data=batch_data,
+                            units=REDSHIFT_UNITS,
+                        ),
                     ),
                 )
             )

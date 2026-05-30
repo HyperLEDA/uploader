@@ -8,6 +8,7 @@ from typing import cast
 import matplotlib.pyplot as plt
 from psycopg import sql
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app import log
 from uploader.app.crossmatch.models import (
@@ -361,11 +362,13 @@ def _write_crossmatch_results(
         handle_call(
             set_crossmatch_results.sync_detailed(
                 client=client,
-                body=SetCrossmatchResultsRequest(
-                    statuses=StatusesPayload(
-                        new=new_pl if new_pl is not None else UNSET,
-                        existing=existing_pl if existing_pl is not None else UNSET,
-                        collided=collided_pl if collided_pl is not None else UNSET,
+                body=action_description.apply(
+                    SetCrossmatchResultsRequest(
+                        statuses=StatusesPayload(
+                            new=new_pl if new_pl is not None else UNSET,
+                            existing=existing_pl if existing_pl is not None else UNSET,
+                            collided=collided_pl if collided_pl is not None else UNSET,
+                        ),
                     ),
                 ),
             )
