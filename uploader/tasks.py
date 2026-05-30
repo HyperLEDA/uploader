@@ -9,6 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader import history
 from uploader.app.log import logger
@@ -127,6 +128,9 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
 
     def worker() -> None:
         nonlocal final_status, final_message
+        token = action_description.set_current(
+            action_description.build(task_id, run_id, form.model_dump(mode="json")),
+        )
         try:
             defn.handler(form, report_func)
         except TaskCancelledError:
@@ -137,6 +141,7 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
             message = f"{e}\n\n{traceback.format_exc()}"
             append_report_event(report.ErrorEvent(message=message))
         finally:
+            action_description.reset_current(token)
             run.done.set()
             if defn.rerunnable and final_status is not None:
                 history.append_entry(

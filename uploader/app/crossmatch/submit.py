@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from psycopg import sql
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app.storage import PgStorage
 from uploader.app.upload import handle_call
@@ -69,7 +70,9 @@ def run_submit_crossmatch(
             handle_call(
                 assign_record_pgcs.sync_detailed(
                     client=client,
-                    body=AssignRecordPgcsRequest(record_ids=record_ids),
+                    body=action_description.apply(
+                        AssignRecordPgcsRequest(record_ids=record_ids),
+                    ),
                 )
             )
         submitted += len(record_ids)

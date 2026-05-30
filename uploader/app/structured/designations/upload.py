@@ -3,6 +3,7 @@ from collections.abc import Callable
 import matplotlib.pyplot as plt
 from psycopg import sql
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app import log
 from uploader.app.display import format_table
@@ -162,11 +163,13 @@ def upload_designations(
             handle_call(
                 save_structured_data.sync_detailed(
                     client=client,
-                    body=SaveStructuredDataRequest(
-                        catalog="designation",
-                        columns=["design"],
-                        ids=batch_ids,
-                        data=batch_names,
+                    body=action_description.apply(
+                        SaveStructuredDataRequest(
+                            catalog="designation",
+                            columns=["design"],
+                            ids=batch_ids,
+                            data=batch_names,
+                        ),
                     ),
                 )
             )

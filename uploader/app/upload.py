@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app import interface, log
 from uploader.app.display import format_table
@@ -103,10 +104,12 @@ def _upload(
             resp = handle_call(
                 create_source.sync_detailed(
                     client=client,
-                    body=models.CreateSourceRequest(
-                        title=pub_name,
-                        authors=pub_authors,
-                        year=pub_year,
+                    body=action_description.apply(
+                        models.CreateSourceRequest(
+                            title=pub_name,
+                            authors=pub_authors,
+                            year=pub_year,
+                        ),
                     ),
                 )
             )
@@ -116,12 +119,14 @@ def _upload(
         resp = handle_call(
             create_table.sync_detailed(
                 client=client,
-                body=models.CreateTableRequest(
-                    table_name=table_name,
-                    columns=schema,
-                    bibcode=bibcode,
-                    datatype=models.DataType[table_type],
-                    description=table_description,
+                body=action_description.apply(
+                    models.CreateTableRequest(
+                        table_name=table_name,
+                        columns=schema,
+                        bibcode=bibcode,
+                        datatype=models.DataType[table_type],
+                        description=table_description,
+                    ),
                 ),
             )
         )
@@ -163,9 +168,11 @@ def _upload(
             _ = handle_call(
                 add_data.sync_detailed(
                     client=client,
-                    body=models.AddDataRequest(
-                        table_name=table_name,
-                        data=request_data,
+                    body=action_description.apply(
+                        models.AddDataRequest(
+                            table_name=table_name,
+                            data=request_data,
+                        ),
                     ),
                 )
             )

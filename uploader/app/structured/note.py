@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app.upload import handle_call
 from uploader.clients.gen.client import adminapi
@@ -20,11 +21,13 @@ def upload_note(
     handle_call(
         save_structured_data.sync_detailed(
             client=client,
-            body=SaveStructuredDataRequest(
-                catalog="note",
-                columns=NOTE_COLUMNS,
-                ids=[record_id],
-                data=[[note]],
+            body=action_description.apply(
+                SaveStructuredDataRequest(
+                    catalog="note",
+                    columns=NOTE_COLUMNS,
+                    ids=[record_id],
+                    data=[[note]],
+                ),
             ),
         )
     )

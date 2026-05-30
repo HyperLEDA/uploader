@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from psycopg import sql
 
+import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app import log
 from uploader.app.display import format_table
@@ -78,12 +79,14 @@ def upload_photometry_hyperleda(
                 handle_call(
                     save_structured_data.sync_detailed(
                         client=client,
-                        body=SaveStructuredDataRequest(
-                            catalog="photometry",
-                            columns=PHOTOMETRY_COLUMNS,
-                            ids=batch_ids,
-                            data=batch_data,
-                            units=PHOTOMETRY_UNITS,
+                        body=action_description.apply(
+                            SaveStructuredDataRequest(
+                                catalog="photometry",
+                                columns=PHOTOMETRY_COLUMNS,
+                                ids=batch_ids,
+                                data=batch_data,
+                                units=PHOTOMETRY_UNITS,
+                            ),
                         ),
                     )
                 )
