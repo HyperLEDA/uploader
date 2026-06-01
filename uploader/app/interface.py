@@ -23,14 +23,12 @@ class UploaderSource(abc.ABC):
         """
 
     @abc.abstractmethod
-    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, int, int]]:
         """
         Yields DataFrames that represent the data from the table.
         Not all of the columns from the `get_schema` method must be present but there should be no columns
         that were not returned from `get_schema`.
-        This method will yield tuples of (DataFrame, completion_rate) until all data is processed.
-
-        The float returned is the completion rate in the range [0, 1]. It will be displayed to the user.
+        This method will yield tuples of (DataFrame, current, total) until all data is processed.
         """
 
     @abc.abstractmethod

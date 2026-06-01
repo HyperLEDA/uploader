@@ -86,13 +86,14 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                     message=out,
                 )
                 run.append({"type": "log", "message": out})
-            case report.ProgressEvent(percent=pct):
+            case report.ProgressEvent(current=current, total=total):
                 logger.info(
                     "progress event",
                     task_id=task_id,
-                    percent=pct,
+                    current=current,
+                    total=total,
                 )
-                run.append({"type": "progress", "percent": pct})
+                run.append({"type": "progress", "current": current, "total": total})
             case report.DoneEvent(message=msg):
                 logger.info(
                     "finish event",

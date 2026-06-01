@@ -132,7 +132,7 @@ class VizierSource(
             for field in table.fields
         ]
 
-    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, int, int]]:
         if not self._obtain_cache_path("tables", self.catalog_name, self.table_name, ext="csv").exists():
             app.logger.debug("did not hit cache for the table, downloading")
             self._write_table_cache(self.catalog_name, self.table_name)
@@ -153,7 +153,7 @@ class VizierSource(
                 row_dict = {_sanitize_column_name(k): v for k, v in dict(row).items() if v != "--"}
                 rows.append(_coerce_row_to_schema(row_dict, schema))
 
-            yield pandas.DataFrame(rows), offset / total_rows
+            yield pandas.DataFrame(rows), offset, total_rows
 
     def get_total_rows(self) -> int:
         if not self._obtain_cache_path("tables", self.catalog_name, self.table_name, ext="csv").exists():

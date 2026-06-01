@@ -35,7 +35,7 @@ def isolated_task_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> Itera
 def test_task_integration_flow(isolated_task_state: None) -> None:
     def fake_handler(form: FakeTaskForm, emit: Callable[[report.Event], None]) -> None:
         emit(report.LogEvent(message=f"Start for {form.name}"))
-        emit(report.ProgressEvent(percent=50))
+        emit(report.ProgressEvent(current=1, total=2))
         emit(report.DoneEvent(message=f"Completed {form.name}"))
 
     fake_task = tasks.TaskDefinition(
@@ -102,7 +102,7 @@ def test_task_cancel_flow(isolated_task_state: None) -> None:
     def cancellable_handler(form: FakeTaskForm, emit: Callable[[report.Event], None]) -> None:
         for idx in range(20):
             emit(report.LogEvent(message=f"Step {idx} for {form.name}"))
-            emit(report.ProgressEvent(percent=(idx + 1) * 5))
+            emit(report.ProgressEvent(current=idx + 1, total=20))
             time.sleep(0.05)
         emit(report.DoneEvent(message=f"Completed {form.name}"))
 

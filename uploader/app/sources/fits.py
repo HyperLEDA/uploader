@@ -58,7 +58,7 @@ class FITSSource(app.UploaderSource, app.DefaultTableNamer):
             )
         return columns
 
-    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, int, int]]:
         if self._table is None:
             raise RuntimeError("Plugin not prepared. Call prepare() first.")
 
@@ -70,9 +70,8 @@ class FITSSource(app.UploaderSource, app.DefaultTableNamer):
 
             df = pandas.DataFrame(batch_data)
             self._current_batch += 1
-            progress = self._current_batch / self._total_batches
 
-            yield df, progress
+            yield df, self._current_batch, self._total_batches
 
     def stop(self) -> None:
         if self._hdu is not None:

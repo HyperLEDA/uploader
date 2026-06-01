@@ -24,7 +24,7 @@ class StubPlugin(UploaderSource):
     def get_schema(self) -> list[models.ColumnDescription]:
         return []
 
-    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, int, int]]:
         if self.should_raise:
             raise Exception("Test error")
         return None
