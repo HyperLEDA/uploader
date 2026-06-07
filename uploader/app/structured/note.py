@@ -1,13 +1,12 @@
 from collections.abc import Callable
 
+import uploader.app.report as report
+from uploader.app.upload import handle_call
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.api.default import save_structured_data
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
-
-import uploader.app.report as report
-from uploader.app.upload import handle_call
 
 NOTE_COLUMNS = ["note"]
 

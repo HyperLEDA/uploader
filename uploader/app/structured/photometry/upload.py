@@ -1,6 +1,13 @@
 from collections.abc import Callable
 
 from psycopg import sql
+
+import uploader.app.report as report
+from uploader.app import log
+from uploader.app.display import format_table
+from uploader.app.lib.rawdata import rawdata_batches
+from uploader.app.storage import PgStorage
+from uploader.app.upload import handle_call
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.api.default import save_structured_data
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
@@ -9,13 +16,6 @@ from uploader.clients.gen.client.adminapi.models.save_structured_data_request im
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request_units import (
     SaveStructuredDataRequestUnits,
 )
-
-import uploader.app.report as report
-from uploader.app import log
-from uploader.app.display import format_table
-from uploader.app.lib.rawdata import rawdata_batches
-from uploader.app.storage import PgStorage
-from uploader.app.upload import handle_call
 
 PHOTOMETRY_COLUMNS = ["band", "mag", "e_mag", "method"]
 

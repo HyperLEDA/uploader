@@ -1,11 +1,6 @@
 from collections.abc import Callable
 
 from psycopg import sql
-from uploader.clients.gen.client import adminapi
-from uploader.clients.gen.client.adminapi.api.default import save_structured_data
-from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
-    SaveStructuredDataRequest,
-)
 
 import uploader.app.report as report
 from uploader.app import log
@@ -14,6 +9,11 @@ from uploader.app.lib.rawdata import rawdata_batches
 from uploader.app.storage import PgStorage
 from uploader.app.structured.designations.rules import RULES, match
 from uploader.app.upload import handle_call
+from uploader.clients.gen.client import adminapi
+from uploader.clients.gen.client.adminapi.api.default import save_structured_data
+from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
+    SaveStructuredDataRequest,
+)
 
 
 def upload_designations(
