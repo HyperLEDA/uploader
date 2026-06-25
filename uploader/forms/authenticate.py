@@ -47,5 +47,5 @@ def handle_authenticate(form: BaseModel, report_func: Callable[[report.Event], N
     save_token(response.data.token)
     report_func(report.LogEvent(message="Backend login successful."))
 
-    report_func(report.ProgressEvent(percent=100))
+    report_func(report.ProgressEvent(current=1, total=1))
     report_func(report.DoneEvent(message="Credentials saved."))

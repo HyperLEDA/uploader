@@ -99,8 +99,7 @@ def upload_photometry_hyperleda(
                 objects=uploaded_objects,
                 photometry_rows=uploaded_rows,
             )
-            progress = 100.0 if total_rows == 0 else (100.0 * total_source_rows / total_rows)
-            report_func(report.ProgressEvent(percent=min(progress, 100.0)))
+            report_func(report.ProgressEvent(current=total_source_rows, total=total_rows))
     finally:
         total = uploaded_objects + skipped
         total_photometry_rows = sum(band_counts.values())
@@ -127,5 +126,5 @@ def upload_photometry_hyperleda(
             percent_last_column=False,
         )
 
-        report_func(report.ProgressEvent(percent=100))
+        report_func(report.ProgressEvent(current=total_rows, total=total_rows))
         report_func(report.DoneEvent(message=summary))

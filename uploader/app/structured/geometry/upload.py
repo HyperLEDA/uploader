@@ -269,8 +269,7 @@ def upload_geometry_isophotal(
             )
 
         processed_rows += len(rows)
-        row_pct = int(100 * processed_rows / total_count) if total_count else 0
-        report_func(report.ProgressEvent(percent=min(99, row_pct)))
+        report_func(report.ProgressEvent(current=processed_rows, total=total_count))
         report_func(
             report.LogEvent(
                 message=f"batch: rows_read={len(rows)} uploaded={uploaded} skipped={skipped}",
@@ -306,7 +305,7 @@ def upload_geometry_isophotal(
                 ("a mean (arcsec)", round(a_mean, 3), "-"),
             ],
         )
-    report_func(report.ProgressEvent(percent=100))
+    report_func(report.ProgressEvent(current=total_count, total=total_count))
     if uploaded > 0:
         axis_dist.emit_image(
             report_func,

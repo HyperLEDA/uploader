@@ -57,14 +57,13 @@ class CSVSource(app.UploaderSource, app.DefaultTableNamer):
             )
         return columns
 
-    def get_data(self) -> Generator[tuple[pandas.DataFrame, float]]:
+    def get_data(self) -> Generator[tuple[pandas.DataFrame, int, int]]:
         if self._reader is None:
             raise RuntimeError("Plugin not prepared. Call prepare() first.")
 
         for chunk in self._reader:
             self._current_chunk += 1
-            progress = self._current_chunk / self._total_chunks
-            yield chunk, progress
+            yield chunk, self._current_chunk, self._total_chunks
 
     def stop(self) -> None:
         pass

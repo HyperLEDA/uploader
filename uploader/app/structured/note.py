@@ -31,5 +31,5 @@ def upload_note(
             ),
         )
     )
-    report_func(report.ProgressEvent(percent=100))
+    report_func(report.ProgressEvent(current=1, total=1))
     report_func(report.DoneEvent(message="Note uploaded successfully."))

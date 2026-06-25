@@ -16,7 +16,8 @@ class LogEvent:
 
 @dataclass(frozen=True)
 class ProgressEvent:
-    percent: float
+    current: int
+    total: int
 
 
 @dataclass(frozen=True)

@@ -140,7 +140,7 @@ def _upload(
     estimated_total_size_bytes = estimated_total_rows * estimated_row_size_bytes
     skip_unique_stats = estimated_total_size_bytes >= MAX_UNIQUE_STATS_BYTES
     unique_values_by_column: dict[str, set[Any]] = {column.name: set() for column in schema}
-    prev_percent = 0
+    prev_current = 0
 
     def process_chunk(data: pd.DataFrame) -> None:
         nonlocal total_rows
@@ -187,12 +187,11 @@ def _upload(
 
     report_func(report.LogEvent(message=size_estimate_msg))
 
-    for data, progress in data_iter:
+    for data, current, total in data_iter:
         process_chunk(data)
-        percent = int(progress * 100)
-        if percent != prev_percent:
-            report_func(report.ProgressEvent(percent=percent))
-            prev_percent = percent
+        if current != prev_current:
+            report_func(report.ProgressEvent(current=current, total=total))
+            prev_current = current
 
     report_func(report.LogEvent(message=f"\nTotal rows: {total_rows}"))
 

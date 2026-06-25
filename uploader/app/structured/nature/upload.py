@@ -108,8 +108,7 @@ def upload_nature(
             )
 
         processed_rows += len(rows)
-        batch_pct = int(100 * processed_rows / total_count) if total_count else 0
-        report_func(report.ProgressEvent(percent=min(99, batch_pct)))
+        report_func(report.ProgressEvent(current=processed_rows, total=total_count))
         report_func(
             report.LogEvent(
                 message=f"batch: rows_read={len(rows)} total_uploaded_so_far={total_uploaded}",
@@ -129,7 +128,7 @@ def upload_nature(
         )
         for leda_type, count in sorted(type_counts.items())
     ]
-    report_func(report.ProgressEvent(percent=100))
+    report_func(report.ProgressEvent(current=total_count, total=total_count))
     _emit_type_distribution_image(
         report_func,
         type_counts,

@@ -9,7 +9,7 @@ import Typography from "@mui/material/Typography";
 import { cancelRun } from "../api";
 
 type StreamEvent =
-  | { type: "progress"; percent: number }
+  | { type: "progress"; current: number; total: number }
   | { type: "log"; message: string }
   | {
       type: "image";
@@ -35,6 +35,19 @@ function formatStreamTime(iso: string): string {
   });
 }
 
+function progressPercent(current: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.ceil((100 * current) / total)));
+}
+
+function formatRate(rate: number): string {
+  if (rate >= 1_000_000) return `${(rate / 1_000_000).toFixed(1)}M/s`;
+  if (rate >= 1_000) return `${(rate / 1_000).toFixed(1)}k/s`;
+  if (rate >= 10) return `${Math.round(rate)}/s`;
+  if (rate >= 1) return `${rate.toFixed(1)}/s`;
+  return `${rate.toFixed(2)}/s`;
+}
+
 function isNearBottom(el: HTMLElement, threshold = 48) {
   return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
 }
@@ -46,7 +59,9 @@ export function ProgressView({
   runId: string;
   onReset: () => void;
 }) {
-  const [percent, setPercent] = useState(0);
+  const [current, setCurrent] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [rate, setRate] = useState<number | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [images, setImages] = useState<StreamImage[]>([]);
   const [imageIndex, setImageIndex] = useState(0);
@@ -58,6 +73,9 @@ export function ProgressView({
   const logContainerRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const stickToLatestImageRef = useRef(true);
+  const lastProgressRef = useRef<{ current: number; at: number } | null>(null);
+
+  const percent = progressPercent(current, total);
 
   function handleLogScroll() {
     const el = logContainerRef.current;
@@ -72,15 +90,28 @@ export function ProgressView({
   }
 
   useEffect(() => {
+    setCurrent(0);
+    setTotal(0);
+    setRate(null);
+    lastProgressRef.current = null;
     stickToBottomRef.current = true;
     stickToLatestImageRef.current = true;
     const es = new EventSource(`/api/runs/${runId}/stream`);
     es.onmessage = (e) => {
       try {
         const ev = JSON.parse(e.data) as StreamEvent;
-        if (ev.type === "progress")
-          setPercent(Math.min(100, Math.max(0, Math.ceil(ev.percent))));
-        else if (ev.type === "log") setLogs((x) => [...x, ev.message]);
+        if (ev.type === "progress") {
+          const now = Date.now();
+          const prev = lastProgressRef.current;
+          if (prev !== null) {
+            const dt = (now - prev.at) / 1000;
+            const delta = ev.current - prev.current;
+            if (dt > 0 && delta > 0) setRate(delta / dt);
+          }
+          lastProgressRef.current = { current: ev.current, at: now };
+          setCurrent(ev.current);
+          setTotal(ev.total);
+        } else if (ev.type === "log") setLogs((x) => [...x, ev.message]);
         else if (ev.type === "image") {
           setImages((prev) => {
             const next = [
@@ -135,6 +166,13 @@ export function ProgressView({
       />
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {percent}%
+        {total > 0 && (
+          <>
+            {" "}
+            · {current.toLocaleString()} / {total.toLocaleString()}
+          </>
+        )}
+        {rate !== null && <> · {formatRate(rate)}</>}
       </Typography>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

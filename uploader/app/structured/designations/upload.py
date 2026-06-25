@@ -59,13 +59,14 @@ def _report_batch_progress(
     report_func: Callable[[report.Event], None],
     *,
     rows_read: int,
+    processed_rows: int,
+    total_count: int,
     total_so_far: int,
     matched: int,
     unmatched: int,
-    progress_pct: int,
     rule_counts: dict[str, int],
 ) -> None:
-    report_func(report.ProgressEvent(percent=min(99, progress_pct)))
+    report_func(report.ProgressEvent(current=processed_rows, total=total_count))
     report_func(
         report.LogEvent(
             message=(
@@ -97,7 +98,7 @@ def _report_rule_distribution(
     ]
     table_rows.append(("(no rule matched)", unmatched, pct(unmatched)))
 
-    report_func(report.ProgressEvent(percent=100))
+    report_func(report.ProgressEvent(current=total, total=total))
 
     _emit_rule_distribution_image(
         report_func,
@@ -188,14 +189,14 @@ def upload_designations(
             unmatched=unmatched,
             unmatched_pct=round(total_pct(unmatched), 1),
         )
-        progress_pct = int(100 * processed_rows / total_count) if total_count else 0
         _report_batch_progress(
             report_func,
             rows_read=len(rows),
+            processed_rows=processed_rows,
+            total_count=total_count,
             total_so_far=total_so_far,
             matched=sum(rule_counts.values()),
             unmatched=unmatched,
-            progress_pct=progress_pct,
             rule_counts=rule_counts,
         )
 

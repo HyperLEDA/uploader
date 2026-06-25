@@ -451,8 +451,7 @@ def run_crossmatch(
                     message=(f"Batch processed: {batch_processed} objects; manual check: {batch_pending} objects.")
                 )
             )
-            progress = 100.0 if total_records == 0 else (100.0 * total / total_records)
-            report_func(report.ProgressEvent(percent=min(progress, 100.0)))
+            report_func(report.ProgressEvent(current=total, total=total_records))
             _emit_status_distribution_image(report_func, counts, caption=f"{total} records crossmatched")
     finally:
 
@@ -479,6 +478,6 @@ def run_crossmatch(
             title=f"Total records: {total}\n",
         )
 
-        report_func(report.ProgressEvent(percent=100))
+        report_func(report.ProgressEvent(current=total_records, total=total_records))
         _emit_status_distribution_image(report_func, counts, caption=f"Final: {total} records")
         report_func(report.DoneEvent(message=summary))

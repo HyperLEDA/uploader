@@ -81,10 +81,9 @@ def run_submit_crossmatch(
                 message=f"Batch submitted: {len(record_ids)} records ({submitted}/{eligible_total}).",
             )
         )
-        progress = 100.0 if eligible_total == 0 else (100.0 * submitted / eligible_total)
-        report_func(report.ProgressEvent(percent=min(progress, 100.0)))
+        report_func(report.ProgressEvent(current=submitted, total=eligible_total))
 
-    report_func(report.ProgressEvent(percent=100))
+    report_func(report.ProgressEvent(current=eligible_total, total=eligible_total))
     report_func(
         report.DoneEvent(
             message=f"Submitted {submitted}/{eligible_total} records (write={write}).",
