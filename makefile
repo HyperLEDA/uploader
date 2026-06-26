@@ -6,6 +6,7 @@ install-frontend:
 
 install-dev:
 	uv sync --all-extras
+	$(MAKE) gen
 
 install-dev-frontend:
 	cd frontend && yarn install
