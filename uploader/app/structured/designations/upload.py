@@ -1,3 +1,5 @@
+import csv
+import pathlib
 from collections.abc import Callable
 from typing import Any
 
@@ -182,6 +184,22 @@ def _evaluate_designation(
         ) from e
 
 
+class _DesignationOutputWriter:
+    def __init__(self, path: str) -> None:
+        output_path = pathlib.Path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        self._file = output_path.open("w", newline="")
+        self._writer = csv.writer(self._file)
+        self._writer.writerow(["id", "designation"])
+
+    def write_batch(self, ids: list[str], designations: list[list[str]]) -> None:
+        for record_id, designation in zip(ids, designations, strict=True):
+            self._writer.writerow([record_id, designation[0]])
+
+    def close(self) -> None:
+        self._file.close()
+
+
 def upload_designations(
     storage: PgStorage,
     table_name: str,
@@ -191,6 +209,7 @@ def upload_designations(
     *,
     write: bool = False,
     print_unmatched: bool = False,
+    output_file: str = "",
     report_func: Callable[[report.Event], None],
 ) -> int:
     parsed = parse(expression)
@@ -208,71 +227,79 @@ def upload_designations(
     total_count = int(cnt[0]["cnt"]) if cnt else 0
 
     processed_rows = 0
+    output_writer = _DesignationOutputWriter(output_file) if output_file else None
 
-    for rows in rawdata_batches(storage, table_name, sorted(needed_cols), batch_size):
-        batch_ids: list[str] = []
-        batch_names: list[list[str]] = []
+    try:
+        for rows in rawdata_batches(storage, table_name, sorted(needed_cols), batch_size):
+            batch_ids: list[str] = []
+            batch_names: list[list[str]] = []
 
-        for row in rows:
-            internal_id = row["hyperleda_internal_id"]
-            if any(row[col] is None for col in needed_cols):
-                unmatched += 1
-                continue
-            name_str = _evaluate_designation(parsed, row, column_units)
-            if not name_str:
-                unmatched += 1
-                continue
-            match_result = match(name_str)
-            if match_result is not None:
-                transformed, rule_name = match_result
-                rule_counts[rule_name] += 1
-            else:
-                unmatched += 1
-                transformed = name_str
-                if print_unmatched:
-                    report_func(report.LogEvent(message=name_str))
-            batch_ids.append(internal_id)
-            batch_names.append([transformed])
+            for row in rows:
+                internal_id = row["hyperleda_internal_id"]
+                if any(row[col] is None for col in needed_cols):
+                    unmatched += 1
+                    continue
+                name_str = _evaluate_designation(parsed, row, column_units)
+                if not name_str:
+                    unmatched += 1
+                    continue
+                match_result = match(name_str)
+                if match_result is not None:
+                    transformed, rule_name = match_result
+                    rule_counts[rule_name] += 1
+                else:
+                    unmatched += 1
+                    transformed = name_str
+                    if print_unmatched:
+                        report_func(report.LogEvent(message=name_str))
+                batch_ids.append(internal_id)
+                batch_names.append([transformed])
 
-        if write and batch_ids:
-            handle_call(
-                save_structured_data.sync_detailed(
-                    client=client,
-                    body=action_description.apply(
-                        SaveStructuredDataRequest(
-                            catalog="designation",
-                            columns=["design"],
-                            ids=batch_ids,
-                            data=batch_names,
+            if write and batch_ids:
+                handle_call(
+                    save_structured_data.sync_detailed(
+                        client=client,
+                        body=action_description.apply(
+                            SaveStructuredDataRequest(
+                                catalog="designation",
+                                columns=["design"],
+                                ids=batch_ids,
+                                data=batch_names,
+                            ),
                         ),
-                    ),
+                    )
                 )
+
+            if output_writer is not None and batch_ids:
+                output_writer.write_batch(batch_ids, batch_names)
+
+            processed_rows += len(rows)
+            total_so_far = sum(rule_counts.values()) + unmatched
+
+            def total_pct(n: int, t: int = total_so_far) -> float:
+                return (100.0 * n / t) if t else 0.0
+
+            log.logger.info(
+                "processed batch",
+                total=total_so_far,
+                matched=sum(rule_counts.values()),
+                matched_pct=round(total_pct(sum(rule_counts.values())), 1),
+                unmatched=unmatched,
+                unmatched_pct=round(total_pct(unmatched), 1),
             )
-
-        processed_rows += len(rows)
-        total_so_far = sum(rule_counts.values()) + unmatched
-
-        def total_pct(n: int, t: int = total_so_far) -> float:
-            return (100.0 * n / t) if t else 0.0
-
-        log.logger.info(
-            "processed batch",
-            total=total_so_far,
-            matched=sum(rule_counts.values()),
-            matched_pct=round(total_pct(sum(rule_counts.values())), 1),
-            unmatched=unmatched,
-            unmatched_pct=round(total_pct(unmatched), 1),
-        )
-        progress_pct = int(100 * processed_rows / total_count) if total_count else 0
-        _report_batch_progress(
-            report_func,
-            rows_read=len(rows),
-            total_so_far=total_so_far,
-            matched=sum(rule_counts.values()),
-            unmatched=unmatched,
-            progress_pct=progress_pct,
-            rule_counts=rule_counts,
-        )
+            progress_pct = int(100 * processed_rows / total_count) if total_count else 0
+            _report_batch_progress(
+                report_func,
+                rows_read=len(rows),
+                total_so_far=total_so_far,
+                matched=sum(rule_counts.values()),
+                unmatched=unmatched,
+                progress_pct=progress_pct,
+                rule_counts=rule_counts,
+            )
+    finally:
+        if output_writer is not None:
+            output_writer.close()
 
     total = sum(rule_counts.values()) + unmatched
     _report_rule_distribution(report_func, rule_counts, unmatched, total)

@@ -80,6 +80,18 @@ EVAL_CASES: list[EvalCase] = [
         result_val="M NGC 123",
     ),
     EvalCase(
+        name="string_concat_with_str",
+        expression='col("string_col_2") + " " + str(col("float_col"))',
+        columns=_COLUMNS,
+        result_val="M 1.5",
+    ),
+    EvalCase(
+        name="str_on_string_column",
+        expression='str(col("string_col_1"))',
+        columns=_COLUMNS,
+        result_val="NGC 123",
+    ),
+    EvalCase(
         name="function_unit",
         expression='col("float_col_dex")',
         columns=_COLUMNS,

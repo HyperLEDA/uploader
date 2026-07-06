@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -122,3 +123,29 @@ def test_expression_evaluation_error_becomes_runtime_error(
             _mock_client(),
             report_func=lambda _: None,
         )
+
+
+@patch("uploader.app.structured.designations.upload.rawdata_batches")
+@patch("uploader.app.structured.designations.upload._fetch_column_units")
+def test_output_file_writes_id_designation_pairs(
+    mock_fetch_column_units: Mock,
+    mock_rawdata_batches: Mock,
+    tmp_path: Path,
+) -> None:
+    mock_fetch_column_units.return_value = ({"name"}, {"name": ""})
+    mock_rawdata_batches.return_value = iter(
+        [[{"hyperleda_internal_id": "id-1", "name": "NGC 123"}]],
+    )
+    output_file = tmp_path / "designations.csv"
+
+    upload_designations(
+        _mock_storage(),
+        "test_table",
+        "name",
+        100,
+        _mock_client(),
+        output_file=str(output_file),
+        report_func=lambda _: None,
+    )
+
+    assert output_file.read_text().splitlines() == ["id,designation", "id-1,NGC 123"]

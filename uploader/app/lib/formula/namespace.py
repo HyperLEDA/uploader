@@ -18,9 +18,22 @@ NAMED_CONSTANTS: dict[str, u.Quantity] = {
     "mag": 1 * u.mag,
 }
 
+
+def _formula_str(value: Value) -> str | np.ndarray:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, u.Quantity):
+        scalar = value.value
+        if isinstance(scalar, np.ndarray):
+            return np.asarray(scalar, dtype=str)
+        return str(scalar)
+    return np.asarray(value, dtype=str)
+
+
 FUNCTIONS: dict[str, object] = {
     "sin": np.sin,
     "cos": np.cos,
+    "str": _formula_str,
 }
 
 
@@ -42,7 +55,7 @@ def expression_syntax_help() -> str:
         '(e.g. col("a"), e_logd25).\n'
         "Bare identifiers that match predefined constants use those constants.\n"
         "Operators: + - * / ** %.\n"
-        "Functions: sin(x), cos(x) (argument must be an angle).\n"
+        "Functions: sin(x), cos(x) (argument must be an angle), str(x).\n"
         "Numbers are dimensionless.\n"
         "String literals and + concatenation are supported.\n"
         'Modulo divisors must carry units (e.g. col("pa") % (180 * deg)).\n'

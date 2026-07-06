@@ -21,6 +21,11 @@ class StructuredDesignationAdvancedSettings(BaseModel):
         title="Log unmatched names",
         description="Append each unmatched name to the log stream.",
     )
+    output_file: str = Field(
+        default="",
+        title="Output file",
+        description="If set, write id and designation pairs to this file path.",
+    )
 
 
 class StructuredDesignationForm(BaseModel):
@@ -69,5 +74,6 @@ def handle_structured_designation(
             client,
             write=f.write,
             print_unmatched=advanced.print_unmatched,
+            output_file=advanced.output_file.strip(),
             report_func=report_func,
         )
