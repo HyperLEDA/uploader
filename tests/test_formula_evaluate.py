@@ -92,6 +92,18 @@ EVAL_CASES: list[EvalCase] = [
         result_val="NGC 123",
     ),
     EvalCase(
+        name="str_integer",
+        expression='str(col("num"))',
+        columns={"num": Col(495444.0)},
+        result_val="495444",
+    ),
+    EvalCase(
+        name="str_keeps_fraction",
+        expression='str(col("float_col"))',
+        columns=_COLUMNS,
+        result_val="1.5",
+    ),
+    EvalCase(
         name="function_unit",
         expression='col("float_col_dex")',
         columns=_COLUMNS,

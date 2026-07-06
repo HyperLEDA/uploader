@@ -19,15 +19,22 @@ NAMED_CONSTANTS: dict[str, u.Quantity] = {
 }
 
 
+def _scalar_to_str(value: float | int | np.number) -> str:
+    numeric = float(value)
+    if numeric.is_integer():
+        return str(int(numeric))
+    return str(numeric)
+
+
 def _formula_str(value: Value) -> str | np.ndarray:
     if isinstance(value, str):
         return value
     if isinstance(value, u.Quantity):
         scalar = value.value
         if isinstance(scalar, np.ndarray):
-            return np.asarray(scalar, dtype=str)
-        return str(scalar)
-    return np.asarray(value, dtype=str)
+            return np.asarray([_scalar_to_str(x) for x in scalar])
+        return _scalar_to_str(scalar)
+    return np.asarray([_scalar_to_str(x) for x in value])
 
 
 FUNCTIONS: dict[str, object] = {
