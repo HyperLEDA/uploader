@@ -25,10 +25,13 @@ class StructuredDesignationAdvancedSettings(BaseModel):
 
 class StructuredDesignationForm(BaseModel):
     table_name: str = Field(..., title="Name of the table")
-    column_name: str = Field(
+    expression: str = Field(
         ...,
-        title="Object name column",
-        description="Name of the column that represents object designation in the table.",
+        title="Designation expression",
+        description=(
+            "Expression yielding the object designation per row. "
+            'Examples: designation, col("weird name"), prefix + " " + number.'
+        ),
     )
     write: bool = Field(
         default=False,
@@ -61,7 +64,7 @@ def handle_structured_designation(
         run_upload_designations(
             storage,
             f.table_name.strip(),
-            f.column_name.strip(),
+            f.expression.strip(),
             advanced.batch_size,
             client,
             write=f.write,

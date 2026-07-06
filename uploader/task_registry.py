@@ -1,4 +1,4 @@
-from uploader.app.lib.expression import expression_syntax_help
+from uploader.app.lib.formula import expression_syntax_help
 from uploader.forms.authenticate import AuthenticateForm, handle_authenticate
 from uploader.forms.crossmatch_layered import CrossmatchLayeredForm, handle_crossmatch_layered
 from uploader.forms.structured_designation import (
@@ -80,7 +80,9 @@ def register_all_tasks() -> None:
         TaskDefinition(
             id="upload-structured-designation",
             title="Designations",
-            description="Convert designations to common format and upload them to the database.",
+            description=(
+                f"Convert designations to common format and upload them to the database.\n\n{expression_syntax_help()}"
+            ),
             form_model=StructuredDesignationForm,
             handler=handle_structured_designation,
             group="Catalogs",

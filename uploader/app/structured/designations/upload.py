@@ -1,18 +1,29 @@
 from collections.abc import Callable
+from typing import Any
 
+import astropy.units as u
 import matplotlib.pyplot as plt
+import numpy as np
 from psycopg import sql
 
 import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app import log
 from uploader.app.display import format_table
+from uploader.app.lib.formula import (
+    Expression,
+    ExpressionEvaluationError,
+    Value,
+    column_quantity,
+    evaluate,
+    parse,
+)
 from uploader.app.lib.rawdata import rawdata_batches
 from uploader.app.storage import PgStorage
 from uploader.app.structured.designations.rules import RULES, match
 from uploader.app.upload import handle_call
 from uploader.clients.gen.client import adminapi
-from uploader.clients.gen.client.adminapi.api.default import save_structured_data
+from uploader.clients.gen.client.adminapi.api.default import get_table, save_structured_data
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
@@ -114,10 +125,67 @@ def _report_rule_distribution(
     report_func(report.DoneEvent(message=summary))
 
 
+def _fetch_column_units(
+    client: adminapi.AuthenticatedClient,
+    table_name: str,
+) -> tuple[set[str], dict[str, str]]:
+    resp = handle_call(get_table.sync_detailed(client=client, table_name=table_name))
+    column_names: set[str] = set()
+    column_units: dict[str, str] = {}
+    for col in resp.data.column_info:
+        column_names.add(col.name)
+        if isinstance(col.unit, str):
+            column_units[col.name] = col.unit
+    return column_names, column_units
+
+
+def _validate_columns(
+    table_name: str,
+    needed_cols: set[str],
+    column_names: set[str],
+) -> None:
+    missing = sorted(col for col in needed_cols if col not in column_names)
+    if missing:
+        raise RuntimeError(f"Table {table_name} has no column(s): {missing}")
+
+
+def _build_column_values(
+    row: dict[str, Any],
+    referenced_columns: frozenset[str],
+    column_units: dict[str, str],
+) -> dict[str, Value]:
+    return {col: column_quantity(row[col], column_units.get(col, "")) for col in referenced_columns}
+
+
+def _designation_string(value: Value) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, u.Quantity):
+        scalar = value.value
+        if isinstance(scalar, np.ndarray) and scalar.shape != ():
+            raise RuntimeError("designation expression must evaluate to a scalar value per row")
+        return str(scalar).strip()
+    raise RuntimeError("designation expression must evaluate to a scalar value per row")
+
+
+def _evaluate_designation(
+    parsed: Expression,
+    row: dict[str, Any],
+    column_units: dict[str, str],
+) -> str:
+    columns = _build_column_values(row, parsed.referenced_columns, column_units)
+    try:
+        return _designation_string(evaluate(parsed, columns))
+    except ExpressionEvaluationError as e:
+        raise RuntimeError(
+            f"failed to evaluate expression for row {row['hyperleda_internal_id']}: {e}",
+        ) from e
+
+
 def upload_designations(
     storage: PgStorage,
     table_name: str,
-    column_name: str,
+    expression: str,
     batch_size: int,
     client: adminapi.AuthenticatedClient,
     *,
@@ -125,6 +193,11 @@ def upload_designations(
     print_unmatched: bool = False,
     report_func: Callable[[report.Event], None],
 ) -> int:
+    parsed = parse(expression)
+    needed_cols = set(parsed.referenced_columns)
+    column_names, column_units = _fetch_column_units(client, table_name)
+    _validate_columns(table_name, needed_cols, column_names)
+
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}
     unmatched = 0
     total_count = 0
@@ -136,17 +209,19 @@ def upload_designations(
 
     processed_rows = 0
 
-    for rows in rawdata_batches(storage, table_name, [column_name], batch_size):
+    for rows in rawdata_batches(storage, table_name, sorted(needed_cols), batch_size):
         batch_ids: list[str] = []
         batch_names: list[list[str]] = []
 
         for row in rows:
             internal_id = row["hyperleda_internal_id"]
-            name_val = row[column_name]
-            if name_val is None or (isinstance(name_val, str) and not name_val.strip()):
+            if any(row[col] is None for col in needed_cols):
                 unmatched += 1
                 continue
-            name_str = str(name_val).strip()
+            name_str = _evaluate_designation(parsed, row, column_units)
+            if not name_str:
+                unmatched += 1
+                continue
             match_result = match(name_str)
             if match_result is not None:
                 transformed, rule_name = match_result
