@@ -21,14 +21,22 @@ class StructuredDesignationAdvancedSettings(BaseModel):
         title="Log unmatched names",
         description="Append each unmatched name to the log stream.",
     )
+    output_file: str = Field(
+        default="",
+        title="Output file",
+        description="If set, write id and designation pairs to this file path.",
+    )
 
 
 class StructuredDesignationForm(BaseModel):
     table_name: str = Field(..., title="Name of the table")
-    column_name: str = Field(
+    expression: str = Field(
         ...,
-        title="Object name column",
-        description="Name of the column that represents object designation in the table.",
+        title="Designation expression",
+        description=(
+            "Expression yielding the object designation per row. "
+            'Examples: designation, col("weird name"), prefix + " " + number.'
+        ),
     )
     write: bool = Field(
         default=False,
@@ -61,10 +69,11 @@ def handle_structured_designation(
         run_upload_designations(
             storage,
             f.table_name.strip(),
-            f.column_name.strip(),
+            f.expression.strip(),
             advanced.batch_size,
             client,
             write=f.write,
             print_unmatched=advanced.print_unmatched,
+            output_file=advanced.output_file.strip(),
             report_func=report_func,
         )
