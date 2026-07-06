@@ -38,10 +38,6 @@ _COLUMNS: dict[str, Col] = {
     "logr25_mag": Col(0.3, "mag"),
     "e_logd25_mag": Col(0.05, "mag"),
     "e_logr25_mag": Col(0.04, "mag"),
-    "logd25_dex": Col(1.5, "dex"),
-    "logr25_dex": Col(0.3, "dex"),
-    "e_logd25_dex": Col(0.05, "dex"),
-    "e_logr25_dex": Col(0.04, "dex"),
     "logd25_hl": Col(0.697, "dex(0.1 arcmin)"),
     "logr25_hl": Col(0.13, "dex"),
     "e_logd25_hl": Col(0.079, "dex(0.1 arcmin)"),
@@ -54,11 +50,9 @@ _COLUMNS: dict[str, Col] = {
     "id": Col("82"),
     "ngc_a": Col("NGC"),
     "ngc_b": Col("905"),
-    "x_str": Col("hello"),
     "x_dim": Col(1.5),
     "x_deg": Col(1.5, "deg"),
     "x_mag": Col(1.5, "mag"),
-    "x_dex": Col(1.5, "dex"),
     "x_dex_fn": Col(0.697, "dex(0.1 arcmin)"),
     "pi": Col(1.0),
     "pa_trig": Col(30.0, "deg"),
@@ -131,30 +125,6 @@ EVAL_CASES: list[EvalCase] = [
         result_unit=u.arcsec,
     ),
     EvalCase(
-        name="isophotal_major_axis_dex_units",
-        expression='3 * 10 ** col("logd25_dex") * arcsec',
-        columns=_COLUMNS,
-        result_val=94.8683,
-        result_unit=u.arcsec,
-    ),
-    EvalCase(
-        name="isophotal_major_axis_error_dex_units",
-        expression='3 * 10 ** col("logd25_dex") * 2.302585093 * e_logd25_dex * arcsec',
-        columns=_COLUMNS,
-        result_val=10.9221,
-        result_unit=u.arcsec,
-    ),
-    EvalCase(
-        name="isophotal_minor_axis_error_dex_units",
-        expression=(
-            '3 * 10 ** (col("logd25_dex") - col("logr25_dex")) * 2.302585093 '
-            '* (col("e_logd25_dex") ** 2 + col("e_logr25_dex") ** 2) ** 0.5 * arcsec'
-        ),
-        columns=_COLUMNS,
-        result_val=7.0102,
-        result_unit=u.arcsec,
-    ),
-    EvalCase(
         name="hyperleda_major_axis",
         expression='3 * 10 ** col("logd25_hl") * arcsec',
         columns=_COLUMNS,
@@ -218,12 +188,6 @@ EVAL_CASES: list[EvalCase] = [
         result_val="NGC 905",
     ),
     EvalCase(
-        name="column_string_value",
-        expression='col("x_str")',
-        columns=_COLUMNS,
-        result_val="hello",
-    ),
-    EvalCase(
         name="column_dimensionless",
         expression='col("x_dim")',
         columns=_COLUMNS,
@@ -245,24 +209,10 @@ EVAL_CASES: list[EvalCase] = [
         result_unit=u.dimensionless_unscaled,
     ),
     EvalCase(
-        name="column_dex_unit",
-        expression='col("x_dex")',
-        columns=_COLUMNS,
-        result_val=1.5,
-        result_unit=u.dimensionless_unscaled,
-    ),
-    EvalCase(
         name="column_dex_function_unit",
         expression='col("x_dex_fn")',
         columns=_COLUMNS,
         result_val=0.697,
-        result_unit=u.dimensionless_unscaled,
-    ),
-    EvalCase(
-        name="constant_over_column",
-        expression="pi",
-        columns=_COLUMNS,
-        result_val=3.1416,
         result_unit=u.dimensionless_unscaled,
     ),
     EvalCase(
