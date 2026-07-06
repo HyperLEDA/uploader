@@ -9,7 +9,7 @@ from uploader.app.lib.formula import ExpressionEvaluationError, column_quantity,
 
 @dataclass
 class Col:
-    value: float | str
+    value: float | str | list[float] | list[str]
     unit: str = ""
 
 
@@ -17,7 +17,7 @@ class Col:
 class EvalCase:
     expression: str
     columns: dict[str, Col]
-    result_val: str | float | None = None
+    result_val: str | float | list[float] | list[str] | None = None
     result_unit: u.Unit | None = None
     error: bool = False
     name: str = ""
@@ -37,6 +37,10 @@ _COLUMNS: dict[str, Col] = {
     "string_col_1": Col("NGC 123"),
     "string_col_2": Col("M"),
     "float_col_dimless": Col(0.5),
+    "vec_col": Col([1.0, 2.0, 3.0]),
+    "vec_angle_col": Col([0.0, 90.0, 180.0], "deg"),
+    "vec_string_a": Col(["NGC", "IC", "M"]),
+    "vec_string_b": Col(["123", "456", "789"]),
 }
 
 
@@ -116,6 +120,40 @@ EVAL_CASES: list[EvalCase] = [
         columns=_COLUMNS,
         error=True,
     ),
+    EvalCase(
+        name="vector_column_with_unit",
+        expression='col("vec_angle_col")',
+        columns=_COLUMNS,
+        result_val=[0.0, 90.0, 180.0],
+        result_unit=u.deg,
+    ),
+    EvalCase(
+        name="vector_arithmetic",
+        expression='3 * 10 ** col("vec_col") * arcsec',
+        columns=_COLUMNS,
+        result_val=[30.0, 300.0, 3000.0],
+        result_unit=u.arcsec,
+    ),
+    EvalCase(
+        name="vector_trig",
+        expression='sin(col("vec_angle_col"))',
+        columns=_COLUMNS,
+        result_val=[0.0, 1.0, 0.0],
+        result_unit=u.dimensionless_unscaled,
+    ),
+    EvalCase(
+        name="scalar_vector_broadcast",
+        expression='col("float_col") + col("vec_col")',
+        columns=_COLUMNS,
+        result_val=[2.5, 3.5, 4.5],
+        result_unit=u.dimensionless_unscaled,
+    ),
+    EvalCase(
+        name="vector_string_concat",
+        expression='col("vec_string_a") + " " + col("vec_string_b")',
+        columns=_COLUMNS,
+        result_val=["NGC 123", "IC 456", "M 789"],
+    ),
 ]
 
 
@@ -129,9 +167,21 @@ def test_evaluate(case: EvalCase) -> None:
     result = evaluate_expr(case.expression, case.columns)
 
     if case.result_unit is None:
-        assert result == case.result_val
+        if isinstance(case.result_val, list):
+            assert isinstance(result, np.ndarray)
+            np.testing.assert_array_equal(result, case.result_val)
+        else:
+            assert result == case.result_val
         return
 
     assert isinstance(result, u.Quantity)
     assert result.unit == case.result_unit
-    np.testing.assert_almost_equal(result.value, case.result_val, decimal=4)
+    if isinstance(case.result_val, list):
+        np.testing.assert_allclose(
+            np.asarray(result.value),
+            np.asarray(case.result_val),
+            rtol=1e-4,
+            atol=1e-10,
+        )
+    else:
+        np.testing.assert_almost_equal(result.value, case.result_val, decimal=4)
