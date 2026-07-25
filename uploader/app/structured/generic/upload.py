@@ -1,15 +1,14 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
-import astropy.units as u
 from psycopg import sql
 
 import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app.display import format_table
-from uploader.app.lib.expression import Expression, eval_context_suffix, format_unit, parse
+from uploader.app.lib.expression import Expression, evaluate_to_float, parse
 from uploader.app.lib.rawdata import rawdata_batches
-from uploader.app.lib.table import fetch_column_units
+from uploader.app.lib.table import fetch_column_units, validate_columns
 from uploader.app.storage import PgStorage
 from uploader.app.upload import handle_call
 from uploader.clients.gen.client import adminapi
@@ -62,24 +61,14 @@ def _evaluate_numeric_field(
     target_unit: str | None,
     data_type: DatatypeEnum,
 ) -> float | int:
-    target = target_unit if target_unit is not None else ""
-    try:
-        quantity = expr.evaluate(values, column_units)
-    except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
-        raise RuntimeError(
-            f"failed to evaluate {field!r} ({source!r}){eval_context_suffix(expr, column_units)}: {e}",
-        ) from e
-    try:
-        if target:
-            value = float(quantity.to(u.Unit(target)).value)
-        else:
-            value = float(quantity.to(u.dimensionless_unscaled).value)
-    except (u.UnitConversionError, u.UnitTypeError) as e:
-        raise RuntimeError(
-            f"failed to convert {field!r} ({source!r}) "
-            f"from {format_unit(quantity.unit)} to {target or 'dimensionless'}"
-            f"{eval_context_suffix(expr, column_units)}: {e}",
-        ) from e
+    value = evaluate_to_float(
+        expr,
+        values,
+        column_units,
+        field,
+        source,
+        target_unit if target_unit is not None else "",
+    )
     if data_type in _INT_TYPES:
         return int(value)
     return value
@@ -109,9 +98,7 @@ def upload_catalog_columns(
     all_needed_cols = expr_cols | mapped_cols
 
     column_names, column_units = fetch_column_units(client, table_name)
-    missing = sorted(col for col in all_needed_cols if col not in column_names)
-    if missing:
-        raise RuntimeError(f"Table {table_name} has no column(s): {missing}")
+    validate_columns(table_name, all_needed_cols, column_names)
 
     units_payload: dict[str, str] = {name: field_units[name] for name in columns if name in field_units}
     units = SaveStructuredDataRequestUnits.from_dict(units_payload) if units_payload else UNSET

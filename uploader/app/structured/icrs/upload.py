@@ -1,6 +1,5 @@
 from collections.abc import Callable
 
-import astropy.units as u
 import matplotlib.pyplot as plt
 import numpy as np
 from psycopg import sql
@@ -8,9 +7,9 @@ from psycopg import sql
 import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app.display import format_table
-from uploader.app.lib.expression import Expression, eval_context_suffix, format_unit, parse
+from uploader.app.lib.expression import Expression, evaluate_to_float, parse
 from uploader.app.lib.rawdata import rawdata_batches
-from uploader.app.lib.table import fetch_column_units
+from uploader.app.lib.table import fetch_column_units, validate_columns
 from uploader.app.storage import PgStorage
 from uploader.app.upload import handle_call
 from uploader.clients.gen.client import adminapi
@@ -80,30 +79,6 @@ def _parse_expressions(expressions: dict[str, str]) -> dict[str, Expression]:
     return {field: parse(source) for field, source in expressions.items()}
 
 
-def _evaluate_error_field(
-    expr: Expression,
-    values: dict[str, float],
-    column_units: dict[str, str],
-    field: str,
-    source: str,
-) -> float:
-    target = TARGET_ERROR_UNITS[field]
-    try:
-        quantity = expr.evaluate(values, column_units)
-    except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
-        raise RuntimeError(
-            f"failed to evaluate {field!r} ({source!r}){eval_context_suffix(expr, column_units)}: {e}",
-        ) from e
-    try:
-        return float(quantity.to(u.Unit(target)).value)
-    except (u.UnitConversionError, u.UnitTypeError) as e:
-        raise RuntimeError(
-            f"failed to convert {field!r} ({source!r}) "
-            f"from {format_unit(quantity.unit)} to {target}"
-            f"{eval_context_suffix(expr, column_units)}: {e}",
-        ) from e
-
-
 def upload_icrs(
     storage: PgStorage,
     table_name: str,
@@ -121,9 +96,7 @@ def upload_icrs(
 
     error_cols = set().union(*(expr.referenced_columns for expr in parsed.values()))
     all_needed_cols = {ra_column, dec_column} | error_cols
-    missing = sorted(col for col in all_needed_cols if col not in column_names)
-    if missing:
-        raise RuntimeError(f"Table {table_name} has no column(s): {missing}")
+    validate_columns(table_name, all_needed_cols, column_names)
 
     missing_units = [c for c in (ra_column, dec_column) if c not in column_units]
     if missing_units:
@@ -170,19 +143,21 @@ def upload_icrs(
 
             values = {col: float(row[col]) for col in error_cols}
             try:
-                e_ra_val = _evaluate_error_field(
+                e_ra_val = evaluate_to_float(
                     parsed["e_ra"],
                     values,
                     column_units,
                     "e_ra",
                     expressions["e_ra"],
+                    TARGET_ERROR_UNITS["e_ra"],
                 )
-                e_dec_val = _evaluate_error_field(
+                e_dec_val = evaluate_to_float(
                     parsed["e_dec"],
                     values,
                     column_units,
                     "e_dec",
                     expressions["e_dec"],
+                    TARGET_ERROR_UNITS["e_dec"],
                 )
             except RuntimeError as e:
                 raise RuntimeError(

@@ -21,7 +21,7 @@ from uploader.app.lib.formula import (
     parse,
 )
 from uploader.app.lib.rawdata import rawdata_batches
-from uploader.app.lib.table import fetch_column_units
+from uploader.app.lib.table import fetch_column_units, validate_columns
 from uploader.app.storage import PgStorage
 from uploader.app.structured.designations.rules import RULES, match
 from uploader.app.upload import handle_call
@@ -128,16 +128,6 @@ def _report_rule_distribution(
     report_func(report.DoneEvent(message=summary))
 
 
-def _validate_columns(
-    table_name: str,
-    needed_cols: set[str],
-    column_names: set[str],
-) -> None:
-    missing = sorted(col for col in needed_cols if col not in column_names)
-    if missing:
-        raise RuntimeError(f"Table {table_name} has no column(s): {missing}")
-
-
 def _build_column_values(
     row: dict[str, Any],
     referenced_columns: frozenset[str],
@@ -202,7 +192,7 @@ def upload_designations(
     parsed = parse(expression)
     needed_cols = set(parsed.referenced_columns)
     column_names, column_units = fetch_column_units(client, table_name)
-    _validate_columns(table_name, needed_cols, column_names)
+    validate_columns(table_name, needed_cols, column_names)
 
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}
     unmatched = 0

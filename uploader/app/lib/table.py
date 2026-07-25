@@ -15,3 +15,13 @@ def fetch_column_units(
         if isinstance(col.unit, str):
             column_units[col.name] = col.unit
     return column_names, column_units
+
+
+def validate_columns(
+    table_name: str,
+    needed_cols: set[str],
+    column_names: set[str],
+) -> None:
+    missing = sorted(col for col in needed_cols if col not in column_names)
+    if missing:
+        raise RuntimeError(f"Table {table_name} has no column(s): {missing}")
