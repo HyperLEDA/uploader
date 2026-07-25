@@ -111,6 +111,44 @@ class Expression:
         return _Evaluator(values, units).visit(self._tree.body)
 
 
+def format_unit(unit: u.UnitBase) -> str:
+    text = f"{unit:s}".strip()
+    return text if text else "dimensionless"
+
+
+def eval_context_suffix(expr: Expression, column_units: dict[str, str]) -> str:
+    if not expr.referenced_columns:
+        return ""
+    parts = [f"{col}={column_units.get(col, '')!r}" for col in sorted(expr.referenced_columns)]
+    return f"; columns: {', '.join(parts)}"
+
+
+def evaluate_to_float(
+    expr: Expression,
+    values: dict[str, float],
+    column_units: dict[str, str],
+    field: str,
+    source: str,
+    target_unit: str,
+) -> float:
+    try:
+        quantity = expr.evaluate(values, column_units)
+    except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
+        raise RuntimeError(
+            f"failed to evaluate {field!r} ({source!r}){eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
+    try:
+        if target_unit:
+            return float(quantity.to(u.Unit(target_unit)).value)
+        return float(quantity.to(u.dimensionless_unscaled).value)
+    except (u.UnitConversionError, u.UnitTypeError) as e:
+        raise RuntimeError(
+            f"failed to convert {field!r} ({source!r}) "
+            f"from {format_unit(quantity.unit)} to {target_unit or 'dimensionless'}"
+            f"{eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
+
+
 def parse(source: str) -> Expression:
     tree = ast.parse(source.strip(), mode="eval")
     referenced_columns = _collect_columns(tree.body)
