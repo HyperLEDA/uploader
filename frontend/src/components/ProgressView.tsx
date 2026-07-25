@@ -17,7 +17,7 @@ type StreamEvent =
       caption: string | null;
       timestamp: string;
     }
-  | { type: "error"; message: string }
+  | { type: "error"; message: string; details: string }
   | { type: "done"; message: string }
   | { type: "cancelled"; message: string };
 
@@ -53,6 +53,7 @@ export function ProgressView({
   const [done, setDone] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -98,6 +99,7 @@ export function ProgressView({
           });
         } else if (ev.type === "error") {
           setError(ev.message);
+          setErrorDetails(ev.details);
           es.close();
         } else if (ev.type === "cancelled") {
           setCancelled(ev.message);
@@ -137,9 +139,28 @@ export function ProgressView({
         {percent}%
       </Typography>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2, whiteSpace: "pre-wrap" }}>
           {error}
         </Alert>
+      )}
+      {errorDetails && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            mb: 2,
+            maxHeight: 360,
+            overflow: "auto",
+            fontFamily: "monospace",
+            fontSize: 13,
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Details
+          </Typography>
+          {errorDetails}
+        </Paper>
       )}
       {cancelled && (
         <Alert

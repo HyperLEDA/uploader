@@ -74,9 +74,10 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
     run = TaskRun(run_id=run_id)
     final_status: history.HistoryStatus | None = None
     final_message: str = ""
+    final_details: str | None = None
 
     def append_report_event(event: report.Event) -> None:
-        nonlocal final_status, final_message
+        nonlocal final_status, final_message, final_details
         match event:
             case report.LogEvent(message=msg):
                 out = _log_message_with_time(msg)
@@ -102,7 +103,7 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                 final_status = "success"
                 final_message = msg
                 run.append({"type": "done", "message": msg})
-            case report.ErrorEvent(message=msg):
+            case report.ErrorEvent(message=msg, details=details):
                 logger.error(
                     "error event",
                     task_id=task_id,
@@ -110,7 +111,8 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                 )
                 final_status = "error"
                 final_message = msg
-                run.append({"type": "error", "message": msg})
+                final_details = details
+                run.append({"type": "error", "message": msg, "details": details})
             case report.ImageEvent(data_url=url, caption=cap):
                 run.append(
                     {
@@ -127,7 +129,7 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
         append_report_event(event)
 
     def worker() -> None:
-        nonlocal final_status, final_message
+        nonlocal final_status, final_message, final_details
         token = action_description.set_current(
             action_description.build(task_id, run_id, form.model_dump(mode="json")),
         )
@@ -138,8 +140,9 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
             final_message = "Task was cancelled by user."
             run.append({"type": "cancelled", "message": final_message})
         except Exception as e:
-            message = f"{e}\n\n{traceback.format_exc()}"
-            append_report_event(report.ErrorEvent(message=message))
+            append_report_event(
+                report.ErrorEvent(message=str(e), details=traceback.format_exc()),
+            )
         finally:
             action_description.reset_current(token)
             run.done.set()
@@ -152,6 +155,7 @@ def start_task(task_id: str, form_data: dict[str, Any]) -> str:
                         inputs=form_data,
                         status=final_status,
                         message=final_message,
+                        details=final_details,
                     ),
                 )
 

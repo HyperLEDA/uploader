@@ -41,15 +41,6 @@ if [ -z "$WHEEL_URL" ]; then
     exit 1
 fi
 
-TMPDIR="$(mktemp -d)"
-cleanup() {
-    rm -rf "$TMPDIR"
-}
-trap cleanup EXIT
-
-WHEEL_PATH="${TMPDIR}/$(basename "$WHEEL_URL")"
-curl -fsSL "$WHEEL_URL" -o "$WHEEL_PATH"
-
-uv tool install --force --from "$WHEEL_PATH" "$TOOL_NAME"
+uv tool install --force --from "$WHEEL_URL" "$TOOL_NAME"
 
 echo "${TOOL_NAME} installed from ${TAG}"
