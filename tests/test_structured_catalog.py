@@ -2,13 +2,18 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from uploader.app.lib.formula import expression_syntax_help
+from uploader.app.lib import expression, formula
 from uploader.app.structured.generic.upload import is_numeric_datatype, upload_catalog_columns
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.models.catalog_field import CatalogField
 from uploader.clients.gen.client.adminapi.models.catalog_schema import CatalogSchema
 from uploader.clients.gen.client.adminapi.models.datatype_enum import DatatypeEnum
-from uploader.forms.structured_catalog import _task_description, build_catalog_form
+from uploader.forms.structured_catalog import (
+    _task_description,
+    build_catalog_form,
+    register_structured_catalog_tasks,
+)
+from uploader.tasks import TASKS
 
 
 def _mock_storage(total: int = 1) -> Mock:
@@ -56,16 +61,34 @@ def test_build_catalog_form_numeric_fields_are_expressions() -> None:
     assert fields["n"].is_required() is False
 
 
-def test_task_description_includes_expression_help() -> None:
+def test_task_description_matches_upload_expression_engine() -> None:
     description = _task_description(_sample_schema())
     assert "Demo structured catalog." in description
-    assert expression_syntax_help() in description
+    assert expression.expression_syntax_help() in description
+    assert formula.expression_syntax_help() not in description
+    assert "str(x)" not in description
+    assert "String literals and + concatenation are supported." not in description
+    assert "Modulo divisors must carry units" not in description
+
+
+@patch("uploader.forms.structured_catalog.log.logger.warning")
+@patch("uploader.forms.structured_catalog.fetch_catalogs", side_effect=RuntimeError("api down"))
+def test_register_structured_catalog_tasks_logs_fetch_failure(
+    _mock_fetch_catalogs: Mock,
+    mock_warning: Mock,
+) -> None:
+    before = set(TASKS)
+    register_structured_catalog_tasks()
+    assert set(TASKS) == before
+    mock_warning.assert_called_once()
+    assert mock_warning.call_args.args[0] == "failed to fetch catalogs for structured catalog tasks"
+    assert mock_warning.call_args.kwargs["error"] == "api down"
 
 
 @patch("uploader.app.structured.generic.upload.handle_call")
 @patch("uploader.app.structured.generic.upload.save_structured_data.sync_detailed")
 @patch("uploader.app.structured.generic.upload.rawdata_batches")
-@patch("uploader.app.structured.generic.upload._fetch_column_units")
+@patch("uploader.app.structured.generic.upload.fetch_column_units")
 def test_upload_evaluates_numeric_expressions(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
@@ -123,7 +146,7 @@ def test_upload_evaluates_numeric_expressions(
 
 
 @patch("uploader.app.structured.generic.upload.rawdata_batches")
-@patch("uploader.app.structured.generic.upload._fetch_column_units")
+@patch("uploader.app.structured.generic.upload.fetch_column_units")
 def test_upload_unit_conversion_error_includes_field_details(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,

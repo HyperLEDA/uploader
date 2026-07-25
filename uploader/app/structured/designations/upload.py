@@ -21,11 +21,12 @@ from uploader.app.lib.formula import (
     parse,
 )
 from uploader.app.lib.rawdata import rawdata_batches
+from uploader.app.lib.table import fetch_column_units
 from uploader.app.storage import PgStorage
 from uploader.app.structured.designations.rules import RULES, match
 from uploader.app.upload import handle_call
 from uploader.clients.gen.client import adminapi
-from uploader.clients.gen.client.adminapi.api.default import get_table, save_structured_data
+from uploader.clients.gen.client.adminapi.api.default import save_structured_data
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
@@ -127,20 +128,6 @@ def _report_rule_distribution(
     report_func(report.DoneEvent(message=summary))
 
 
-def _fetch_column_units(
-    client: adminapi.AuthenticatedClient,
-    table_name: str,
-) -> tuple[set[str], dict[str, str]]:
-    resp = handle_call(get_table.sync_detailed(client=client, table_name=table_name))
-    column_names: set[str] = set()
-    column_units: dict[str, str] = {}
-    for col in resp.data.column_info:
-        column_names.add(col.name)
-        if isinstance(col.unit, str):
-            column_units[col.name] = col.unit
-    return column_names, column_units
-
-
 def _validate_columns(
     table_name: str,
     needed_cols: set[str],
@@ -214,7 +201,7 @@ def upload_designations(
 ) -> int:
     parsed = parse(expression)
     needed_cols = set(parsed.referenced_columns)
-    column_names, column_units = _fetch_column_units(client, table_name)
+    column_names, column_units = fetch_column_units(client, table_name)
     _validate_columns(table_name, needed_cols, column_names)
 
     rule_counts: dict[str, int] = {r.name: 0 for r in RULES}

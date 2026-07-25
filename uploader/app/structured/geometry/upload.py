@@ -8,12 +8,13 @@ from psycopg import sql
 import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app.display import format_table
-from uploader.app.lib.expression import Expression, parse
+from uploader.app.lib.expression import Expression, eval_context_suffix, format_unit, parse
 from uploader.app.lib.rawdata import rawdata_batches
+from uploader.app.lib.table import fetch_column_units
 from uploader.app.storage import PgStorage
 from uploader.app.upload import handle_call
 from uploader.clients.gen.client import adminapi
-from uploader.clients.gen.client.adminapi.api.default import get_table, save_structured_data
+from uploader.clients.gen.client.adminapi.api.default import save_structured_data
 from uploader.clients.gen.client.adminapi.models.save_structured_data_request import (
     SaveStructuredDataRequest,
 )
@@ -128,20 +129,6 @@ class _GeometryDistributionAccumulator:
         report_func(report.image_event_from_figure(fig, caption=caption))
 
 
-def _fetch_column_units(
-    client: adminapi.AuthenticatedClient,
-    table_name: str,
-) -> tuple[set[str], dict[str, str]]:
-    resp = handle_call(get_table.sync_detailed(client=client, table_name=table_name))
-    column_names: set[str] = set()
-    column_units: dict[str, str] = {}
-    for col in resp.data.column_info:
-        column_names.add(col.name)
-        if isinstance(col.unit, str):
-            column_units[col.name] = col.unit
-    return column_names, column_units
-
-
 def _parse_expressions(expressions: dict[str, str]) -> dict[str, Expression]:
     return {field: parse(source) for field, source in expressions.items()}
 
@@ -156,18 +143,6 @@ def _validate_columns(
         raise RuntimeError(f"Table {table_name} has no column(s): {missing}")
 
 
-def _format_unit(unit: u.UnitBase) -> str:
-    text = f"{unit:s}".strip()
-    return text if text else "dimensionless"
-
-
-def _eval_context_suffix(expr: Expression, column_units: dict[str, str]) -> str:
-    if not expr.referenced_columns:
-        return ""
-    parts = [f"{col}={column_units.get(col, '')!r}" for col in sorted(expr.referenced_columns)]
-    return f"; columns: {', '.join(parts)}"
-
-
 def _evaluate_field(
     expr: Expression,
     values: dict[str, float],
@@ -180,15 +155,15 @@ def _evaluate_field(
         quantity = expr.evaluate(values, column_units)
     except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
         raise RuntimeError(
-            f"failed to evaluate {field!r} ({source!r}){_eval_context_suffix(expr, column_units)}: {e}",
+            f"failed to evaluate {field!r} ({source!r}){eval_context_suffix(expr, column_units)}: {e}",
         ) from e
     try:
         return float(quantity.to(u.Unit(target)).value)
     except (u.UnitConversionError, u.UnitTypeError) as e:
         raise RuntimeError(
             f"failed to convert {field!r} ({source!r}) "
-            f"from {_format_unit(quantity.unit)} to {target}"
-            f"{_eval_context_suffix(expr, column_units)}: {e}",
+            f"from {format_unit(quantity.unit)} to {target}"
+            f"{eval_context_suffix(expr, column_units)}: {e}",
         ) from e
 
 
@@ -209,7 +184,7 @@ def upload_geometry_isophotal(
         {col: TARGET_UNITS[col] for col in geometry_columns if col in TARGET_UNITS},
     )
     needed_cols = set().union(*(expr.referenced_columns for expr in parsed.values()))
-    column_names, column_units = _fetch_column_units(client, table_name)
+    column_names, column_units = fetch_column_units(client, table_name)
     _validate_columns(table_name, needed_cols, column_names)
 
     uploaded = 0

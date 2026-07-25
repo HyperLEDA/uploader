@@ -111,6 +111,18 @@ class Expression:
         return _Evaluator(values, units).visit(self._tree.body)
 
 
+def format_unit(unit: u.UnitBase) -> str:
+    text = f"{unit:s}".strip()
+    return text if text else "dimensionless"
+
+
+def eval_context_suffix(expr: Expression, column_units: dict[str, str]) -> str:
+    if not expr.referenced_columns:
+        return ""
+    parts = [f"{col}={column_units.get(col, '')!r}" for col in sorted(expr.referenced_columns)]
+    return f"; columns: {', '.join(parts)}"
+
+
 def parse(source: str) -> Expression:
     tree = ast.parse(source.strip(), mode="eval")
     referenced_columns = _collect_columns(tree.body)

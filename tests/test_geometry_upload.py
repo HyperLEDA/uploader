@@ -30,7 +30,7 @@ def _base_expressions() -> dict[str, str]:
 
 
 @patch("uploader.app.structured.geometry.upload.rawdata_batches")
-@patch("uploader.app.structured.geometry.upload._fetch_column_units")
+@patch("uploader.app.structured.geometry.upload.fetch_column_units")
 def test_isophote_unit_conversion_error_includes_field_details(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
@@ -79,7 +79,7 @@ def test_isophote_unit_conversion_error_includes_field_details(
 
 
 @patch("uploader.app.structured.geometry.upload.rawdata_batches")
-@patch("uploader.app.structured.geometry.upload._fetch_column_units")
+@patch("uploader.app.structured.geometry.upload.fetch_column_units")
 def test_constant_isophote_unit_error_omits_empty_columns(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,

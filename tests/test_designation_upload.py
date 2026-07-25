@@ -18,7 +18,7 @@ def _mock_client() -> Mock:
 
 
 @patch("uploader.app.structured.designations.upload.rawdata_batches")
-@patch("uploader.app.structured.designations.upload._fetch_column_units")
+@patch("uploader.app.structured.designations.upload.fetch_column_units")
 def test_simple_column_expression(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
@@ -43,7 +43,7 @@ def test_simple_column_expression(
 
 
 @patch("uploader.app.structured.designations.upload.rawdata_batches")
-@patch("uploader.app.structured.designations.upload._fetch_column_units")
+@patch("uploader.app.structured.designations.upload.fetch_column_units")
 def test_composed_string_expression(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
@@ -65,7 +65,7 @@ def test_composed_string_expression(
     assert total == 1
 
 
-@patch("uploader.app.structured.designations.upload._fetch_column_units")
+@patch("uploader.app.structured.designations.upload.fetch_column_units")
 def test_missing_referenced_columns(mock_fetch_column_units: Mock) -> None:
     mock_fetch_column_units.return_value = ({"other"}, {})
 
@@ -81,7 +81,7 @@ def test_missing_referenced_columns(mock_fetch_column_units: Mock) -> None:
 
 
 @patch("uploader.app.structured.designations.upload.rawdata_batches")
-@patch("uploader.app.structured.designations.upload._fetch_column_units")
+@patch("uploader.app.structured.designations.upload.fetch_column_units")
 def test_null_referenced_values_counted_as_unmatched(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
@@ -104,7 +104,7 @@ def test_null_referenced_values_counted_as_unmatched(
 
 
 @patch("uploader.app.structured.designations.upload.rawdata_batches")
-@patch("uploader.app.structured.designations.upload._fetch_column_units")
+@patch("uploader.app.structured.designations.upload.fetch_column_units")
 def test_expression_evaluation_error_becomes_runtime_error(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
@@ -126,7 +126,7 @@ def test_expression_evaluation_error_becomes_runtime_error(
 
 
 @patch("uploader.app.structured.designations.upload.rawdata_batches")
-@patch("uploader.app.structured.designations.upload._fetch_column_units")
+@patch("uploader.app.structured.designations.upload.fetch_column_units")
 def test_output_file_writes_id_designation_pairs(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,

@@ -6,9 +6,10 @@ from psycopg import connect
 from pydantic import BaseModel, Field, create_model
 
 import uploader.app.report as report
+from uploader.app import log
 from uploader.app.catalogs import fetch_catalogs
 from uploader.app.endpoints import db_dsn_map, env_map
-from uploader.app.lib.formula import expression_syntax_help
+from uploader.app.lib.expression import expression_syntax_help
 from uploader.app.storage import PgStorage
 from uploader.app.structured.generic import is_numeric_datatype, upload_catalog_columns
 from uploader.clients.gen.client import adminapi
@@ -169,7 +170,8 @@ def register_structured_catalog_tasks(
 ) -> None:
     try:
         schemas = catalogs if catalogs is not None else fetch_catalogs()
-    except Exception:
+    except Exception as e:
+        log.logger.warning("failed to fetch catalogs for structured catalog tasks", error=str(e))
         return
     for schema in schemas:
         register_task(
