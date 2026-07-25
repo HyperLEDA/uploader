@@ -1,6 +1,7 @@
 from uploader.app.lib.formula import expression_syntax_help
 from uploader.forms.authenticate import AuthenticateForm, handle_authenticate
 from uploader.forms.crossmatch_layered import CrossmatchLayeredForm, handle_crossmatch_layered
+from uploader.forms.structured_catalog import register_structured_catalog_tasks
 from uploader.forms.structured_designation import (
     StructuredDesignationForm,
     handle_structured_designation,
@@ -163,3 +164,4 @@ def register_all_tasks() -> None:
             group="Crossmatch",
         ),
     )
+    register_structured_catalog_tasks()

@@ -102,13 +102,18 @@ def cancel_task_run(run_id: str) -> dict[str, str]:
 
 
 if STATIC_DIR.is_dir():
+    _NO_CACHE = {"Cache-Control": "no-cache"}
+    _IMMUTABLE = {"Cache-Control": "public, max-age=31536000, immutable"}
 
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str) -> FileResponse:
         file_path = STATIC_DIR / full_path
         if file_path.is_file() and file_path.resolve().is_relative_to(STATIC_DIR.resolve()):
-            return FileResponse(path=file_path)
-        return FileResponse(path=STATIC_DIR / "index.html")
+            headers = _IMMUTABLE if file_path.relative_to(STATIC_DIR).parts[0] == "assets" else _NO_CACHE
+            return FileResponse(path=file_path, headers=headers)
+        if full_path.startswith("assets/") or pathlib.Path(full_path).suffix:
+            raise HTTPException(status_code=404, detail="Not found")
+        return FileResponse(path=STATIC_DIR / "index.html", headers=_NO_CACHE)
 
 
 @click.group()

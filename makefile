@@ -118,6 +118,7 @@ frontend:
 
 dev:
 	@set -e; \
+	rm -rf uploader/static; \
 	trap 'kill $$backend_pid $$frontend_pid 2>/dev/null || true; wait $$backend_pid $$frontend_pid 2>/dev/null || true' INT TERM EXIT; \
 	$(MAKE) --no-print-directory serve & \
 	backend_pid=$$!; \
