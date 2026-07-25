@@ -79,14 +79,40 @@ def _parse_expressions(expressions: dict[str, str]) -> dict[str, Expression]:
     return {field: parse(source) for field, source in expressions.items()}
 
 
+def _format_unit(unit: u.UnitBase) -> str:
+    text = f"{unit:s}".strip()
+    return text if text else "dimensionless"
+
+
+def _eval_context_suffix(expr: Expression, column_units: dict[str, str]) -> str:
+    if not expr.referenced_columns:
+        return ""
+    parts = [f"{col}={column_units.get(col, '')!r}" for col in sorted(expr.referenced_columns)]
+    return f"; columns: {', '.join(parts)}"
+
+
 def _evaluate_error_field(
     expr: Expression,
     values: dict[str, float],
     column_units: dict[str, str],
     field: str,
+    source: str,
 ) -> float:
-    quantity = expr.evaluate(values, column_units).to(u.Unit(TARGET_ERROR_UNITS[field]))
-    return float(quantity.value)
+    target = TARGET_ERROR_UNITS[field]
+    try:
+        quantity = expr.evaluate(values, column_units)
+    except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
+        raise RuntimeError(
+            f"failed to evaluate {field!r} ({source!r}){_eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
+    try:
+        return float(quantity.to(u.Unit(target)).value)
+    except (u.UnitConversionError, u.UnitTypeError) as e:
+        raise RuntimeError(
+            f"failed to convert {field!r} ({source!r}) "
+            f"from {_format_unit(quantity.unit)} to {target}"
+            f"{_eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
 
 
 def _fetch_column_units(
@@ -169,9 +195,21 @@ def upload_icrs(
 
             values = {col: float(row[col]) for col in error_cols}
             try:
-                e_ra_val = _evaluate_error_field(parsed["e_ra"], values, column_units, "e_ra")
-                e_dec_val = _evaluate_error_field(parsed["e_dec"], values, column_units, "e_dec")
-            except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
+                e_ra_val = _evaluate_error_field(
+                    parsed["e_ra"],
+                    values,
+                    column_units,
+                    "e_ra",
+                    expressions["e_ra"],
+                )
+                e_dec_val = _evaluate_error_field(
+                    parsed["e_dec"],
+                    values,
+                    column_units,
+                    "e_dec",
+                    expressions["e_dec"],
+                )
+            except RuntimeError as e:
                 raise RuntimeError(
                     f"failed to evaluate expressions for row {row['hyperleda_internal_id']}: {e}",
                 ) from e

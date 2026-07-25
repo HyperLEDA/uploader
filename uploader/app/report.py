@@ -27,6 +27,7 @@ class DoneEvent:
 @dataclass(frozen=True)
 class ErrorEvent:
     message: str
+    details: str
 
 
 @dataclass(frozen=True)

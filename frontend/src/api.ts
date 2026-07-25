@@ -67,6 +67,7 @@ export type HistoryEntry = {
   inputs: Record<string, unknown>;
   status: "success" | "error" | "cancelled";
   message: string;
+  details?: string | null;
 };
 
 export async function fetchHistory(): Promise<HistoryEntry[]> {

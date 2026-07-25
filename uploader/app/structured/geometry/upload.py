@@ -156,14 +156,40 @@ def _validate_columns(
         raise RuntimeError(f"Table {table_name} has no column(s): {missing}")
 
 
+def _format_unit(unit: u.UnitBase) -> str:
+    text = f"{unit:s}".strip()
+    return text if text else "dimensionless"
+
+
+def _eval_context_suffix(expr: Expression, column_units: dict[str, str]) -> str:
+    if not expr.referenced_columns:
+        return ""
+    parts = [f"{col}={column_units.get(col, '')!r}" for col in sorted(expr.referenced_columns)]
+    return f"; columns: {', '.join(parts)}"
+
+
 def _evaluate_field(
     expr: Expression,
     values: dict[str, float],
     column_units: dict[str, str],
     field: str,
+    source: str,
 ) -> float:
-    quantity = expr.evaluate(values, column_units).to(u.Unit(TARGET_UNITS[field]))
-    return float(quantity.value)
+    target = TARGET_UNITS[field]
+    try:
+        quantity = expr.evaluate(values, column_units)
+    except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
+        raise RuntimeError(
+            f"failed to evaluate {field!r} ({source!r}){_eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
+    try:
+        return float(quantity.to(u.Unit(target)).value)
+    except (u.UnitConversionError, u.UnitTypeError) as e:
+        raise RuntimeError(
+            f"failed to convert {field!r} ({source!r}) "
+            f"from {_format_unit(quantity.unit)} to {target}"
+            f"{_eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
 
 
 def upload_geometry_isophotal(
@@ -216,9 +242,10 @@ def upload_geometry_isophotal(
             values = {col: float(row[col]) for col in needed_cols}
             try:
                 evaluated = {
-                    field: _evaluate_field(expr, values, column_units, field) for field, expr in parsed.items()
+                    field: _evaluate_field(expr, values, column_units, field, expressions[field])
+                    for field, expr in parsed.items()
                 }
-            except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
+            except RuntimeError as e:
                 raise RuntimeError(
                     f"failed to evaluate expressions for row {row['hyperleda_internal_id']}: {e}",
                 ) from e

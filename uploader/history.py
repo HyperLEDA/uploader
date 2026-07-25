@@ -15,6 +15,7 @@ class HistoryEntry(BaseModel):
     inputs: dict[str, object]
     status: HistoryStatus
     message: str
+    details: str | None = None
 
 
 HISTORY_PATH = Path("history.jsonl")

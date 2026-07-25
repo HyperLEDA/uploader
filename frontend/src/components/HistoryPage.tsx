@@ -161,14 +161,34 @@ export function HistoryPage() {
                     <TableRow>
                       <TableCell colSpan={5} sx={{ py: 0, borderBottom: 0 }}>
                         <Collapse in={isOpen} timeout="auto" unmountOnExit>
-                          <Box
-                            sx={{
-                              py: 1.5,
-                              whiteSpace: "pre-wrap",
-                              fontFamily: "monospace",
-                            }}
-                          >
-                            {entry.message}
+                          <Box sx={{ py: 1.5 }}>
+                            <Box
+                              sx={{
+                                whiteSpace: "pre-wrap",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {entry.message}
+                            </Box>
+                            {entry.details && (
+                              <Paper
+                                variant="outlined"
+                                sx={{
+                                  p: 2,
+                                  mt: 1.5,
+                                  maxHeight: 360,
+                                  overflow: "auto",
+                                  fontFamily: "monospace",
+                                  fontSize: 13,
+                                  whiteSpace: "pre-wrap",
+                                }}
+                              >
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                  Details
+                                </Typography>
+                                {entry.details}
+                              </Paper>
+                            )}
                           </Box>
                         </Collapse>
                       </TableCell>
