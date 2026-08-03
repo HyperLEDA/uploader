@@ -57,7 +57,7 @@ class UploadCsvForm(BaseModel):
         json_schema_extra={
             "if": {"properties": {"has_bibcode": {"const": True}}},
             "then": {"required": ["bibcode"]},
-            "else": {"required": ["pub_name", "pub_authors", "pub_year"]},
+            "else": {"required": ["publication_params"]},
         },
     )
 
@@ -71,9 +71,10 @@ def handle_upload_csv(form: BaseModel, report_func: Callable[[report.Event], Non
     )
     source = CSVSource(f.filename, chunk_size=advanced.batch_size)
     bibcode = f.bibcode.strip() if f.has_bibcode else ""
-    pub_name = f.pub_name.strip()
-    pub_authors = list(f.pub_authors)
-    pub_year = f.pub_year
+    pub = f.publication_params
+    pub_name = pub.pub_name.strip()
+    pub_authors = list(pub.pub_authors)
+    pub_year = pub.pub_year
     table_type = (f.table_type or "regular").upper()
 
     upload_for_web(
