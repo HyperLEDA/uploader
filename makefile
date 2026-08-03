@@ -108,7 +108,7 @@ gen:
 		--config openapigen.yaml \
 		--url https://leda.sao.ru/admin/api/openapi.json
 
-.PHONY: serve frontend dev check-frontend fix-frontend install-frontend install-dev-frontend build-frontend
+.PHONY: serve frontend run check-frontend fix-frontend install-frontend install-dev-frontend build-frontend
 
 serve:
 	uv run uvicorn uploader.cli:app --reload --port 8000
@@ -116,7 +116,7 @@ serve:
 frontend:
 	cd frontend && yarn dev
 
-dev:
+run:
 	@set -e; \
 	rm -rf uploader/static; \
 	trap 'kill $$backend_pid $$frontend_pid 2>/dev/null || true; wait $$backend_pid $$frontend_pid 2>/dev/null || true' INT TERM EXIT; \

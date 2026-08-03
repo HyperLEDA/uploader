@@ -2,19 +2,18 @@ import pathlib
 from collections.abc import Generator
 from typing import final
 
+import numpy as np
 import pandas
 from astropy.io import fits
+from astropy.table import Table
 
 import uploader.app as app
 from uploader.clients.gen.client.adminapi import models
 
-type_map = {
-    "object": models.DatatypeEnum.STRING,
-    "string": models.DatatypeEnum.STRING,
-    "int64": models.DatatypeEnum.INTEGER,
-    "int32": models.DatatypeEnum.INTEGER,
-    "float64": models.DatatypeEnum.DOUBLE,
-    "float32": models.DatatypeEnum.DOUBLE,
+_dtype_kind_map = {
+    "i": models.DatatypeEnum.INTEGER,
+    "u": models.DatatypeEnum.INTEGER,
+    "f": models.DatatypeEnum.DOUBLE,
 }
 
 
@@ -34,8 +33,8 @@ class FITSSource(app.UploaderSource, app.DefaultTableNamer):
         self._hdu = fits.open(self.filename)
         self._table = self._hdu[self.hdu_index]
 
-        if not isinstance(self._table, fits.BinTableHDU):
-            raise ValueError(f"HDU {self.hdu_index} is not a binary table")
+        if not isinstance(self._table, (fits.BinTableHDU, fits.TableHDU)):
+            raise ValueError(f"HDU {self.hdu_index} is not a table")
 
         self._schema = self._table.columns
         self._total_batches = (len(self._table.data) + self._batch_size - 1) // self._batch_size
@@ -47,7 +46,8 @@ class FITSSource(app.UploaderSource, app.DefaultTableNamer):
 
         columns = []
         for col in self._schema:
-            data_type = type_map.get(str(col.format), models.DatatypeEnum.STRING)
+            dtype = np.dtype(col.dtype)
+            data_type = _dtype_kind_map.get(dtype.kind, models.DatatypeEnum.STRING)
 
             columns.append(
                 models.ColumnDescription(
@@ -68,7 +68,7 @@ class FITSSource(app.UploaderSource, app.DefaultTableNamer):
             end_idx = min(i + self._batch_size, len(table_data))
             batch_data = table_data[i:end_idx]
 
-            df = pandas.DataFrame(batch_data)
+            df = Table(batch_data).to_pandas()
             self._current_batch += 1
             progress = self._current_batch / self._total_batches
 
