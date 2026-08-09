@@ -24,6 +24,7 @@ class TaskDefinition:
     handler: Callable[[BaseModel, Callable[[report.Event], None]], None]
     group: str = "default"
     rerunnable: bool = True
+    additional_description: str | None = None
 
 
 TASKS: dict[str, TaskDefinition] = {}

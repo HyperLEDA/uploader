@@ -2,14 +2,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from uploader.app.lib import expression, formula
 from uploader.app.structured.generic.upload import is_numeric_datatype, upload_catalog_columns
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.models.catalog_field import CatalogField
 from uploader.clients.gen.client.adminapi.models.catalog_schema import CatalogSchema
 from uploader.clients.gen.client.adminapi.models.datatype_enum import DatatypeEnum
 from uploader.forms.structured_catalog import (
-    _task_description,
     build_catalog_form,
     register_structured_catalog_tasks,
 )
@@ -59,18 +57,6 @@ def test_build_catalog_form_fields_are_expressions() -> None:
     assert fields["n"].title == "n"
     assert fields["n"].description == "Expression. Value for n."
     assert fields["n"].is_required() is False
-
-
-def test_task_description_matches_upload_formula_engine() -> None:
-    description = _task_description(_sample_schema())
-    assert "Demo structured catalog." in description
-    assert formula.expression_syntax_help() in description
-    assert expression.expression_syntax_help() not in description
-    assert "str(x)" in description
-    assert 'Use col("name") to refer to rawdata columns' in description
-    assert "Bare identifiers are only allowed for predefined constants and functions." in description
-    assert "String literals and + concatenation are supported." in description
-    assert "Modulo divisors must carry units" in description
 
 
 @patch("uploader.forms.structured_catalog.log.logger.warning")

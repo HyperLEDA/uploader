@@ -2,6 +2,7 @@ export type TaskInfo = {
   id: string;
   title: string;
   description: string;
+  additional_description?: string | null;
   group: string;
   rerunnable: boolean;
 };
@@ -15,6 +16,7 @@ export async function fetchTasks(): Promise<TaskInfo[]> {
 export type TaskSchemaResponse = {
   title: string;
   description: string;
+  additional_description?: string | null;
   schema: Record<string, unknown>;
 };
 

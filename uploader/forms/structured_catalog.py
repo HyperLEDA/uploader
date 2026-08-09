@@ -145,14 +145,6 @@ def _make_handler(
     return handler
 
 
-def _task_description(schema: CatalogSchema) -> str:
-    base = schema.description.strip()
-    help_text = expression_syntax_help()
-    if base:
-        return f"{base}\n\n{help_text}"
-    return help_text
-
-
 def register_structured_catalog_tasks(
     catalogs: list[CatalogSchema] | None = None,
 ) -> None:
@@ -166,7 +158,8 @@ def register_structured_catalog_tasks(
             TaskDefinition(
                 id=f"upload-{schema.catalog}",
                 title=schema.title,
-                description=_task_description(schema),
+                description=schema.description.strip(),
+                additional_description=expression_syntax_help(),
                 form_model=build_catalog_form(schema),
                 handler=_make_handler(schema),
                 group=GROUP,

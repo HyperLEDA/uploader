@@ -2,12 +2,16 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
 import { fetchTaskSchema, submitTask } from "../api";
 import { FoldableObjectFieldTemplate } from "./FoldableObjectFieldTemplate";
+import { Markdown } from "./Markdown";
 import { ProgressView } from "./ProgressView";
 
 export function TaskPage() {
@@ -16,6 +20,10 @@ export function TaskPage() {
   const [schema, setSchema] = useState<Record<string, unknown> | null>(null);
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
   const [taskDescription, setTaskDescription] = useState<string | null>(null);
+  const [additionalDescription, setAdditionalDescription] = useState<
+    string | null
+  >(null);
+  const [infoAnchor, setInfoAnchor] = useState<HTMLElement | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
@@ -34,13 +42,21 @@ export function TaskPage() {
     }
     let alive = true;
     fetchTaskSchema(taskId)
-      .then(({ title, description, schema: s }) => {
-        if (!alive) return;
-        setSchema(s);
-        setTaskTitle(title);
-        setTaskDescription(description);
-        setLoadError(null);
-      })
+      .then(
+        ({
+          title,
+          description,
+          additional_description: extraDescription,
+          schema: s,
+        }) => {
+          if (!alive) return;
+          setSchema(s);
+          setTaskTitle(title);
+          setTaskDescription(description);
+          setAdditionalDescription(extraDescription ?? null);
+          setLoadError(null);
+        },
+      )
       .catch((e) => {
         if (alive) setLoadError(String(e));
       });
@@ -75,9 +91,41 @@ export function TaskPage() {
 
   return (
     <Box sx={{ maxWidth: 720 }}>
-      <Typography variant="h6" sx={{ mb: taskDescription ? 1 : 2 }}>
-        {taskTitle ?? taskId}
-      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.5,
+          mb: taskDescription ? 1 : 2,
+        }}
+      >
+        <Typography variant="h6">{taskTitle ?? taskId}</Typography>
+        {additionalDescription && (
+          <>
+            <IconButton
+              size="small"
+              aria-label="Additional information"
+              onClick={(e) => setInfoAnchor(e.currentTarget)}
+            >
+              <InfoOutlined fontSize="small" />
+            </IconButton>
+            <Popover
+              open={Boolean(infoAnchor)}
+              anchorEl={infoAnchor}
+              onClose={() => setInfoAnchor(null)}
+              anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+              transformOrigin={{ vertical: "top", horizontal: "left" }}
+              slotProps={{
+                paper: {
+                  sx: { maxWidth: 480, p: 2 },
+                },
+              }}
+            >
+              <Markdown>{additionalDescription}</Markdown>
+            </Popover>
+          </>
+        )}
+      </Box>
       {taskDescription && (
         <Typography
           variant="body2"

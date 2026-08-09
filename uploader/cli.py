@@ -36,6 +36,7 @@ def list_tasks() -> list[dict[str, Any]]:
             "id": t.id,
             "title": t.title,
             "description": t.description,
+            "additional_description": t.additional_description,
             "group": t.group,
             "rerunnable": t.rerunnable,
         }
@@ -55,7 +56,12 @@ def task_schema(task_id: str) -> dict[str, object]:
     task = TASKS[task_id]
     schema = task.form_model.model_json_schema()
     schema.pop("title", None)
-    return {"title": task.title, "description": task.description, "schema": schema}
+    return {
+        "title": task.title,
+        "description": task.description,
+        "additional_description": task.additional_description,
+        "schema": schema,
+    }
 
 
 @app.post("/api/tasks/{task_id}/submit")

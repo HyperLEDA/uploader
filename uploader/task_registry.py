@@ -81,9 +81,8 @@ def register_all_tasks() -> None:
         TaskDefinition(
             id="upload-structured-designation",
             title="Designations",
-            description=(
-                f"Convert designations to common format and upload them to the database.\n\n{expression_syntax_help()}"
-            ),
+            description="Convert designations to common format and upload them to the database.",
+            additional_description=expression_syntax_help(),
             form_model=StructuredDesignationForm,
             handler=handle_structured_designation,
             group="Catalogs",
@@ -93,7 +92,8 @@ def register_all_tasks() -> None:
         TaskDefinition(
             id="upload-structured-icrs",
             title="ICRS",
-            description=(f"Upload ICRS coordinates to the database.\n\n{expression_syntax_help()}"),
+            description="Upload ICRS coordinates to the database.",
+            additional_description=expression_syntax_help(),
             form_model=StructuredIcrsForm,
             handler=handle_structured_icrs,
             group="Catalogs",
@@ -133,10 +133,8 @@ def register_all_tasks() -> None:
         TaskDefinition(
             id="upload-structured-geometry-isophotal",
             title="Isophotal geometry",
-            description=(
-                "Upload isophotal ellipse geometry (a, b, pa, isophote) from rawdata columns.\n\n"
-                f"{expression_syntax_help()}"
-            ),
+            description="Upload isophotal ellipse geometry (a, b, pa, isophote) from rawdata columns.",
+            additional_description=expression_syntax_help(),
             form_model=StructuredGeometryIsophotalForm,
             handler=handle_structured_geometry_isophotal,
             group="Catalogs",
