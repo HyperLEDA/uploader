@@ -67,6 +67,8 @@ def test_task_description_matches_upload_formula_engine() -> None:
     assert formula.expression_syntax_help() in description
     assert expression.expression_syntax_help() not in description
     assert "str(x)" in description
+    assert 'Use col("name") to refer to rawdata columns' in description
+    assert "Bare identifiers are only allowed for predefined constants and functions." in description
     assert "String literals and + concatenation are supported." in description
     assert "Modulo divisors must carry units" in description
 
@@ -149,7 +151,7 @@ def test_upload_evaluates_numeric_and_text_expressions(
 @patch("uploader.app.structured.generic.upload.save_structured_data.sync_detailed")
 @patch("uploader.app.structured.generic.upload.rawdata_batches")
 @patch("uploader.app.structured.generic.upload.fetch_column_units")
-def test_upload_text_bare_column_and_str_concat(
+def test_upload_text_column_and_str_concat(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
     mock_sync_detailed: Mock,
@@ -176,7 +178,7 @@ def test_upload_text_bare_column_and_str_concat(
         "test_table",
         "demo",
         expressions={
-            "label": "name",
+            "label": 'col("name")',
             "n": 'col("count")',
         },
         field_types={

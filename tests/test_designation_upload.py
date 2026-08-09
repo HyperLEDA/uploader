@@ -31,7 +31,7 @@ def test_simple_column_expression(
     total = upload_designations(
         _mock_storage(),
         "test_table",
-        "name",
+        'col("name")',
         100,
         _mock_client(),
         report_func=lambda _: None,
@@ -56,7 +56,7 @@ def test_composed_string_expression(
     total = upload_designations(
         _mock_storage(),
         "test_table",
-        'prefix + " " + number',
+        'col("prefix") + " " + col("number")',
         100,
         _mock_client(),
         report_func=lambda _: None,
@@ -73,7 +73,7 @@ def test_missing_referenced_columns(mock_fetch_column_units: Mock) -> None:
         upload_designations(
             _mock_storage(),
             "test_table",
-            "name",
+            'col("name")',
             100,
             _mock_client(),
             report_func=lambda _: None,
@@ -94,7 +94,7 @@ def test_null_referenced_values_counted_as_unmatched(
     total = upload_designations(
         _mock_storage(),
         "test_table",
-        "name",
+        'col("name")',
         100,
         _mock_client(),
         report_func=lambda _: None,
@@ -118,7 +118,7 @@ def test_expression_evaluation_error_becomes_runtime_error(
         upload_designations(
             _mock_storage(),
             "test_table",
-            "text_col + num_col",
+            'col("text_col") + col("num_col")',
             100,
             _mock_client(),
             report_func=lambda _: None,
@@ -141,7 +141,7 @@ def test_output_file_writes_id_designation_pairs(
     upload_designations(
         _mock_storage(),
         "test_table",
-        "name",
+        'col("name")',
         100,
         _mock_client(),
         output_file=str(output_file),

@@ -63,10 +63,18 @@ class _ColumnCollector(ast.NodeVisitor):
         if column is not None:
             self.columns.add(column)
             return
+        if not isinstance(node.func, ast.Name):
+            raise ValueError("only simple function calls are allowed")
+        if node.func.id not in FUNCTIONS:
+            raise ValueError(f"unknown function: {node.func.id}")
+        if node.keywords:
+            raise ValueError("keyword arguments are not allowed")
         for arg in node.args:
             self.visit(arg)
 
     def visit_Name(self, node: ast.Name) -> None:
         if node.id in NAMED_CONSTANTS or node.id in FUNCTIONS:
             return
-        self.columns.add(node.id)
+        raise ValueError(
+            f"unknown name {node.id!r}; use {COL_FUNCTION}() for columns or a predefined constant/function",
+        )

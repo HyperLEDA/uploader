@@ -45,11 +45,9 @@ FUNCTIONS: dict[str, object] = {
 
 
 def build_namespace(columns: Mapping[str, Value]) -> dict[str, object]:
-    bare = {name: value for name, value in columns.items() if name.isidentifier()}
     return {
         "__builtins__": {},
         COL_FUNCTION: lambda name: columns[name],
-        **bare,
         **NAMED_CONSTANTS,
         **FUNCTIONS,
     }
@@ -58,9 +56,8 @@ def build_namespace(columns: Mapping[str, Value]) -> dict[str, object]:
 def expression_syntax_help() -> str:
     constants = ", ".join(sorted(NAMED_CONSTANTS))
     return (
-        f'Use {COL_FUNCTION}("name") or bare identifiers to refer to rawdata columns '
-        '(e.g. col("a"), e_logd25).\n'
-        "Bare identifiers that match predefined constants use those constants.\n"
+        f'Use {COL_FUNCTION}("name") to refer to rawdata columns (e.g. col("a")).\n'
+        "Bare identifiers are only allowed for predefined constants and functions.\n"
         "Operators: + - * / ** %.\n"
         "Functions: sin(x), cos(x) (argument must be an angle), str(x).\n"
         "Numbers are dimensionless.\n"

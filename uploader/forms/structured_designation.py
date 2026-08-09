@@ -35,7 +35,7 @@ class StructuredDesignationForm(BaseModel):
         title="Designation expression",
         description=(
             "Expression yielding the object designation per row. "
-            'Examples: designation, col("weird name"), prefix + " " + number.'
+            'Examples: col("designation"), col("weird name"), col("prefix") + " " + col("number").'
         ),
     )
     write: bool = Field(
