@@ -4,8 +4,6 @@ import pytest
 
 from uploader.app.structured.generic.upload import is_numeric_datatype, upload_catalog_columns
 from uploader.clients.gen.client import adminapi
-from uploader.clients.gen.client.adminapi.models.catalog_field import CatalogField
-from uploader.clients.gen.client.adminapi.models.catalog_schema import CatalogSchema
 from uploader.clients.gen.client.adminapi.models.datatype_enum import DatatypeEnum
 from uploader.forms.structured_catalog import (
     register_structured_catalog_tasks,
@@ -21,19 +19,6 @@ def _mock_storage(total: int = 1) -> Mock:
 
 def _mock_client() -> Mock:
     return Mock(spec=adminapi.AuthenticatedClient)
-
-
-def _sample_schema() -> CatalogSchema:
-    return CatalogSchema(
-        catalog="demo",
-        title="Demo catalog",
-        description="Demo structured catalog.",
-        fields=[
-            CatalogField(name="label", data_type=DatatypeEnum.STRING, description="Object label"),
-            CatalogField(name="mag", data_type=DatatypeEnum.FLOAT, unit="mag", description="Magnitude"),
-            CatalogField(name="n", data_type=DatatypeEnum.INTEGER, required=False),
-        ],
-    )
 
 
 def test_is_numeric_datatype() -> None:

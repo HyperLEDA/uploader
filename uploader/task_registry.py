@@ -6,18 +6,12 @@ from uploader.forms.structured_designation import (
     StructuredDesignationForm,
     handle_structured_designation,
 )
-from uploader.forms.structured_geometry_isophotal import (
-    StructuredGeometryIsophotalForm,
-    handle_structured_geometry_isophotal,
-)
-from uploader.forms.structured_icrs import StructuredIcrsForm, handle_structured_icrs
 from uploader.forms.structured_nature import StructuredNatureForm, handle_structured_nature
 from uploader.forms.structured_note import StructuredNoteForm, handle_structured_note
 from uploader.forms.structured_photometry_hyperleda import (
     StructuredPhotometryHyperledaForm,
     handle_structured_photometry_hyperleda,
 )
-from uploader.forms.structured_redshift import StructuredRedshiftForm, handle_structured_redshift
 from uploader.forms.submit_crossmatch import SubmitCrossmatchForm, handle_submit_crossmatch
 from uploader.forms.upload_csv import UploadCsvForm, handle_upload_csv
 from uploader.forms.upload_fits import UploadFitsForm, handle_upload_fits
@@ -90,17 +84,6 @@ def register_all_tasks() -> None:
     )
     register_task(
         TaskDefinition(
-            id="upload-structured-icrs",
-            title="ICRS",
-            description="Upload ICRS coordinates to the database.",
-            additional_description=expression_syntax_help(),
-            form_model=StructuredIcrsForm,
-            handler=handle_structured_icrs,
-            group="Catalogs",
-        ),
-    )
-    register_task(
-        TaskDefinition(
             id="upload-structured-nature",
             title="Nature",
             description="Upload object type to the database.",
@@ -111,32 +94,11 @@ def register_all_tasks() -> None:
     )
     register_task(
         TaskDefinition(
-            id="upload-structured-redshift",
-            title="Redshift",
-            description="Upload redshift to the database.",
-            form_model=StructuredRedshiftForm,
-            handler=handle_structured_redshift,
-            group="Catalogs",
-        ),
-    )
-    register_task(
-        TaskDefinition(
             id="upload-structured-photometry-hyperleda",
             title="Photometry (HyperLEDA)",
             description="Upload U/B/V/I/K asymptotic magnitudes to photometry catalog.",
             form_model=StructuredPhotometryHyperledaForm,
             handler=handle_structured_photometry_hyperleda,
-            group="Catalogs",
-        ),
-    )
-    register_task(
-        TaskDefinition(
-            id="upload-structured-geometry-isophotal",
-            title="Isophotal geometry",
-            description="Upload isophotal ellipse geometry (a, b, pa, isophote) from rawdata columns.",
-            additional_description=expression_syntax_help(),
-            form_model=StructuredGeometryIsophotalForm,
-            handler=handle_structured_geometry_isophotal,
             group="Catalogs",
         ),
     )
