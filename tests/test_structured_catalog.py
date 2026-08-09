@@ -46,12 +46,12 @@ def test_is_numeric_datatype() -> None:
     assert not is_numeric_datatype(DatatypeEnum.TIMESTAMP_WITHOUT_TIME_ZONE)
 
 
-def test_build_catalog_form_numeric_fields_are_expressions() -> None:
+def test_build_catalog_form_fields_are_expressions() -> None:
     form_model = build_catalog_form(_sample_schema())
     fields = form_model.model_fields
 
-    assert fields["label"].title == "label column"
-    assert fields["label"].description == "Object label"
+    assert fields["label"].title == "label"
+    assert fields["label"].description == "Expression. Object label"
 
     assert fields["mag"].title == "mag"
     assert fields["mag"].description == "Expression. Magnitude"
@@ -61,14 +61,14 @@ def test_build_catalog_form_numeric_fields_are_expressions() -> None:
     assert fields["n"].is_required() is False
 
 
-def test_task_description_matches_upload_expression_engine() -> None:
+def test_task_description_matches_upload_formula_engine() -> None:
     description = _task_description(_sample_schema())
     assert "Demo structured catalog." in description
-    assert expression.expression_syntax_help() in description
-    assert formula.expression_syntax_help() not in description
-    assert "str(x)" not in description
-    assert "String literals and + concatenation are supported." not in description
-    assert "Modulo divisors must carry units" not in description
+    assert formula.expression_syntax_help() in description
+    assert expression.expression_syntax_help() not in description
+    assert "str(x)" in description
+    assert "String literals and + concatenation are supported." in description
+    assert "Modulo divisors must carry units" in description
 
 
 @patch("uploader.forms.structured_catalog.log.logger.warning")
@@ -89,7 +89,7 @@ def test_register_structured_catalog_tasks_logs_fetch_failure(
 @patch("uploader.app.structured.generic.upload.save_structured_data.sync_detailed")
 @patch("uploader.app.structured.generic.upload.rawdata_batches")
 @patch("uploader.app.structured.generic.upload.fetch_column_units")
-def test_upload_evaluates_numeric_expressions(
+def test_upload_evaluates_numeric_and_text_expressions(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
     mock_sync_detailed: Mock,
@@ -116,8 +116,8 @@ def test_upload_evaluates_numeric_expressions(
         _mock_storage(),
         "test_table",
         "demo",
-        column_map={"label": "name"},
         expressions={
+            "label": '"X-" + col("name")',
             "mag": 'col("e_ra")',
             "n": 'col("count") * 2',
         },
@@ -142,7 +142,88 @@ def test_upload_evaluates_numeric_expressions(
     assert body.catalog == "demo"
     assert body.columns == ["label", "mag", "n"]
     assert body.ids == ["000079ce-5ffd-82c6-3f75-3a083f0fde80"]
-    assert body.data == [["NGC 1", 0.5, 6]]
+    assert body.data == [["X-NGC 1", 0.5, 6]]
+
+
+@patch("uploader.app.structured.generic.upload.handle_call")
+@patch("uploader.app.structured.generic.upload.save_structured_data.sync_detailed")
+@patch("uploader.app.structured.generic.upload.rawdata_batches")
+@patch("uploader.app.structured.generic.upload.fetch_column_units")
+def test_upload_text_bare_column_and_str_concat(
+    mock_fetch_column_units: Mock,
+    mock_rawdata_batches: Mock,
+    mock_sync_detailed: Mock,
+    mock_handle_call: Mock,
+) -> None:
+    mock_fetch_column_units.return_value = (
+        {"name", "count"},
+        {"name": "", "count": ""},
+    )
+    mock_rawdata_batches.return_value = iter(
+        [
+            [
+                {
+                    "hyperleda_internal_id": "000079ce-5ffd-82c6-3f75-3a083f0fde80",
+                    "name": "NGC 1",
+                    "count": 3,
+                },
+            ],
+        ],
+    )
+
+    total = upload_catalog_columns(
+        _mock_storage(),
+        "test_table",
+        "demo",
+        expressions={
+            "label": "name",
+            "n": 'col("count")',
+        },
+        field_types={
+            "label": DatatypeEnum.STRING,
+            "n": DatatypeEnum.INTEGER,
+        },
+        field_units={},
+        columns=["label", "n"],
+        batch_size=100,
+        client=_mock_client(),
+        write=True,
+        report_func=lambda _: None,
+    )
+
+    assert total == 1
+    body = mock_sync_detailed.call_args.kwargs["body"]
+    assert body.data == [["NGC 1", 3]]
+
+    mock_rawdata_batches.return_value = iter(
+        [
+            [
+                {
+                    "hyperleda_internal_id": "000079ce-5ffd-82c6-3f75-3a083f0fde80",
+                    "name": "NGC 1",
+                    "count": 3,
+                },
+            ],
+        ],
+    )
+    total = upload_catalog_columns(
+        _mock_storage(),
+        "test_table",
+        "demo",
+        expressions={
+            "label": '"n=" + str(col("count"))',
+        },
+        field_types={"label": DatatypeEnum.STRING},
+        field_units={},
+        columns=["label"],
+        batch_size=100,
+        client=_mock_client(),
+        write=True,
+        report_func=lambda _: None,
+    )
+    assert total == 1
+    body = mock_sync_detailed.call_args.kwargs["body"]
+    assert body.data == [["n=3"]]
 
 
 @patch("uploader.app.structured.generic.upload.rawdata_batches")
@@ -171,7 +252,6 @@ def test_upload_unit_conversion_error_includes_field_details(
             _mock_storage(),
             "test_table",
             "demo",
-            column_map={},
             expressions={"mag": 'col("bt")'},
             field_types={"mag": DatatypeEnum.FLOAT},
             field_units={"mag": "arcsec"},
