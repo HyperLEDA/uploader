@@ -8,10 +8,6 @@ from uploader.forms.structured_designation import (
 )
 from uploader.forms.structured_nature import StructuredNatureForm, handle_structured_nature
 from uploader.forms.structured_note import StructuredNoteForm, handle_structured_note
-from uploader.forms.structured_photometry_hyperleda import (
-    StructuredPhotometryHyperledaForm,
-    handle_structured_photometry_hyperleda,
-)
 from uploader.forms.submit_crossmatch import SubmitCrossmatchForm, handle_submit_crossmatch
 from uploader.forms.upload_csv import UploadCsvForm, handle_upload_csv
 from uploader.forms.upload_fits import UploadFitsForm, handle_upload_fits
@@ -64,8 +60,8 @@ def register_all_tasks() -> None:
     register_task(
         TaskDefinition(
             id="upload-structured-note",
-            title="Note",
-            description="Add free text note about a record.",
+            title="Single-record note",
+            description="Attach a free-text note to one existing record by ID.",
             form_model=StructuredNoteForm,
             handler=handle_structured_note,
             group="Catalogs",
@@ -74,8 +70,8 @@ def register_all_tasks() -> None:
     register_task(
         TaskDefinition(
             id="upload-structured-designation",
-            title="Designations",
-            description="Convert designations to common format and upload them to the database.",
+            title="Normalize designations",
+            description=("Parse designations with catalog-specific rules, normalize them to common form, and upload."),
             additional_description=expression_syntax_help(),
             form_model=StructuredDesignationForm,
             handler=handle_structured_designation,
@@ -85,20 +81,12 @@ def register_all_tasks() -> None:
     register_task(
         TaskDefinition(
             id="upload-structured-nature",
-            title="Nature",
-            description="Upload object type to the database.",
+            title="Map object types",
+            description=(
+                "Upload object nature with optional raw→LEDA type mappings and a default type for unmapped values."
+            ),
             form_model=StructuredNatureForm,
             handler=handle_structured_nature,
-            group="Catalogs",
-        ),
-    )
-    register_task(
-        TaskDefinition(
-            id="upload-structured-photometry-hyperleda",
-            title="Photometry (HyperLEDA)",
-            description="Upload U/B/V/I/K asymptotic magnitudes to photometry catalog.",
-            form_model=StructuredPhotometryHyperledaForm,
-            handler=handle_structured_photometry_hyperleda,
             group="Catalogs",
         ),
     )

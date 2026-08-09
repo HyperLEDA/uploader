@@ -20,7 +20,7 @@ from uploader.clients.gen.client.adminapi.types import Unset
 from uploader.credentials import load_credentials, load_token
 from uploader.tasks import TaskDefinition, register_task
 
-GROUP = "Structured catalogs"
+GROUP = "Catalogs"
 
 _RESERVED_FORM_FIELDS = frozenset({"table_name", "write", "advanced"})
 
