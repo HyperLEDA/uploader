@@ -144,6 +144,11 @@ export function TaskPage() {
         schema={schema}
         validator={validator}
         formData={prefillData}
+        uiSchema={{
+          "ui:globalOptions": {
+            enableMarkdownInDescription: true,
+          },
+        }}
         templates={{ ObjectFieldTemplate: FoldableObjectFieldTemplate }}
         onSubmit={async ({ formData }) => {
           setSubmitError(null);

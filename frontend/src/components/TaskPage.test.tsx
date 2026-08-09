@@ -13,7 +13,7 @@ const fakeTaskSchema = {
       name: {
         type: "string",
         title: "Name",
-        description: "Your name",
+        description: "Your name. Target type: `string`.",
       },
       count: {
         type: "integer",
@@ -64,6 +64,8 @@ describe("TaskPage", () => {
     expect(screen.getByText("A task used in tests.")).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/count/i)).toBeInTheDocument();
+    expect(screen.getByText("string")).toBeInTheDocument();
+    expect(screen.getByText("string").tagName).toBe("CODE");
   });
 
   it("shows additional description markdown behind info button", async () => {

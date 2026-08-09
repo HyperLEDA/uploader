@@ -36,16 +36,23 @@ def _field_required(field: CatalogField) -> bool:
     return bool(field.required)
 
 
-def _field_description(field: CatalogField) -> str:
-    if isinstance(field.description, str) and field.description:
-        return f"Expression. {field.description}"
-    return f"Expression. Value for {field.name}."
-
-
 def _field_unit(field: CatalogField) -> str | None:
-    if isinstance(field.unit, str):
+    if isinstance(field.unit, str) and field.unit:
         return field.unit
     return None
+
+
+def _field_description(field: CatalogField) -> str:
+    if isinstance(field.description, str) and field.description:
+        base = field.description
+    else:
+        base = f"Value for {field.name}."
+    if not base.endswith("."):
+        base = f"{base}."
+    parts = [base, f"Target type: `{field.data_type.value}`."]
+    if unit := _field_unit(field):
+        parts.append(f"Target unit: `{unit}`.")
+    return " ".join(parts)
 
 
 def build_catalog_form(schema: CatalogSchema) -> type[BaseModel]:

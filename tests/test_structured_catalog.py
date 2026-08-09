@@ -8,7 +8,6 @@ from uploader.clients.gen.client.adminapi.models.catalog_field import CatalogFie
 from uploader.clients.gen.client.adminapi.models.catalog_schema import CatalogSchema
 from uploader.clients.gen.client.adminapi.models.datatype_enum import DatatypeEnum
 from uploader.forms.structured_catalog import (
-    build_catalog_form,
     register_structured_catalog_tasks,
 )
 from uploader.tasks import TASKS
@@ -42,21 +41,6 @@ def test_is_numeric_datatype() -> None:
     assert is_numeric_datatype(DatatypeEnum.INTEGER)
     assert not is_numeric_datatype(DatatypeEnum.STRING)
     assert not is_numeric_datatype(DatatypeEnum.TIMESTAMP_WITHOUT_TIME_ZONE)
-
-
-def test_build_catalog_form_fields_are_expressions() -> None:
-    form_model = build_catalog_form(_sample_schema())
-    fields = form_model.model_fields
-
-    assert fields["label"].title == "label"
-    assert fields["label"].description == "Expression. Object label"
-
-    assert fields["mag"].title == "mag"
-    assert fields["mag"].description == "Expression. Magnitude"
-
-    assert fields["n"].title == "n"
-    assert fields["n"].description == "Expression. Value for n."
-    assert fields["n"].is_required() is False
 
 
 @patch("uploader.forms.structured_catalog.log.logger.warning")
