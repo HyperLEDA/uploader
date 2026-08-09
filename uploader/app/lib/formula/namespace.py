@@ -45,27 +45,37 @@ FUNCTIONS: dict[str, object] = {
 
 
 def build_namespace(columns: Mapping[str, Value]) -> dict[str, object]:
-    bare = {name: value for name, value in columns.items() if name.isidentifier()}
     return {
         "__builtins__": {},
         COL_FUNCTION: lambda name: columns[name],
-        **bare,
         **NAMED_CONSTANTS,
         **FUNCTIONS,
     }
 
 
 def expression_syntax_help() -> str:
-    constants = ", ".join(sorted(NAMED_CONSTANTS))
-    return (
-        f'Use {COL_FUNCTION}("name") or bare identifiers to refer to rawdata columns '
-        '(e.g. col("a"), e_logd25).\n'
-        "Bare identifiers that match predefined constants use those constants.\n"
-        "Operators: + - * / ** %.\n"
-        "Functions: sin(x), cos(x) (argument must be an angle), str(x).\n"
-        "Numbers are dimensionless.\n"
-        "String literals and + concatenation are supported.\n"
-        'Modulo divisors must carry units (e.g. col("pa") % (180 * deg)).\n'
-        "Log columns (mag/dex) yield the bare exponent; multiply by the scale yourself.\n"
-        f"Available constants: {constants}."
-    )
+    constants = ", ".join(f"`{name}`" for name in sorted(NAMED_CONSTANTS))
+    return f"""\
+## Expression syntax
+
+Use `{COL_FUNCTION}("name")` to refer to rawdata columns (e.g. `col("a")`).
+Expressions are unit-aware and units are taken from column metadata.
+
+Mathematical operations:
+- Operators: `+` `-` `*` `/` `**` `%`
+- Functions: `sin(x)`, `cos(x)` (argument must be an angle), `str(x)`
+- Numbers are dimensionless
+- String literals and `+` concatenation are supported
+- Modulo divisors must carry units (e.g. `col("pa") % (180 * deg)`)
+- Log columns (`mag`/`dex`) yield the bare exponent; multiply by the scale yourself
+
+Available constants: {constants}.
+
+## Examples
+
+- Fill a column with a constant: 
+    - `1.5`
+    - `180 * deg`
+    - `"G"` - fills the column with a text "G"
+- Copy another column: `{COL_FUNCTION}("ra")`
+- Mathematical expression: `3 * 10 ** {COL_FUNCTION}("logd25") * arcsec`"""

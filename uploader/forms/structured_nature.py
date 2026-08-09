@@ -33,7 +33,7 @@ class StructuredNatureForm(BaseModel):
     type_mappings: list[str] = Field(
         default_factory=list,
         title="Type mappings",
-        description='Each entry "raw_value:leda_type" (e.g. G:galaxy).',
+        description='Each entry "raw\\_value:leda\\_type" (e.g. G:galaxy).',
     )
     write: bool = Field(
         default=False,

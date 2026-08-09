@@ -1,12 +1,21 @@
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
+import astropy.units as u
+import numpy as np
 from psycopg import sql
 
 import uploader.app.action_description as action_description
 import uploader.app.report as report
 from uploader.app.display import format_table
-from uploader.app.lib.expression import Expression, evaluate_to_float, parse
+from uploader.app.lib.formula import (
+    Expression,
+    ExpressionEvaluationError,
+    Value,
+    column_quantity,
+    evaluate,
+    parse,
+)
 from uploader.app.lib.rawdata import rawdata_batches
 from uploader.app.lib.table import fetch_column_units, validate_columns
 from uploader.app.storage import PgStorage
@@ -52,33 +61,121 @@ def is_numeric_datatype(data_type: DatatypeEnum) -> bool:
     return data_type in _NUMERIC_TYPES
 
 
+def _format_unit(unit: u.UnitBase) -> str:
+    text = f"{unit:s}".strip()
+    return text if text else "dimensionless"
+
+
+def _eval_context_suffix(expr: Expression, column_units: Mapping[str, str]) -> str:
+    if not expr.referenced_columns:
+        return ""
+    parts = [f"{col}={column_units.get(col, '')!r}" for col in sorted(expr.referenced_columns)]
+    return f"; columns: {', '.join(parts)}"
+
+
+def _as_quantity(value: object) -> u.Quantity:
+    if isinstance(value, u.Quantity):
+        return value
+    if isinstance(value, (int, float, np.number)) and not isinstance(value, bool):
+        return float(value) * u.dimensionless_unscaled
+    raise ValueError(f"numeric expression must evaluate to a quantity, got {type(value).__name__}")
+
+
+def _scalar_numeric(quantity: u.Quantity) -> float:
+    scalar = quantity.value
+    if isinstance(scalar, np.ndarray):
+        if scalar.shape != ():
+            raise ValueError("expression must evaluate to a scalar value per row")
+        return float(scalar)
+    return float(scalar)
+
+
+def _scalar_to_str(value: float | int | np.number) -> str:
+    numeric = float(value)
+    if numeric.is_integer():
+        return str(int(numeric))
+    return str(numeric)
+
+
+def _value_to_str(value: Value) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, u.Quantity):
+        scalar = value.value
+        if isinstance(scalar, np.ndarray):
+            if scalar.shape != ():
+                raise ValueError("expression must evaluate to a scalar value per row")
+            return _scalar_to_str(scalar.item())
+        return _scalar_to_str(scalar)
+    if value.shape != ():
+        raise ValueError("expression must evaluate to a scalar value per row")
+    item = value.item()
+    if isinstance(item, str):
+        return item
+    if isinstance(item, (int, float, np.number)):
+        return _scalar_to_str(item)
+    raise ValueError(f"unsupported expression result type: {type(item).__name__}")
+
+
 def _evaluate_numeric_field(
     expr: Expression,
-    values: dict[str, float],
-    column_units: dict[str, str],
+    columns: Mapping[str, Value],
+    column_units: Mapping[str, str],
     field: str,
     source: str,
     target_unit: str | None,
     data_type: DatatypeEnum,
 ) -> float | int:
-    value = evaluate_to_float(
-        expr,
-        values,
-        column_units,
-        field,
-        source,
-        target_unit if target_unit is not None else "",
-    )
+    try:
+        quantity = _as_quantity(evaluate(expr, columns))
+    except (ExpressionEvaluationError, ValueError, u.UnitConversionError, u.UnitTypeError) as e:
+        raise RuntimeError(
+            f"failed to evaluate {field!r} ({source!r}){_eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
+    try:
+        if target_unit:
+            converted = quantity.to(u.Unit(target_unit))
+        else:
+            converted = quantity.to(u.dimensionless_unscaled)
+        value = _scalar_numeric(converted)
+    except (ValueError, u.UnitConversionError, u.UnitTypeError) as e:
+        raise RuntimeError(
+            f"failed to convert {field!r} ({source!r}) "
+            f"from {_format_unit(quantity.unit)} to {target_unit or 'dimensionless'}"
+            f"{_eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
     if data_type in _INT_TYPES:
         return int(value)
     return value
+
+
+def _evaluate_text_field(
+    expr: Expression,
+    columns: Mapping[str, Value],
+    column_units: Mapping[str, str],
+    field: str,
+    source: str,
+) -> str:
+    try:
+        return _value_to_str(evaluate(expr, columns))
+    except (ExpressionEvaluationError, ValueError, TypeError) as e:
+        raise RuntimeError(
+            f"failed to evaluate {field!r} ({source!r}){_eval_context_suffix(expr, column_units)}: {e}",
+        ) from e
+
+
+def _build_column_values(
+    row: Mapping[str, Any],
+    referenced_columns: frozenset[str],
+    column_units: Mapping[str, str],
+) -> dict[str, Value]:
+    return {col: column_quantity(row[col], column_units.get(col, "")) for col in referenced_columns}
 
 
 def upload_catalog_columns(
     storage: PgStorage,
     table_name: str,
     catalog: str,
-    column_map: Mapping[str, str],
     expressions: Mapping[str, str],
     field_types: Mapping[str, DatatypeEnum],
     field_units: Mapping[str, str],
@@ -93,9 +190,7 @@ def upload_catalog_columns(
         raise RuntimeError("No catalog columns selected for upload")
 
     parsed = {field: parse(source) for field, source in expressions.items()}
-    expr_cols = set().union(*(expr.referenced_columns for expr in parsed.values())) if parsed else set()
-    mapped_cols = set(column_map.values())
-    all_needed_cols = expr_cols | mapped_cols
+    all_needed_cols = set().union(*(expr.referenced_columns for expr in parsed.values())) if parsed else set()
 
     column_names, column_units = fetch_column_units(client, table_name)
     validate_columns(table_name, all_needed_cols, column_names)
@@ -122,24 +217,34 @@ def upload_catalog_columns(
                 skipped += 1
                 continue
 
-            values = {col: float(row[col]) for col in expr_cols}
+            column_values = _build_column_values(row, frozenset(all_needed_cols), column_units)
             row_values: list[Any] = []
             try:
                 for name in columns:
-                    if name in parsed:
+                    expr = parsed[name]
+                    source = expressions[name]
+                    if is_numeric_datatype(field_types[name]):
                         row_values.append(
                             _evaluate_numeric_field(
-                                parsed[name],
-                                values,
+                                expr,
+                                column_values,
                                 column_units,
                                 name,
-                                expressions[name],
+                                source,
                                 field_units.get(name),
                                 field_types[name],
                             )
                         )
                     else:
-                        row_values.append(str(row[column_map[name]]))
+                        row_values.append(
+                            _evaluate_text_field(
+                                expr,
+                                column_values,
+                                column_units,
+                                name,
+                                source,
+                            )
+                        )
             except RuntimeError as e:
                 raise RuntimeError(
                     f"failed to evaluate expressions for row {row['hyperleda_internal_id']}: {e}",

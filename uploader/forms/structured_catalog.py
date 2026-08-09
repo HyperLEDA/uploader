@@ -9,9 +9,9 @@ import uploader.app.report as report
 from uploader.app import log
 from uploader.app.catalogs import fetch_catalogs
 from uploader.app.endpoints import db_dsn_map, env_map
-from uploader.app.lib.expression import expression_syntax_help
+from uploader.app.lib.formula import expression_syntax_help
 from uploader.app.storage import PgStorage
-from uploader.app.structured.generic import is_numeric_datatype, upload_catalog_columns
+from uploader.app.structured.generic import upload_catalog_columns
 from uploader.clients.gen.client import adminapi
 from uploader.clients.gen.client.adminapi.models.catalog_field import CatalogField
 from uploader.clients.gen.client.adminapi.models.catalog_schema import CatalogSchema
@@ -20,7 +20,7 @@ from uploader.clients.gen.client.adminapi.types import Unset
 from uploader.credentials import load_credentials, load_token
 from uploader.tasks import TaskDefinition, register_task
 
-GROUP = "Structured catalogs"
+GROUP = "Catalogs"
 
 _RESERVED_FORM_FIELDS = frozenset({"table_name", "write", "advanced"})
 
@@ -36,20 +36,23 @@ def _field_required(field: CatalogField) -> bool:
     return bool(field.required)
 
 
-def _field_description(field: CatalogField, *, numeric: bool) -> str:
-    if numeric:
-        if isinstance(field.description, str) and field.description:
-            return f"Expression. {field.description}"
-        return f"Expression. Value for {field.name}."
-    if isinstance(field.description, str) and field.description:
-        return field.description
-    return f"Source column for {field.name}."
-
-
 def _field_unit(field: CatalogField) -> str | None:
-    if isinstance(field.unit, str):
+    if isinstance(field.unit, str) and field.unit:
         return field.unit
     return None
+
+
+def _field_description(field: CatalogField) -> str:
+    if isinstance(field.description, str) and field.description:
+        base = field.description
+    else:
+        base = f"Value for {field.name}."
+    if not base.endswith("."):
+        base = f"{base}."
+    parts = [base, f"Target type: `{field.data_type.value}`."]
+    if unit := _field_unit(field):
+        parts.append(f"Target unit: `{unit}`.")
+    return " ".join(parts)
 
 
 def build_catalog_form(schema: CatalogSchema) -> type[BaseModel]:
@@ -59,18 +62,16 @@ def build_catalog_form(schema: CatalogSchema) -> type[BaseModel]:
     for field in schema.fields:
         if field.name in _RESERVED_FORM_FIELDS:
             raise RuntimeError(f"Catalog {schema.catalog!r} field {field.name!r} conflicts with reserved form field")
-        numeric = is_numeric_datatype(field.data_type)
-        title = field.name if numeric else f"{field.name} column"
-        description = _field_description(field, numeric=numeric)
+        description = _field_description(field)
         if _field_required(field):
             field_definitions[field.name] = (
                 str,
-                Field(..., title=title, description=description),
+                Field(..., title=field.name, description=description),
             )
         else:
             field_definitions[field.name] = (
                 str,
-                Field(default="", title=title, description=description),
+                Field(default="", title=field.name, description=description),
             )
     field_definitions["write"] = (
         bool,
@@ -100,7 +101,6 @@ def _make_handler(
     field_types: dict[str, DatatypeEnum] = {f.name: f.data_type for f in catalog_fields}
     field_units: dict[str, str] = {f.name: unit for f in catalog_fields if (unit := _field_unit(f)) is not None}
     field_order = [f.name for f in catalog_fields]
-    numeric_names = {f.name for f in catalog_fields if is_numeric_datatype(f.data_type)}
 
     def handler(
         form: BaseModel,
@@ -111,7 +111,6 @@ def _make_handler(
         endpoint = str(advanced["endpoint"])
         batch_size = int(advanced["batch_size"])
         table_name = str(values["table_name"]).strip()
-        column_map: dict[str, str] = {}
         expressions: dict[str, str] = {}
         provided: set[str] = set()
         for name in field_order:
@@ -119,10 +118,7 @@ def _make_handler(
             if not raw:
                 continue
             provided.add(name)
-            if name in numeric_names:
-                expressions[name] = raw
-            else:
-                column_map[name] = raw
+            expressions[name] = raw
         missing = sorted(name for name in required_names if name not in provided)
         if missing:
             raise RuntimeError(f"Missing required field(s): {missing}")
@@ -143,7 +139,6 @@ def _make_handler(
                 storage,
                 table_name,
                 catalog_name,
-                column_map,
                 expressions,
                 field_types,
                 field_units,
@@ -155,14 +150,6 @@ def _make_handler(
             )
 
     return handler
-
-
-def _task_description(schema: CatalogSchema) -> str:
-    base = schema.description.strip()
-    help_text = expression_syntax_help()
-    if base:
-        return f"{base}\n\n{help_text}"
-    return help_text
 
 
 def register_structured_catalog_tasks(
@@ -178,7 +165,8 @@ def register_structured_catalog_tasks(
             TaskDefinition(
                 id=f"upload-{schema.catalog}",
                 title=schema.title,
-                description=_task_description(schema),
+                description=schema.description.strip(),
+                additional_description=expression_syntax_help(),
                 form_model=build_catalog_form(schema),
                 handler=_make_handler(schema),
                 group=GROUP,

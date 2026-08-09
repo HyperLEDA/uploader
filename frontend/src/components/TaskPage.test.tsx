@@ -6,13 +6,14 @@ import { TaskPage } from "./TaskPage";
 const fakeTaskSchema = {
   title: "Fake Test Task",
   description: "A task used in tests.",
+  additional_description: '## Expression syntax\n\nUse `col("name")`.',
   schema: {
     type: "object",
     properties: {
       name: {
         type: "string",
         title: "Name",
-        description: "Your name",
+        description: "Your name. Target type: `string`.",
       },
       count: {
         type: "integer",
@@ -63,6 +64,21 @@ describe("TaskPage", () => {
     expect(screen.getByText("A task used in tests.")).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/count/i)).toBeInTheDocument();
+    expect(screen.getByText("string")).toBeInTheDocument();
+    expect(screen.getByText("string").tagName).toBe("CODE");
+  });
+
+  it("shows additional description markdown behind info button", async () => {
+    renderTaskPage("fake-task");
+
+    await waitFor(() => {
+      expect(screen.getByText("Fake Test Task")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Expression syntax")).not.toBeInTheDocument();
+    screen.getByLabelText("Additional information").click();
+    expect(await screen.findByText("Expression syntax")).toBeInTheDocument();
+    expect(screen.getByText('col("name")')).toBeInTheDocument();
   });
 
   it("prefills form when formData is passed via location state", async () => {
