@@ -15,6 +15,7 @@ from uploader.app.display import format_table
 from uploader.app.lib.formula import (
     Expression,
     ExpressionEvaluationError,
+    TextValue,
     Value,
     column_quantity,
     evaluate,
@@ -139,6 +140,8 @@ def _build_column_values(
 def _designation_string(value: Value) -> str:
     if isinstance(value, str):
         return value.strip()
+    if isinstance(value, TextValue):
+        return value.data.strip()
     if isinstance(value, u.Quantity):
         scalar = value.value
         if isinstance(scalar, np.ndarray) and scalar.shape != ():

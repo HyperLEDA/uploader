@@ -178,6 +178,53 @@ EVAL_CASES: list[EvalCase] = [
         columns=_COLUMNS,
         result_val=["NGC 123", "IC 456", "M 789"],
     ),
+    EvalCase(
+        name="to_deg_sexagesimal_hourangle",
+        expression='to_deg(col("ra"))',
+        columns={"ra": Col("00 02 08.4", "hourangle")},
+        result_val=0.535,
+        result_unit=u.deg,
+    ),
+    EvalCase(
+        name="to_deg_sexagesimal_deg",
+        expression='to_deg(col("dec"))',
+        columns={"dec": Col("+16 35 13", "deg")},
+        result_val=16.5869,
+        result_unit=u.deg,
+    ),
+    EvalCase(
+        name="to_deg_embedded_unit_string",
+        expression='to_deg(col("ra"))',
+        columns={"ra": Col("00h02m08.4s")},
+        result_val=0.535,
+        result_unit=u.deg,
+    ),
+    EvalCase(
+        name="to_deg_quantity",
+        expression='to_deg(col("angle_col"))',
+        columns=_COLUMNS,
+        result_val=190.0,
+        result_unit=u.deg,
+    ),
+    EvalCase(
+        name="to_deg_hourangle_quantity",
+        expression='to_deg(col("ra"))',
+        columns={"ra": Col(1.0, "hourangle")},
+        result_val=15.0,
+        result_unit=u.deg,
+    ),
+    EvalCase(
+        name="string_column_with_unit_concat",
+        expression='col("ra") + "x"',
+        columns={"ra": Col("00 02 08.4", "hourangle")},
+        result_val="00 02 08.4x",
+    ),
+    EvalCase(
+        name="error_to_deg_bare_string",
+        expression='to_deg(col("ra"))',
+        columns={"ra": Col("00 02 08.4")},
+        error=True,
+    ),
 ]
 
 
