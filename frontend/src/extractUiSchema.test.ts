@@ -12,7 +12,6 @@ describe("extractUiSchema", () => {
         },
         expression: {
           type: "string",
-          "ui:widget": "expression",
           "ui:options": { tokens: [{ label: "col" }] },
         },
         advanced: {
@@ -30,7 +29,6 @@ describe("extractUiSchema", () => {
     expect(extractUiSchema(schema)).toEqual({
       password: { "ui:widget": "password" },
       expression: {
-        "ui:widget": "expression",
         "ui:options": { tokens: [{ label: "col" }] },
       },
       advanced: {

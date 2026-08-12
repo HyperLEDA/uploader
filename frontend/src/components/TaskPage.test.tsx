@@ -23,7 +23,6 @@ const fakeTaskSchema = {
       expression: {
         type: "string",
         title: "Designation expression",
-        "ui:widget": "expression",
         "ui:options": {
           tokens: [
             {

@@ -1,5 +1,6 @@
 import Editor, { type Monaco } from "@monaco-editor/react";
 import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import type { WidgetProps } from "@rjsf/utils";
 import type { editor, Position } from "monaco-editor";
@@ -157,6 +158,7 @@ function registerExpressionLanguage(
 export function ExpressionWidget(props: WidgetProps) {
   const theme = useTheme();
   const tokens = readTokens(props.options);
+  const hasTokens = tokens.length > 0;
   const value = typeof props.value === "string" ? props.value : "";
   const isDark = theme.palette.mode === "dark";
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -183,7 +185,9 @@ export function ExpressionWidget(props: WidgetProps) {
   }, [props.registry?.formContext, props.formContext, props.id]);
 
   function handleBeforeMount(monaco: Monaco) {
-    registerExpressionLanguage(monaco, tokens);
+    if (hasTokens) {
+      registerExpressionLanguage(monaco, tokens);
+    }
   }
 
   function handleMount(
@@ -209,65 +213,75 @@ export function ExpressionWidget(props: WidgetProps) {
   }
 
   return (
-    <Box
-      sx={{
-        border: 1,
-        borderColor: "divider",
-        borderRadius: 1,
-        overflow: "hidden",
-        bgcolor: isDark ? "#1e1e1e" : "#ffffff",
-        "&:hover": {
-          borderColor: "text.primary",
-        },
-        "&:focus-within": {
-          borderColor: "primary.main",
-        },
-      }}
-    >
-      <Editor
-        height="42px"
-        language={LANGUAGE_ID}
-        theme={isDark ? "vs-dark" : "light"}
-        value={value.replace(/\r?\n/g, "")}
-        onChange={(next) => {
-          const singleLine = (next ?? "").replace(/\r?\n/g, "");
-          props.onChange(singleLine);
-        }}
-        beforeMount={handleBeforeMount}
-        onMount={handleMount}
-        options={{
-          ariaLabel: props.label,
-          readOnly: props.disabled || props.readonly,
-          minimap: { enabled: false },
-          lineNumbers: "off",
-          folding: false,
-          glyphMargin: false,
-          lineDecorationsWidth: 12,
-          lineNumbersMinChars: 0,
-          scrollBeyondLastLine: false,
-          wordWrap: "off",
-          fontSize: 14,
-          lineHeight: 22,
-          padding: { top: 10, bottom: 10 },
-          overviewRulerLanes: 0,
-          hideCursorInOverviewRuler: true,
-          renderLineHighlight: "none",
-          scrollbar: {
-            vertical: "hidden",
-            horizontal: "auto",
-            alwaysConsumeMouseWheel: false,
+    <Box>
+      {!props.hideLabel && props.label ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+          {props.label}
+          {props.required ? " *" : ""}
+        </Typography>
+      ) : null}
+      <Box
+        sx={{
+          border: 1,
+          borderColor: "divider",
+          borderRadius: 1,
+          overflow: "hidden",
+          bgcolor: isDark ? "#1e1e1e" : "#ffffff",
+          "&:hover": {
+            borderColor: "text.primary",
           },
-          quickSuggestions: { other: true, comments: false, strings: true },
-          wordBasedSuggestions: "off",
-          suggestOnTriggerCharacters: true,
-          acceptSuggestionOnEnter: "off",
-          tabCompletion: "on",
-          automaticLayout: true,
-          contextmenu: false,
-          fixedOverflowWidgets: true,
+          "&:focus-within": {
+            borderColor: "primary.main",
+          },
         }}
-        loading={<Box sx={{ height: 42 }} />}
-      />
+      >
+        <Editor
+          height="42px"
+          language={hasTokens ? LANGUAGE_ID : "plaintext"}
+          theme={isDark ? "vs-dark" : "light"}
+          value={value.replace(/\r?\n/g, "")}
+          onChange={(next) => {
+            const singleLine = (next ?? "").replace(/\r?\n/g, "");
+            props.onChange(singleLine);
+          }}
+          beforeMount={handleBeforeMount}
+          onMount={handleMount}
+          options={{
+            ariaLabel: props.label,
+            readOnly: props.disabled || props.readonly,
+            minimap: { enabled: false },
+            lineNumbers: "off",
+            folding: false,
+            glyphMargin: false,
+            lineDecorationsWidth: 12,
+            lineNumbersMinChars: 0,
+            scrollBeyondLastLine: false,
+            wordWrap: "off",
+            fontSize: 14,
+            lineHeight: 22,
+            padding: { top: 10, bottom: 10 },
+            overviewRulerLanes: 0,
+            hideCursorInOverviewRuler: true,
+            renderLineHighlight: "none",
+            scrollbar: {
+              vertical: "hidden",
+              horizontal: "auto",
+              alwaysConsumeMouseWheel: false,
+            },
+            quickSuggestions: hasTokens
+              ? { other: true, comments: false, strings: true }
+              : false,
+            wordBasedSuggestions: "off",
+            suggestOnTriggerCharacters: hasTokens,
+            acceptSuggestionOnEnter: "off",
+            tabCompletion: hasTokens ? "on" : "off",
+            automaticLayout: true,
+            contextmenu: false,
+            fixedOverflowWidgets: true,
+          }}
+          loading={<Box sx={{ height: 42 }} />}
+        />
+      </Box>
     </Box>
   );
 }
