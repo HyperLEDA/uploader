@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from typing import Any, Literal, TypedDict
 
 import astropy.constants as const
 import astropy.units as u
@@ -59,6 +60,58 @@ FUNCTIONS: dict[str, object] = {
     "str": _formula_str,
     "to_deg": _to_deg,
 }
+
+_FUNCTION_DETAILS: dict[str, str] = {
+    COL_FUNCTION: "Rawdata column",
+    "sin": "Sine (argument must be an angle)",
+    "cos": "Cosine (argument must be an angle)",
+    "str": "Convert to text",
+    "to_deg": "Convert to degrees",
+}
+
+
+class ExpressionToken(TypedDict):
+    label: str
+    insert: str
+    kind: Literal["function", "constant"]
+    detail: str
+
+
+def expression_tokens() -> list[ExpressionToken]:
+    tokens: list[ExpressionToken] = [
+        {
+            "label": COL_FUNCTION,
+            "insert": f'{COL_FUNCTION}("${{1:name}}")',
+            "kind": "function",
+            "detail": _FUNCTION_DETAILS[COL_FUNCTION],
+        },
+    ]
+    for name in FUNCTIONS:
+        tokens.append(
+            {
+                "label": name,
+                "insert": f"{name}(${{1:x}})",
+                "kind": "function",
+                "detail": _FUNCTION_DETAILS.get(name, "Function"),
+            },
+        )
+    for name in NAMED_CONSTANTS:
+        tokens.append(
+            {
+                "label": name,
+                "insert": name,
+                "kind": "constant",
+                "detail": "Named constant",
+            },
+        )
+    return tokens
+
+
+def expression_json_schema_extra() -> dict[str, Any]:
+    return {
+        "ui:widget": "expression",
+        "ui:options": {"tokens": expression_tokens()},
+    }
 
 
 def build_namespace(columns: Mapping[str, Value]) -> dict[str, object]:

@@ -9,7 +9,7 @@ import uploader.app.report as report
 from uploader.app import log
 from uploader.app.catalogs import fetch_catalogs
 from uploader.app.endpoints import db_dsn_map, env_map
-from uploader.app.lib.formula import expression_syntax_help
+from uploader.app.lib.formula import expression_json_schema_extra, expression_syntax_help
 from uploader.app.storage import PgStorage
 from uploader.app.structured.generic import upload_catalog_columns
 from uploader.clients.gen.client import adminapi
@@ -63,15 +63,16 @@ def build_catalog_form(schema: CatalogSchema) -> type[BaseModel]:
         if field.name in _RESERVED_FORM_FIELDS:
             raise RuntimeError(f"Catalog {schema.catalog!r} field {field.name!r} conflicts with reserved form field")
         description = _field_description(field)
+        extra = expression_json_schema_extra()
         if _field_required(field):
             field_definitions[field.name] = (
                 str,
-                Field(..., title=field.name, description=description),
+                Field(..., title=field.name, description=description, json_schema_extra=extra),
             )
         else:
             field_definitions[field.name] = (
                 str,
-                Field(default="", title=field.name, description=description),
+                Field(default="", title=field.name, description=description, json_schema_extra=extra),
             )
     field_definitions["write"] = (
         bool,

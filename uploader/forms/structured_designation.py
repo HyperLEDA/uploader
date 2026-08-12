@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 import uploader.app.report as report
 from uploader.app.endpoints import db_dsn_map, env_map
+from uploader.app.lib.formula import expression_json_schema_extra
 from uploader.app.storage import PgStorage
 from uploader.app.structured.designations import upload_designations as run_upload_designations
 from uploader.clients.gen.client import adminapi
@@ -37,6 +38,7 @@ class StructuredDesignationForm(BaseModel):
             "Expression yielding the object designation per row. "
             'Examples: col("designation"), col("weird name"), col("prefix") + " " + col("number").'
         ),
+        json_schema_extra=expression_json_schema_extra(),
     )
     write: bool = Field(
         default=False,
