@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import Form from "@rjsf/mui";
 import type { RegistryWidgetsType } from "@rjsf/utils";
@@ -10,7 +10,12 @@ import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
-import { fetchTaskSchema, submitTask } from "../api";
+import {
+  type FormError,
+  fetchTaskSchema,
+  submitTask,
+  validateTaskForm,
+} from "../api";
 import { extractUiSchema } from "../extractUiSchema";
 import { ExpressionWidget } from "./ExpressionWidget";
 import { FoldableObjectFieldTemplate } from "./FoldableObjectFieldTemplate";
@@ -20,6 +25,19 @@ import { ProgressView } from "./ProgressView";
 const widgets: RegistryWidgetsType = {
   expression: ExpressionWidget,
 };
+
+function pathToFieldId(path: string[]): string {
+  return ["root", ...path].join("_");
+}
+
+function toExpressionErrors(errors: FormError[]): Record<string, FormError[]> {
+  const byId: Record<string, FormError[]> = {};
+  for (const error of errors) {
+    const fieldId = pathToFieldId(error.path);
+    (byId[fieldId] ??= []).push(error);
+  }
+  return byId;
+}
 
 export function TaskPage() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -34,13 +52,17 @@ export function TaskPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
-  const [prefillData, setPrefillData] = useState<Record<string, unknown>>({});
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
+  const [formErrors, setFormErrors] = useState<FormError[]>([]);
+  const requestIdRef = useRef(0);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const state = location.state as {
       formData?: Record<string, unknown>;
     } | null;
-    setPrefillData(state?.formData ?? {});
+    setFormData(state?.formData ?? {});
+    setFormErrors([]);
   }, [location.state, taskId]);
 
   useEffect(() => {
@@ -71,6 +93,37 @@ export function TaskPage() {
       alive = false;
     };
   }, [taskId]);
+
+  useEffect(() => {
+    if (!taskId || !schema) {
+      return () => {};
+    }
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      const requestId = ++requestIdRef.current;
+      validateTaskForm(taskId, formData)
+        .then((errors) => {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+          setFormErrors(errors);
+        })
+        .catch(() => {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+          setFormErrors([]);
+        });
+    }, 200);
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+      requestIdRef.current += 1;
+    };
+  }, [taskId, schema, formData]);
 
   if (!taskId) return null;
 
@@ -157,16 +210,20 @@ export function TaskPage() {
       <Form
         schema={schema}
         validator={validator}
-        formData={prefillData}
+        formData={formData}
         widgets={widgets}
         uiSchema={uiSchema}
         templates={{ ObjectFieldTemplate: FoldableObjectFieldTemplate }}
-        onSubmit={async ({ formData }) => {
+        formContext={{ expressionErrors: toExpressionErrors(formErrors) }}
+        onChange={({ formData: next }) => {
+          setFormData((next ?? {}) as Record<string, unknown>);
+        }}
+        onSubmit={async ({ formData: submittedData }) => {
           setSubmitError(null);
           try {
             const submitted = await submitTask(
               taskId,
-              formData as Record<string, unknown>,
+              submittedData as Record<string, unknown>,
             );
             setRunId(submitted.run_id);
           } catch (e: unknown) {

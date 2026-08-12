@@ -3,14 +3,6 @@ import type { WidgetProps } from "@rjsf/utils";
 import { describe, expect, it, vi } from "vitest";
 import { ExpressionWidget, findToken } from "./ExpressionWidget";
 
-vi.mock("../api", async () => {
-  const actual = await vi.importActual<typeof import("../api")>("../api");
-  return {
-    ...actual,
-    validateExpression: vi.fn().mockResolvedValue([]),
-  };
-});
-
 const tokens = [
   {
     label: "col",
@@ -35,6 +27,22 @@ function renderWidget(onChange = vi.fn(), value = "") {
     onChange,
     options: { tokens },
     schema: { type: "string" },
+    registry: {
+      formContext: {
+        expressionErrors: {
+          root_expression: [
+            {
+              path: ["expression"],
+              message: "unknown name 'foo'",
+              start_line: 1,
+              start_column: 1,
+              end_line: 1,
+              end_column: 4,
+            },
+          ],
+        },
+      },
+    },
   } as unknown as WidgetProps;
   return render(<ExpressionWidget {...props} />);
 }

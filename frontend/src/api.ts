@@ -72,7 +72,8 @@ export type HistoryEntry = {
   details?: string | null;
 };
 
-export type ExpressionDiagnostic = {
+export type FormError = {
+  path: string[];
   message: string;
   start_line: number;
   start_column: number;
@@ -80,17 +81,17 @@ export type ExpressionDiagnostic = {
   end_column: number;
 };
 
-export async function validateExpression(
-  expression: string,
-): Promise<ExpressionDiagnostic[]> {
-  const r = await fetch("/api/expressions/validate", {
+export async function validateTaskForm(
+  taskId: string,
+  formData: Record<string, unknown>,
+): Promise<FormError[]> {
+  const r = await fetch(`/api/tasks/${taskId}/validate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ expression }),
+    body: JSON.stringify(formData),
   });
   if (!r.ok) throw new Error(`validate: ${r.status}`);
-  const body = (await r.json()) as { diagnostics: ExpressionDiagnostic[] };
-  return body.diagnostics;
+  return r.json();
 }
 
 export async function fetchHistory(): Promise<HistoryEntry[]> {

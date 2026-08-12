@@ -10,9 +10,9 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
-from uploader.app.lib.formula import validate_expression
+from uploader.app.lib.formula import expression_form_errors
 from uploader.history import load_history
 from uploader.task_registry import register_all_tasks
 from uploader.tasks import TASKS, cancel_run, get_run, start_task
@@ -51,15 +51,6 @@ def list_history() -> list[dict[str, object]]:
     return [entry.model_dump() for entry in load_history()]
 
 
-class ValidateExpressionRequest(BaseModel):
-    expression: str
-
-
-@app.post("/api/expressions/validate")
-def validate_expression_endpoint(body: ValidateExpressionRequest) -> dict[str, object]:
-    return {"diagnostics": [asdict(item) for item in validate_expression(body.expression)]}
-
-
 @app.get("/api/tasks/{task_id}/schema")
 def task_schema(task_id: str) -> dict[str, object]:
     if task_id not in TASKS:
@@ -73,6 +64,17 @@ def task_schema(task_id: str) -> dict[str, object]:
         "additional_description": task.additional_description,
         "schema": schema,
     }
+
+
+@app.post("/api/tasks/{task_id}/validate")
+def validate_task(task_id: str, body: dict[str, object]) -> list[dict[str, object]]:
+    if task_id not in TASKS:
+        raise HTTPException(status_code=404, detail="Unknown task")
+    try:
+        TASKS[task_id].form_model.model_validate(body)
+    except ValidationError as e:
+        return [asdict(item) for item in expression_form_errors(e)]
+    return []
 
 
 @app.post("/api/tasks/{task_id}/submit")

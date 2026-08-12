@@ -1,6 +1,9 @@
 import ast
-from dataclasses import dataclass
-from typing import final
+from dataclasses import asdict, dataclass
+from typing import Annotated, final
+
+from pydantic import AfterValidator, ValidationError
+from pydantic_core import PydanticCustomError
 
 from uploader.app.lib.formula.namespace import COL_FUNCTION, FUNCTIONS, NAMED_CONSTANTS
 
@@ -13,6 +16,31 @@ class ExpressionDiagnostic:
     start_column: int
     end_line: int
     end_column: int
+
+
+@final
+@dataclass(frozen=True)
+class FormError:
+    path: tuple[str, ...]
+    message: str
+    start_line: int
+    start_column: int
+    end_line: int
+    end_column: int
+
+
+def _validate_expression_str(source: str) -> str:
+    diagnostics = validate_expression(source)
+    if not diagnostics:
+        return source
+    raise PydanticCustomError(
+        "expression",
+        "invalid expression",
+        {"diagnostics": [asdict(item) for item in diagnostics]},
+    )
+
+
+ExpressionStr = Annotated[str, AfterValidator(_validate_expression_str)]
 
 
 def _from_syntax_error(error: SyntaxError, source: str) -> ExpressionDiagnostic:
@@ -112,3 +140,29 @@ def validate_expression(source: str) -> list[ExpressionDiagnostic]:
         return []
     _, _, diagnostics = diagnose_expression(source)
     return diagnostics
+
+
+def expression_form_errors(error: ValidationError) -> list[FormError]:
+    result: list[FormError] = []
+    for item in error.errors():
+        if item["type"] != "expression":
+            continue
+        ctx = item.get("ctx") or {}
+        diagnostics = ctx.get("diagnostics")
+        if not isinstance(diagnostics, list):
+            continue
+        path = tuple(str(part) for part in item["loc"])
+        for diagnostic in diagnostics:
+            if not isinstance(diagnostic, dict):
+                continue
+            result.append(
+                FormError(
+                    path=path,
+                    message=str(diagnostic["message"]),
+                    start_line=int(diagnostic["start_line"]),
+                    start_column=int(diagnostic["start_column"]),
+                    end_line=int(diagnostic["end_line"]),
+                    end_column=int(diagnostic["end_column"]),
+                ),
+            )
+    return result

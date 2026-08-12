@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 import uploader.app.report as report
 from uploader.app.endpoints import db_dsn_map, env_map
-from uploader.app.lib.formula import expression_json_schema_extra
+from uploader.app.lib.formula import ExpressionStr, expression_json_schema_extra
 from uploader.app.storage import PgStorage
 from uploader.app.structured.designations import upload_designations as run_upload_designations
 from uploader.clients.gen.client import adminapi
@@ -31,7 +31,7 @@ class StructuredDesignationAdvancedSettings(BaseModel):
 
 class StructuredDesignationForm(BaseModel):
     table_name: str = Field(..., title="Name of the table")
-    expression: str = Field(
+    expression: ExpressionStr = Field(
         ...,
         title="Designation expression",
         description=(

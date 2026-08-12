@@ -43,6 +43,7 @@ const fakeTaskSchema = {
 vi.mock("../api", () => ({
   fetchTaskSchema: vi.fn(() => Promise.resolve(fakeTaskSchema)),
   submitTask: vi.fn(),
+  validateTaskForm: vi.fn(() => Promise.resolve([])),
 }));
 
 function renderTaskPage(taskId: string, formData?: Record<string, unknown>) {
