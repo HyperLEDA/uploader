@@ -3,11 +3,8 @@ import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { WidgetProps } from "@rjsf/utils";
 import type { editor, Position } from "monaco-editor";
-import { useRef } from "react";
-import {
-  type ExpressionDiagnostic,
-  validateExpression,
-} from "./expressionValidate";
+import { useEffect, useRef } from "react";
+import { type ExpressionDiagnostic, validateExpression } from "../api";
 
 const LANGUAGE_ID = "hyperleda-expression";
 const MARKER_OWNER = "hyperleda-expression";
@@ -57,10 +54,10 @@ function toMarkers(
   return diagnostics.map((diagnostic) => ({
     severity: monaco.MarkerSeverity.Error,
     message: diagnostic.message,
-    startLineNumber: 1,
-    startColumn: diagnostic.startColumn,
-    endLineNumber: 1,
-    endColumn: diagnostic.endColumn,
+    startLineNumber: diagnostic.start_line,
+    startColumn: diagnostic.start_column,
+    endLineNumber: diagnostic.end_line,
+    endColumn: diagnostic.end_column,
   }));
 }
 
@@ -151,9 +148,20 @@ export function ExpressionWidget(props: WidgetProps) {
   const isDark = theme.palette.mode === "dark";
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
-  const allowedLabels = tokens.map((token) => token.label);
+  const requestIdRef = useRef(0);
+  const timeoutRef = useRef<number | null>(null);
 
-  function applyMarkers(text: string) {
+  useEffect(
+    () => () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+      requestIdRef.current += 1;
+    },
+    [],
+  );
+
+  function applyMarkers(diagnostics: ExpressionDiagnostic[]) {
     const editorInstance = editorRef.current;
     const monaco = monacoRef.current;
     const model = editorInstance?.getModel();
@@ -163,8 +171,30 @@ export function ExpressionWidget(props: WidgetProps) {
     monaco.editor.setModelMarkers(
       model,
       MARKER_OWNER,
-      toMarkers(monaco, validateExpression(text, allowedLabels)),
+      toMarkers(monaco, diagnostics),
     );
+  }
+
+  function scheduleValidation(text: string) {
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      const requestId = ++requestIdRef.current;
+      validateExpression(text)
+        .then((diagnostics) => {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+          applyMarkers(diagnostics);
+        })
+        .catch(() => {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+          applyMarkers([]);
+        });
+    }, 200);
   }
 
   function handleBeforeMount(monaco: Monaco) {
@@ -183,7 +213,8 @@ export function ExpressionWidget(props: WidgetProps) {
         e.stopPropagation();
       }
     });
-    applyMarkers(value.replace(/\r?\n/g, ""));
+    applyMarkers([]);
+    scheduleValidation(value.replace(/\r?\n/g, ""));
   }
 
   return (
@@ -210,7 +241,7 @@ export function ExpressionWidget(props: WidgetProps) {
         onChange={(next) => {
           const singleLine = (next ?? "").replace(/\r?\n/g, "");
           props.onChange(singleLine);
-          applyMarkers(singleLine);
+          scheduleValidation(singleLine);
         }}
         beforeMount={handleBeforeMount}
         onMount={handleMount}

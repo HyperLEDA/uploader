@@ -3,6 +3,14 @@ import type { WidgetProps } from "@rjsf/utils";
 import { describe, expect, it, vi } from "vitest";
 import { ExpressionWidget, findToken } from "./ExpressionWidget";
 
+vi.mock("../api", async () => {
+  const actual = await vi.importActual<typeof import("../api")>("../api");
+  return {
+    ...actual,
+    validateExpression: vi.fn().mockResolvedValue([]),
+  };
+});
+
 const tokens = [
   {
     label: "col",

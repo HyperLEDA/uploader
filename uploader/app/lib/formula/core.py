@@ -1,4 +1,3 @@
-import ast
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import CodeType
@@ -7,19 +6,9 @@ from typing import final
 import astropy.units as u
 
 from uploader.app.lib.formula.errors import ExpressionEvaluationError, ExpressionSyntaxError
-from uploader.app.lib.formula.namespace import COL_FUNCTION, FUNCTIONS, NAMED_CONSTANTS, build_namespace
+from uploader.app.lib.formula.namespace import build_namespace
+from uploader.app.lib.formula.validate import diagnose_expression
 from uploader.app.lib.formula.values import Value
-
-
-def _column_from_call(node: ast.Call) -> str | None:
-    if not isinstance(node.func, ast.Name) or node.func.id != COL_FUNCTION:
-        return None
-    if node.keywords or len(node.args) != 1:
-        raise ValueError(f"{COL_FUNCTION}() takes exactly one string argument")
-    arg = node.args[0]
-    if not isinstance(arg, ast.Constant) or not isinstance(arg.value, str):
-        raise ValueError(f"{COL_FUNCTION}() argument must be a string literal")
-    return arg.value
 
 
 @final
@@ -30,14 +19,10 @@ class Expression:
 
 
 def parse(source: str) -> Expression:
-    try:
-        tree = ast.parse(source.strip(), mode="eval")
-    except SyntaxError as e:
-        raise ExpressionSyntaxError(str(e)) from e
-    try:
-        referenced_columns = frozenset(_ColumnCollector().collect(tree.body))
-    except ValueError as e:
-        raise ExpressionSyntaxError(str(e)) from e
+    tree, referenced_columns, diagnostics = diagnose_expression(source.strip())
+    if tree is None or diagnostics:
+        message = diagnostics[0].message if diagnostics else "invalid expression"
+        raise ExpressionSyntaxError(message)
     code = compile(tree, "<expression>", "eval")
     return Expression(referenced_columns=referenced_columns, code=code)
 
@@ -47,34 +32,3 @@ def evaluate(expression: Expression, columns: Mapping[str, Value]) -> Value:
         return eval(expression.code, build_namespace(columns))  # noqa: S307
     except (KeyError, NameError, TypeError, ValueError, ZeroDivisionError, u.UnitsError) as e:
         raise ExpressionEvaluationError(str(e)) from e
-
-
-@final
-class _ColumnCollector(ast.NodeVisitor):
-    def __init__(self) -> None:
-        self.columns: set[str] = set()
-
-    def collect(self, node: ast.AST) -> set[str]:
-        self.visit(node)
-        return self.columns
-
-    def visit_Call(self, node: ast.Call) -> None:
-        column = _column_from_call(node)
-        if column is not None:
-            self.columns.add(column)
-            return
-        if not isinstance(node.func, ast.Name):
-            raise ValueError("only simple function calls are allowed")
-        if node.func.id not in FUNCTIONS:
-            raise ValueError(f"unknown function: {node.func.id}")
-        if node.keywords:
-            raise ValueError("keyword arguments are not allowed")
-        for arg in node.args:
-            self.visit(arg)
-
-    def visit_Name(self, node: ast.Name) -> None:
-        if node.id in NAMED_CONSTANTS or node.id in FUNCTIONS:
-            return
-        raise ValueError(
-            f"unknown name {node.id!r}; use {COL_FUNCTION}() for columns or a predefined constant/function",
-        )

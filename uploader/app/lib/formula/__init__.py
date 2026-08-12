@@ -9,10 +9,12 @@ from uploader.app.lib.formula.namespace import (
     expression_syntax_help,
     expression_tokens,
 )
+from uploader.app.lib.formula.validate import ExpressionDiagnostic, validate_expression
 from uploader.app.lib.formula.values import TextValue, Value, column_quantity
 
 __all__ = [
     "Expression",
+    "ExpressionDiagnostic",
     "ExpressionError",
     "ExpressionEvaluationError",
     "ExpressionSyntaxError",
@@ -24,4 +26,5 @@ __all__ = [
     "expression_syntax_help",
     "expression_tokens",
     "parse",
+    "validate_expression",
 ]

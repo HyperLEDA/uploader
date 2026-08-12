@@ -150,3 +150,18 @@ def test_task_cancel_flow(isolated_task_state: None) -> None:
     fake_entry = next(item for item in history_data if item["task_id"] == "fake-task-cancel")
     assert fake_entry["status"] == "cancelled"
     assert fake_entry["message"] == "Task was cancelled by user."
+
+
+def test_validate_expression_endpoint() -> None:
+    client = TestClient(app)
+    ok = client.post("/api/expressions/validate", json={"expression": 'to_deg(col("RAJ2000"))'})
+    assert ok.status_code == 200
+    assert ok.json() == {"diagnostics": []}
+
+    bad = client.post("/api/expressions/validate", json={"expression": 'col("a)'})
+    assert bad.status_code == 200
+    diagnostics = bad.json()["diagnostics"]
+    assert len(diagnostics) == 1
+    assert "string" in diagnostics[0]["message"].lower()
+    assert diagnostics[0]["start_line"] == 1
+    assert diagnostics[0]["start_column"] >= 1
