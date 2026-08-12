@@ -79,7 +79,7 @@ class _DiagnosticCollector(ast.NodeVisitor):
             self.diagnostics.append(_from_node(node.func, "only simple function calls are allowed"))
             self.generic_visit(node)
             return
-        if node.func.id not in FUNCTIONS:
+        if all(fn.name != node.func.id for fn in FUNCTIONS):
             self.diagnostics.append(_from_node(node.func, f"unknown function: {node.func.id}"))
         if node.keywords:
             self.diagnostics.append(_from_node(node, "keyword arguments are not allowed"))
@@ -87,7 +87,7 @@ class _DiagnosticCollector(ast.NodeVisitor):
             self.visit(arg)
 
     def visit_Name(self, node: ast.Name) -> None:
-        if node.id in NAMED_CONSTANTS or node.id in FUNCTIONS:
+        if any(c.name == node.id for c in NAMED_CONSTANTS) or any(fn.name == node.id for fn in FUNCTIONS):
             return
         self.diagnostics.append(
             _from_node(

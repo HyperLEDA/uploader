@@ -40,18 +40,32 @@ class ConstantDef:
         return self.name
 
 
-NAMED_CONSTANTS: dict[str, ConstantDef] = {
-    constant.name: constant
-    for constant in (
-        ConstantDef("pi", np.pi * u.dimensionless_unscaled, "Pi"),
-        ConstantDef("c", const.c, "Speed of light"),
-        ConstantDef("deg", 1 * u.deg, "Degree"),
-        ConstantDef("rad", 1 * u.rad, "Radian"),
-        ConstantDef("arcmin", 1 * u.arcmin, "Arcminute"),
-        ConstantDef("arcsec", 1 * u.arcsec, "Arcsecond"),
-        ConstantDef("mag", 1 * u.mag, "Magnitude"),
-    )
-}
+@final
+@dataclass(frozen=True)
+class OperatorDef:
+    name: str
+    detail: str
+
+
+NAMED_CONSTANTS: tuple[ConstantDef, ...] = (
+    ConstantDef("pi", np.pi * u.dimensionless_unscaled, "Pi"),
+    ConstantDef("c", const.c, "Speed of light"),
+    ConstantDef("deg", 1 * u.deg, "Degree"),
+    ConstantDef("rad", 1 * u.rad, "Radian"),
+    ConstantDef("arcmin", 1 * u.arcmin, "Arcminute"),
+    ConstantDef("arcsec", 1 * u.arcsec, "Arcsecond"),
+    ConstantDef("mag", 1 * u.mag, "Magnitude"),
+)
+
+
+OPERATORS: tuple[OperatorDef, ...] = (
+    OperatorDef("+", "Addition; also concatenates strings"),
+    OperatorDef("-", "Subtraction"),
+    OperatorDef("*", "Multiplication"),
+    OperatorDef("/", "Division"),
+    OperatorDef("**", "Exponentiation"),
+    OperatorDef("%", 'Modulo; divisor must carry units (e.g. col("pa") % (180 * deg))'),
+)
 
 
 def _scalar_to_str(value: float | int | np.number) -> str:
@@ -89,15 +103,12 @@ def _to_deg(value: object) -> u.Quantity:
 
 COL_FUNCTION = FunctionDef("col", "Rawdata column", placeholder='"${1:name}"')
 
-FUNCTIONS: dict[str, FunctionDef] = {
-    fn.name: fn
-    for fn in (
-        FunctionDef("sin", "Sine (argument must be an angle)", np.sin),
-        FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
-        FunctionDef("str", "Convert to text", _formula_str),
-        FunctionDef("to_deg", "Convert to degrees; parses coordinate strings or angle quantities", _to_deg),
-    )
-}
+FUNCTIONS: tuple[FunctionDef, ...] = (
+    FunctionDef("sin", "Sine (argument must be an angle)", np.sin),
+    FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
+    FunctionDef("str", "Convert to text", _formula_str),
+    FunctionDef("to_deg", "Convert to degrees; parses coordinate strings or angle quantities", _to_deg),
+)
 
 
 class ExpressionToken(TypedDict):
@@ -109,7 +120,7 @@ class ExpressionToken(TypedDict):
 
 def expression_tokens() -> list[ExpressionToken]:
     tokens: list[ExpressionToken] = []
-    for fn in (COL_FUNCTION, *FUNCTIONS.values()):
+    for fn in (COL_FUNCTION, *FUNCTIONS):
         tokens.append(
             {
                 "label": fn.name,
@@ -118,7 +129,7 @@ def expression_tokens() -> list[ExpressionToken]:
                 "detail": fn.detail,
             },
         )
-    for constant in NAMED_CONSTANTS.values():
+    for constant in NAMED_CONSTANTS:
         tokens.append(
             {
                 "label": constant.name,
@@ -141,25 +152,25 @@ def build_namespace(columns: Mapping[str, Value]) -> dict[str, object]:
     return {
         "__builtins__": {},
         COL_FUNCTION.name: lambda name: columns[name],
-        **{name: constant.value for name, constant in NAMED_CONSTANTS.items()},
-        **{name: fn.impl for name, fn in FUNCTIONS.items() if fn.impl is not None},
+        **{constant.name: constant.value for constant in NAMED_CONSTANTS},
+        **{fn.name: fn.impl for fn in FUNCTIONS if fn.impl is not None},
     }
 
 
 def expression_syntax_help() -> str:
-    constants = ", ".join(f"`{c.name}` ({c.detail})" for c in NAMED_CONSTANTS.values())
-    functions = ", ".join(f"`{fn.signature}` ({fn.detail})" for fn in (COL_FUNCTION, *FUNCTIONS.values()))
+    constants = ", ".join(f"`{c.name}` ({c.detail})" for c in NAMED_CONSTANTS)
+    functions = ", ".join(f"`{fn.signature}` ({fn.detail})" for fn in (COL_FUNCTION, *FUNCTIONS))
+    operators = ", ".join(f"`{op.name}` ({op.detail})" for op in OPERATORS)
     return f"""\
 ## Expression syntax
 
 Expressions are unit-aware and units are taken from column metadata.
 
 Mathematical operations:
-- Operators: `+` `-` `*` `/` `**` `%`
+- Operators: {operators}
 - Functions: {functions}
 - Numbers are dimensionless
-- String literals and `+` concatenation are supported
-- Modulo divisors must carry units (e.g. `col("pa") % (180 * deg)`)
+- String literals are supported
 - Log columns (`mag`/`dex`) yield the bare exponent; multiply by the scale yourself
 
 Available constants: {constants}.
