@@ -3,8 +3,14 @@ import Box from "@mui/material/Box";
 import { useTheme } from "@mui/material/styles";
 import type { WidgetProps } from "@rjsf/utils";
 import type { editor, Position } from "monaco-editor";
+import { useRef } from "react";
+import {
+  type ExpressionDiagnostic,
+  validateExpression,
+} from "./expressionValidate";
 
 const LANGUAGE_ID = "hyperleda-expression";
+const MARKER_OWNER = "hyperleda-expression";
 
 export type ExpressionToken = {
   label: string;
@@ -42,6 +48,20 @@ export function findToken(
   tokens: ExpressionToken[],
 ): ExpressionToken | undefined {
   return tokens.find((token) => token.label === word);
+}
+
+function toMarkers(
+  monaco: Monaco,
+  diagnostics: ExpressionDiagnostic[],
+): editor.IMarkerData[] {
+  return diagnostics.map((diagnostic) => ({
+    severity: monaco.MarkerSeverity.Error,
+    message: diagnostic.message,
+    startLineNumber: 1,
+    startColumn: diagnostic.startColumn,
+    endLineNumber: 1,
+    endColumn: diagnostic.endColumn,
+  }));
 }
 
 function registerExpressionLanguage(
@@ -129,6 +149,23 @@ export function ExpressionWidget(props: WidgetProps) {
   const tokens = readTokens(props.options);
   const value = typeof props.value === "string" ? props.value : "";
   const isDark = theme.palette.mode === "dark";
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<Monaco | null>(null);
+  const allowedLabels = tokens.map((token) => token.label);
+
+  function applyMarkers(text: string) {
+    const editorInstance = editorRef.current;
+    const monaco = monacoRef.current;
+    const model = editorInstance?.getModel();
+    if (!editorInstance || !monaco || !model) {
+      return;
+    }
+    monaco.editor.setModelMarkers(
+      model,
+      MARKER_OWNER,
+      toMarkers(monaco, validateExpression(text, allowedLabels)),
+    );
+  }
 
   function handleBeforeMount(monaco: Monaco) {
     registerExpressionLanguage(monaco, tokens);
@@ -138,12 +175,15 @@ export function ExpressionWidget(props: WidgetProps) {
     editorInstance: editor.IStandaloneCodeEditor,
     monaco: Monaco,
   ) {
+    editorRef.current = editorInstance;
+    monacoRef.current = monaco;
     editorInstance.onKeyDown((e) => {
       if (e.keyCode === monaco.KeyCode.Enter) {
         e.preventDefault();
         e.stopPropagation();
       }
     });
+    applyMarkers(value.replace(/\r?\n/g, ""));
   }
 
   return (
@@ -167,7 +207,11 @@ export function ExpressionWidget(props: WidgetProps) {
         language={LANGUAGE_ID}
         theme={isDark ? "vs-dark" : "light"}
         value={value.replace(/\r?\n/g, "")}
-        onChange={(next) => props.onChange((next ?? "").replace(/\r?\n/g, ""))}
+        onChange={(next) => {
+          const singleLine = (next ?? "").replace(/\r?\n/g, "");
+          props.onChange(singleLine);
+          applyMarkers(singleLine);
+        }}
         beforeMount={handleBeforeMount}
         onMount={handleMount}
         options={{
