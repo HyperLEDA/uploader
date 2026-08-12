@@ -9,7 +9,13 @@ from uploader.app.lib.formula.namespace import (
     expression_syntax_help,
     expression_tokens,
 )
-from uploader.app.lib.formula.validate import ExpressionDiagnostic, validate_expression
+from uploader.app.lib.formula.validate import (
+    ExpressionDiagnostic,
+    ExpressionStr,
+    FormError,
+    expression_form_errors,
+    validate_expression,
+)
 from uploader.app.lib.formula.values import TextValue, Value, column_quantity
 
 __all__ = [
@@ -17,11 +23,14 @@ __all__ = [
     "ExpressionDiagnostic",
     "ExpressionError",
     "ExpressionEvaluationError",
+    "ExpressionStr",
     "ExpressionSyntaxError",
+    "FormError",
     "TextValue",
     "Value",
     "column_quantity",
     "evaluate",
+    "expression_form_errors",
     "expression_json_schema_extra",
     "expression_syntax_help",
     "expression_tokens",

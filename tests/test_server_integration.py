@@ -10,6 +10,7 @@ from pydantic import BaseModel
 import uploader.app.report as report
 import uploader.history as history
 import uploader.tasks as tasks
+from uploader.app.lib.formula import ExpressionStr
 from uploader.cli import app
 
 
@@ -152,16 +153,55 @@ def test_task_cancel_flow(isolated_task_state: None) -> None:
     assert fake_entry["message"] == "Task was cancelled by user."
 
 
-def test_validate_expression_endpoint() -> None:
-    client = TestClient(app)
-    ok = client.post("/api/expressions/validate", json={"expression": 'to_deg(col("RAJ2000"))'})
-    assert ok.status_code == 200
-    assert ok.json() == {"diagnostics": []}
+def test_validate_task_form_endpoint(isolated_task_state: None) -> None:
+    class FakeExpressionForm(BaseModel):
+        name: str
+        expression: ExpressionStr
 
-    bad = client.post("/api/expressions/validate", json={"expression": 'col("a)'})
+    def noop_handler(form: FakeExpressionForm, emit: Callable[[report.Event], None]) -> None:
+        emit(report.DoneEvent(message=f"Completed {form.name}"))
+
+    tasks.register_task(
+        tasks.TaskDefinition(
+            id="fake-expression-task",
+            title="Fake Expression Task",
+            description="Task used for form validation testing.",
+            form_model=FakeExpressionForm,
+            handler=noop_handler,
+            group="Tests",
+        ),
+    )
+
+    client = TestClient(app)
+
+    unknown = client.post("/api/tasks/does-not-exist/validate", json={})
+    assert unknown.status_code == 404
+
+    ok = client.post(
+        "/api/tasks/fake-expression-task/validate",
+        json={"expression": 'to_deg(col("RAJ2000"))'},
+    )
+    assert ok.status_code == 200
+    assert ok.json() == []
+
+    bad = client.post(
+        "/api/tasks/fake-expression-task/validate",
+        json={"expression": 'col("a)'},
+    )
     assert bad.status_code == 200
-    diagnostics = bad.json()["diagnostics"]
-    assert len(diagnostics) == 1
-    assert "string" in diagnostics[0]["message"].lower()
-    assert diagnostics[0]["start_line"] == 1
-    assert diagnostics[0]["start_column"] >= 1
+    errors = bad.json()
+    assert len(errors) == 1
+    assert errors[0]["path"] == ["expression"]
+    assert "string" in errors[0]["message"].lower()
+    assert errors[0]["start_line"] == 1
+    assert errors[0]["start_column"] >= 1
+    assert "end_line" in errors[0]
+    assert "end_column" in errors[0]
+
+    submit_bad = client.post(
+        "/api/tasks/fake-expression-task/submit",
+        json={"name": "alpha", "expression": 'col("a)'},
+    )
+    assert submit_bad.status_code == 422
+    detail = submit_bad.json()["detail"]
+    assert any(item.get("type") == "expression" for item in detail)

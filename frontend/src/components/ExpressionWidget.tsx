@@ -4,7 +4,7 @@ import { useTheme } from "@mui/material/styles";
 import type { WidgetProps } from "@rjsf/utils";
 import type { editor, Position } from "monaco-editor";
 import { useEffect, useRef } from "react";
-import { type ExpressionDiagnostic, validateExpression } from "../api";
+import type { FormError } from "../api";
 
 const LANGUAGE_ID = "hyperleda-expression";
 const MARKER_OWNER = "hyperleda-expression";
@@ -14,6 +14,10 @@ export type ExpressionToken = {
   insert: string;
   kind: "function" | "constant";
   detail: string;
+};
+
+export type ExpressionFormContext = {
+  expressionErrors?: Record<string, FormError[]>;
 };
 
 let languageRegistered = false;
@@ -47,18 +51,27 @@ export function findToken(
   return tokens.find((token) => token.label === word);
 }
 
-function toMarkers(
-  monaco: Monaco,
-  diagnostics: ExpressionDiagnostic[],
-): editor.IMarkerData[] {
-  return diagnostics.map((diagnostic) => ({
+function toMarkers(monaco: Monaco, errors: FormError[]): editor.IMarkerData[] {
+  return errors.map((error) => ({
     severity: monaco.MarkerSeverity.Error,
-    message: diagnostic.message,
-    startLineNumber: diagnostic.start_line,
-    startColumn: diagnostic.start_column,
-    endLineNumber: diagnostic.end_line,
-    endColumn: diagnostic.end_column,
+    message: error.message,
+    startLineNumber: error.start_line,
+    startColumn: error.start_column,
+    endLineNumber: error.end_line,
+    endColumn: error.end_column,
   }));
+}
+
+function readFieldErrors(formContext: unknown, fieldId: string): FormError[] {
+  if (typeof formContext !== "object" || formContext === null) {
+    return [];
+  }
+  const errors = (formContext as ExpressionFormContext).expressionErrors;
+  if (!errors || typeof errors !== "object") {
+    return [];
+  }
+  const fieldErrors = errors[fieldId];
+  return Array.isArray(fieldErrors) ? fieldErrors : [];
 }
 
 function registerExpressionLanguage(
@@ -148,54 +161,26 @@ export function ExpressionWidget(props: WidgetProps) {
   const isDark = theme.palette.mode === "dark";
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
-  const requestIdRef = useRef(0);
-  const timeoutRef = useRef<number | null>(null);
+  const formContext =
+    props.registry?.formContext ?? props.formContext ?? undefined;
+  const fieldErrors = readFieldErrors(formContext, props.id);
 
-  useEffect(
-    () => () => {
-      if (timeoutRef.current !== null) {
-        window.clearTimeout(timeoutRef.current);
-      }
-      requestIdRef.current += 1;
-    },
-    [],
-  );
-
-  function applyMarkers(diagnostics: ExpressionDiagnostic[]) {
+  useEffect(() => {
     const editorInstance = editorRef.current;
     const monaco = monacoRef.current;
     const model = editorInstance?.getModel();
     if (!editorInstance || !monaco || !model) {
       return;
     }
+    const context =
+      props.registry?.formContext ?? props.formContext ?? undefined;
+    const errors = readFieldErrors(context, props.id);
     monaco.editor.setModelMarkers(
       model,
       MARKER_OWNER,
-      toMarkers(monaco, diagnostics),
+      toMarkers(monaco, errors),
     );
-  }
-
-  function scheduleValidation(text: string) {
-    if (timeoutRef.current !== null) {
-      window.clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = window.setTimeout(() => {
-      const requestId = ++requestIdRef.current;
-      validateExpression(text)
-        .then((diagnostics) => {
-          if (requestId !== requestIdRef.current) {
-            return;
-          }
-          applyMarkers(diagnostics);
-        })
-        .catch(() => {
-          if (requestId !== requestIdRef.current) {
-            return;
-          }
-          applyMarkers([]);
-        });
-    }, 200);
-  }
+  }, [props.registry?.formContext, props.formContext, props.id]);
 
   function handleBeforeMount(monaco: Monaco) {
     registerExpressionLanguage(monaco, tokens);
@@ -213,8 +198,14 @@ export function ExpressionWidget(props: WidgetProps) {
         e.stopPropagation();
       }
     });
-    applyMarkers([]);
-    scheduleValidation(value.replace(/\r?\n/g, ""));
+    const model = editorInstance.getModel();
+    if (model) {
+      monaco.editor.setModelMarkers(
+        model,
+        MARKER_OWNER,
+        toMarkers(monaco, fieldErrors),
+      );
+    }
   }
 
   return (
@@ -241,7 +232,6 @@ export function ExpressionWidget(props: WidgetProps) {
         onChange={(next) => {
           const singleLine = (next ?? "").replace(/\r?\n/g, "");
           props.onChange(singleLine);
-          scheduleValidation(singleLine);
         }}
         beforeMount={handleBeforeMount}
         onMount={handleMount}

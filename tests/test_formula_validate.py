@@ -1,6 +1,8 @@
 from dataclasses import asdict
 
-from uploader.app.lib.formula import validate_expression
+from pydantic import BaseModel, ValidationError
+
+from uploader.app.lib.formula import ExpressionStr, expression_form_errors, validate_expression
 
 
 def test_validate_expression_accepts_valid() -> None:
@@ -37,3 +39,23 @@ def test_validate_expression_reports_unknown_names() -> None:
 
 def test_validate_expression_ignores_names_inside_strings() -> None:
     assert validate_expression('col("foo_bar")') == []
+
+
+def test_expression_str_puts_diagnostics_in_validation_error_ctx() -> None:
+    class SampleForm(BaseModel):
+        name: str
+        expression: ExpressionStr
+
+    try:
+        SampleForm.model_validate({"expression": 'foo + col("a")'})
+    except ValidationError as e:
+        errors = expression_form_errors(e)
+    else:
+        raise AssertionError("expected ValidationError")
+
+    assert len(errors) == 1
+    assert errors[0].path == ("expression",)
+    assert "foo" in errors[0].message
+    assert errors[0].start_line == 1
+    assert errors[0].start_column == 1
+    assert errors[0].end_column == 4
