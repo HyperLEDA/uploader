@@ -5,13 +5,14 @@ from uploader.app.lib.formula.errors import (
     ExpressionSyntaxError,
 )
 from uploader.app.lib.formula.namespace import expression_syntax_help
-from uploader.app.lib.formula.values import Value, column_quantity
+from uploader.app.lib.formula.values import TextValue, Value, column_quantity
 
 __all__ = [
     "Expression",
     "ExpressionError",
     "ExpressionEvaluationError",
     "ExpressionSyntaxError",
+    "TextValue",
     "Value",
     "column_quantity",
     "evaluate",

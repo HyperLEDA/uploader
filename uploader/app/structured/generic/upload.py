@@ -11,6 +11,7 @@ from uploader.app.display import format_table
 from uploader.app.lib.formula import (
     Expression,
     ExpressionEvaluationError,
+    TextValue,
     Value,
     column_quantity,
     evaluate,
@@ -100,6 +101,8 @@ def _scalar_to_str(value: float | int | np.number) -> str:
 def _value_to_str(value: Value) -> str:
     if isinstance(value, str):
         return value
+    if isinstance(value, TextValue):
+        return value.data
     if isinstance(value, u.Quantity):
         scalar = value.value
         if isinstance(scalar, np.ndarray):
