@@ -159,7 +159,6 @@ def expression_tokens() -> list[ExpressionToken]:
 
 def expression_json_schema_extra() -> dict[str, Any]:
     return {
-        "ui:widget": "expression",
         "ui:options": {"tokens": expression_tokens()},
     }
 

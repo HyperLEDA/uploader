@@ -7,14 +7,13 @@ def test_expression_tokens_include_language_names() -> None:
     assert labels >= {"col", "sin", "cos", "str", "to_deg", "unit", "pi", "deg", "arcsec", "mag"}
 
 
-def test_designation_form_marks_expression_widget() -> None:
+def test_designation_form_includes_expression_tokens() -> None:
     schema = StructuredDesignationForm.model_json_schema()
     properties = schema["properties"]
     assert isinstance(properties, dict)
     expression = properties["expression"]
     assert isinstance(expression, dict)
     extra = expression_json_schema_extra()
-    assert expression["ui:widget"] == extra["ui:widget"]
     options = expression["ui:options"]
     extra_options = extra["ui:options"]
     assert isinstance(options, dict)

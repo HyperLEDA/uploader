@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import Form from "@rjsf/mui";
-import type { RegistryWidgetsType } from "@rjsf/utils";
+import {
+  getTemplate,
+  type RegistryWidgetsType,
+  type WidgetProps,
+} from "@rjsf/utils";
 import validator from "@rjsf/validator-ajv8";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Alert from "@mui/material/Alert";
@@ -22,7 +26,25 @@ import { FoldableObjectFieldTemplate } from "./FoldableObjectFieldTemplate";
 import { Markdown } from "./Markdown";
 import { ProgressView } from "./ProgressView";
 
+function isNumericSchema(schema: WidgetProps["schema"]): boolean {
+  const schemaType = schema.type;
+  return schemaType === "number" || schemaType === "integer";
+}
+
+function TextWidget(props: WidgetProps) {
+  if (isNumericSchema(props.schema)) {
+    const BaseInputTemplate = getTemplate(
+      "BaseInputTemplate",
+      props.registry,
+      props.options,
+    );
+    return <BaseInputTemplate {...props} />;
+  }
+  return <ExpressionWidget {...props} />;
+}
+
 const widgets: RegistryWidgetsType = {
+  TextWidget,
   expression: ExpressionWidget,
 };
 

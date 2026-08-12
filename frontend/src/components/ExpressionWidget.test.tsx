@@ -1,7 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import type { WidgetProps } from "@rjsf/utils";
 import { describe, expect, it, vi } from "vitest";
-import { ExpressionWidget, findToken } from "./ExpressionWidget";
+import {
+  ExpressionWidget,
+  findToken,
+  type ExpressionToken,
+} from "./ExpressionWidget";
 
 const tokens = [
   {
@@ -18,14 +22,18 @@ const tokens = [
   },
 ];
 
-function renderWidget(onChange = vi.fn(), value = "") {
+function renderWidget(
+  onChange = vi.fn(),
+  value = "",
+  fieldTokens: ExpressionToken[] = tokens,
+) {
   const props = {
     id: "root_expression",
     name: "expression",
     label: "Designation expression",
     value,
     onChange,
-    options: { tokens },
+    options: { tokens: fieldTokens },
     schema: { type: "string" },
     registry: {
       formContext: {
@@ -50,6 +58,11 @@ function renderWidget(onChange = vi.fn(), value = "") {
 describe("ExpressionWidget", () => {
   it("renders an editor", () => {
     renderWidget();
+    expect(screen.getByLabelText("Designation expression")).toBeInTheDocument();
+  });
+
+  it("renders an editor without tokens", () => {
+    renderWidget(vi.fn(), "", []);
     expect(screen.getByLabelText("Designation expression")).toBeInTheDocument();
   });
 });
