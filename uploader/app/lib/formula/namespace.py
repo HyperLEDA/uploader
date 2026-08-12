@@ -28,14 +28,29 @@ class FunctionDef:
         return f"{self.name}({args})"
 
 
-NAMED_CONSTANTS: dict[str, u.Quantity] = {
-    "pi": np.pi * u.dimensionless_unscaled,
-    "c": const.c,
-    "deg": 1 * u.deg,
-    "rad": 1 * u.rad,
-    "arcmin": 1 * u.arcmin,
-    "arcsec": 1 * u.arcsec,
-    "mag": 1 * u.mag,
+@final
+@dataclass(frozen=True)
+class ConstantDef:
+    name: str
+    value: u.Quantity
+    detail: str
+
+    @property
+    def insert(self) -> str:
+        return self.name
+
+
+NAMED_CONSTANTS: dict[str, ConstantDef] = {
+    constant.name: constant
+    for constant in (
+        ConstantDef("pi", np.pi * u.dimensionless_unscaled, "Pi"),
+        ConstantDef("c", const.c, "Speed of light"),
+        ConstantDef("deg", 1 * u.deg, "Degree"),
+        ConstantDef("rad", 1 * u.rad, "Radian"),
+        ConstantDef("arcmin", 1 * u.arcmin, "Arcminute"),
+        ConstantDef("arcsec", 1 * u.arcsec, "Arcsecond"),
+        ConstantDef("mag", 1 * u.mag, "Magnitude"),
+    )
 }
 
 
@@ -103,13 +118,13 @@ def expression_tokens() -> list[ExpressionToken]:
                 "detail": fn.detail,
             },
         )
-    for name in NAMED_CONSTANTS:
+    for constant in NAMED_CONSTANTS.values():
         tokens.append(
             {
-                "label": name,
-                "insert": name,
+                "label": constant.name,
+                "insert": constant.insert,
                 "kind": "constant",
-                "detail": "Named constant",
+                "detail": constant.detail,
             },
         )
     return tokens
@@ -126,13 +141,13 @@ def build_namespace(columns: Mapping[str, Value]) -> dict[str, object]:
     return {
         "__builtins__": {},
         COL_FUNCTION.name: lambda name: columns[name],
-        **NAMED_CONSTANTS,
+        **{name: constant.value for name, constant in NAMED_CONSTANTS.items()},
         **{name: fn.impl for name, fn in FUNCTIONS.items() if fn.impl is not None},
     }
 
 
 def expression_syntax_help() -> str:
-    constants = ", ".join(f"`{name}`" for name in sorted(NAMED_CONSTANTS))
+    constants = ", ".join(f"`{c.name}` ({c.detail})" for c in NAMED_CONSTANTS.values())
     functions = ", ".join(f"`{fn.signature}` ({fn.detail})" for fn in (COL_FUNCTION, *FUNCTIONS.values()))
     return f"""\
 ## Expression syntax
