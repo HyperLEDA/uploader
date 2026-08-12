@@ -50,13 +50,13 @@ def _from_node(node: ast.AST, message: str) -> ExpressionDiagnostic:
 
 
 def _column_from_call(node: ast.Call) -> str | None:
-    if not isinstance(node.func, ast.Name) or node.func.id != COL_FUNCTION:
+    if not isinstance(node.func, ast.Name) or node.func.id != COL_FUNCTION.name:
         return None
     if node.keywords or len(node.args) != 1:
-        raise ValueError(f"{COL_FUNCTION}() takes exactly one string argument")
+        raise ValueError(f"{COL_FUNCTION.name}() takes exactly one string argument")
     arg = node.args[0]
     if not isinstance(arg, ast.Constant) or not isinstance(arg.value, str):
-        raise ValueError(f"{COL_FUNCTION}() argument must be a string literal")
+        raise ValueError(f"{COL_FUNCTION.name}() argument must be a string literal")
     return arg.value
 
 
@@ -92,7 +92,7 @@ class _DiagnosticCollector(ast.NodeVisitor):
         self.diagnostics.append(
             _from_node(
                 node,
-                f"unknown name {node.id!r}; use {COL_FUNCTION}() for columns or a predefined constant/function",
+                f"unknown name {node.id!r}; use {COL_FUNCTION.name}() for columns or a predefined constant/function",
             ),
         )
 

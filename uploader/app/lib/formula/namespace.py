@@ -1,5 +1,6 @@
 from collections.abc import Mapping
-from typing import Any, Literal, TypedDict
+from dataclasses import dataclass
+from typing import Any, Literal, TypedDict, final
 
 import astropy.constants as const
 import astropy.units as u
@@ -8,7 +9,24 @@ from astropy.coordinates import Angle
 
 from uploader.app.lib.formula.values import TextValue, Value
 
-COL_FUNCTION = "col"
+
+@final
+@dataclass(frozen=True)
+class FunctionDef:
+    name: str
+    detail: str
+    impl: object | None = None
+    placeholder: str = "${1:x}"
+
+    @property
+    def insert(self) -> str:
+        return f"{self.name}({self.placeholder})"
+
+    @property
+    def signature(self) -> str:
+        args = self.placeholder.replace("${1:", "").replace("}", "")
+        return f"{self.name}({args})"
+
 
 NAMED_CONSTANTS: dict[str, u.Quantity] = {
     "pi": np.pi * u.dimensionless_unscaled,
@@ -54,19 +72,16 @@ def _to_deg(value: object) -> u.Quantity:
     raise TypeError(f"to_deg() expected angle or coordinate string, got {type(value).__name__}")
 
 
-FUNCTIONS: dict[str, object] = {
-    "sin": np.sin,
-    "cos": np.cos,
-    "str": _formula_str,
-    "to_deg": _to_deg,
-}
+COL_FUNCTION = FunctionDef("col", "Rawdata column", placeholder='"${1:name}"')
 
-_FUNCTION_DETAILS: dict[str, str] = {
-    COL_FUNCTION: "Rawdata column",
-    "sin": "Sine (argument must be an angle)",
-    "cos": "Cosine (argument must be an angle)",
-    "str": "Convert to text",
-    "to_deg": "Convert to degrees",
+FUNCTIONS: dict[str, FunctionDef] = {
+    fn.name: fn
+    for fn in (
+        FunctionDef("sin", "Sine (argument must be an angle)", np.sin),
+        FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
+        FunctionDef("str", "Convert to text", _formula_str),
+        FunctionDef("to_deg", "Convert to degrees; parses coordinate strings or angle quantities", _to_deg),
+    )
 }
 
 
@@ -78,21 +93,14 @@ class ExpressionToken(TypedDict):
 
 
 def expression_tokens() -> list[ExpressionToken]:
-    tokens: list[ExpressionToken] = [
-        {
-            "label": COL_FUNCTION,
-            "insert": f'{COL_FUNCTION}("${{1:name}}")',
-            "kind": "function",
-            "detail": _FUNCTION_DETAILS[COL_FUNCTION],
-        },
-    ]
-    for name in FUNCTIONS:
+    tokens: list[ExpressionToken] = []
+    for fn in (COL_FUNCTION, *FUNCTIONS.values()):
         tokens.append(
             {
-                "label": name,
-                "insert": f"{name}(${{1:x}})",
+                "label": fn.name,
+                "insert": fn.insert,
                 "kind": "function",
-                "detail": _FUNCTION_DETAILS.get(name, "Function"),
+                "detail": fn.detail,
             },
         )
     for name in NAMED_CONSTANTS:
@@ -117,24 +125,23 @@ def expression_json_schema_extra() -> dict[str, Any]:
 def build_namespace(columns: Mapping[str, Value]) -> dict[str, object]:
     return {
         "__builtins__": {},
-        COL_FUNCTION: lambda name: columns[name],
+        COL_FUNCTION.name: lambda name: columns[name],
         **NAMED_CONSTANTS,
-        **FUNCTIONS,
+        **{name: fn.impl for name, fn in FUNCTIONS.items() if fn.impl is not None},
     }
 
 
 def expression_syntax_help() -> str:
     constants = ", ".join(f"`{name}`" for name in sorted(NAMED_CONSTANTS))
+    functions = ", ".join(f"`{fn.signature}` ({fn.detail})" for fn in (COL_FUNCTION, *FUNCTIONS.values()))
     return f"""\
 ## Expression syntax
 
-Use `{COL_FUNCTION}("name")` to refer to rawdata columns (e.g. `col("a")`).
 Expressions are unit-aware and units are taken from column metadata.
 
 Mathematical operations:
 - Operators: `+` `-` `*` `/` `**` `%`
-- Functions: `sin(x)`, `cos(x)` (argument must be an angle), `str(x)`, `to_deg(x)`
-- `to_deg(x)` parses coordinate strings or converts angle quantities to degrees
+- Functions: {functions}
 - Numbers are dimensionless
 - String literals and `+` concatenation are supported
 - Modulo divisors must carry units (e.g. `col("pa") % (180 * deg)`)
@@ -148,6 +155,6 @@ Available constants: {constants}.
     - `1.5`
     - `180 * deg`
     - `"G"` - fills the column with a text "G"
-- Copy another column: `{COL_FUNCTION}("ra")`
-- Sexagesimal coordinates: `to_deg({COL_FUNCTION}("RAJ2000"))`
-- Mathematical expression: `3 * 10 ** {COL_FUNCTION}("logd25") * arcsec`"""
+- Copy another column: `col("ra")`
+- Sexagesimal coordinates: `to_deg(col("RAJ2000"))`
+- Mathematical expression: `3 * 10 ** col("logd25") * arcsec`"""
