@@ -20,6 +20,21 @@ const fakeTaskSchema = {
         title: "Count",
         default: 1,
       },
+      expression: {
+        type: "string",
+        title: "Designation expression",
+        "ui:widget": "expression",
+        "ui:options": {
+          tokens: [
+            {
+              label: "col",
+              insert: 'col("$' + '{1:name}")',
+              kind: "function",
+              detail: "Rawdata column",
+            },
+          ],
+        },
+      },
     },
     required: ["name"],
   },
@@ -64,6 +79,9 @@ describe("TaskPage", () => {
     expect(screen.getByText("A task used in tests.")).toBeInTheDocument();
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/count/i)).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/designation expression/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("string")).toBeInTheDocument();
     expect(screen.getByText("string").tagName).toBe("CODE");
   });

@@ -2,6 +2,7 @@ import asyncio
 import importlib.metadata
 import json
 import pathlib
+from dataclasses import asdict
 from typing import Any
 
 import click
@@ -9,8 +10,9 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
+from uploader.app.lib.formula import validate_expression
 from uploader.history import load_history
 from uploader.task_registry import register_all_tasks
 from uploader.tasks import TASKS, cancel_run, get_run, start_task
@@ -47,6 +49,15 @@ def list_tasks() -> list[dict[str, Any]]:
 @app.get("/api/history")
 def list_history() -> list[dict[str, object]]:
     return [entry.model_dump() for entry in load_history()]
+
+
+class ValidateExpressionRequest(BaseModel):
+    expression: str
+
+
+@app.post("/api/expressions/validate")
+def validate_expression_endpoint(body: ValidateExpressionRequest) -> dict[str, object]:
+    return {"diagnostics": [asdict(item) for item in validate_expression(body.expression)]}
 
 
 @app.get("/api/tasks/{task_id}/schema")

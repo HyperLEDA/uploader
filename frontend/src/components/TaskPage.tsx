@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import Form from "@rjsf/mui";
+import type { RegistryWidgetsType } from "@rjsf/utils";
 import validator from "@rjsf/validator-ajv8";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import Alert from "@mui/material/Alert";
@@ -10,9 +11,15 @@ import IconButton from "@mui/material/IconButton";
 import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
 import { fetchTaskSchema, submitTask } from "../api";
+import { extractUiSchema } from "../extractUiSchema";
+import { ExpressionWidget } from "./ExpressionWidget";
 import { FoldableObjectFieldTemplate } from "./FoldableObjectFieldTemplate";
 import { Markdown } from "./Markdown";
 import { ProgressView } from "./ProgressView";
+
+const widgets: RegistryWidgetsType = {
+  expression: ExpressionWidget,
+};
 
 export function TaskPage() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -89,6 +96,13 @@ export function TaskPage() {
     );
   }
 
+  const uiSchema = {
+    ...extractUiSchema(schema),
+    "ui:globalOptions": {
+      enableMarkdownInDescription: true,
+    },
+  };
+
   return (
     <Box sx={{ maxWidth: 720 }}>
       <Box
@@ -144,11 +158,8 @@ export function TaskPage() {
         schema={schema}
         validator={validator}
         formData={prefillData}
-        uiSchema={{
-          "ui:globalOptions": {
-            enableMarkdownInDescription: true,
-          },
-        }}
+        widgets={widgets}
+        uiSchema={uiSchema}
         templates={{ ObjectFieldTemplate: FoldableObjectFieldTemplate }}
         onSubmit={async ({ formData }) => {
           setSubmitError(null);
