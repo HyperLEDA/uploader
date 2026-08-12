@@ -113,8 +113,17 @@ FUNCTIONS: tuple[FunctionDef, ...] = (
     FunctionDef("sin", "Sine (argument must be an angle)", np.sin),
     FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
     FunctionDef("str", "Convert to text", _formula_str),
-    FunctionDef("to_deg", "Convert to degrees; parses coordinate strings or angle quantities", _to_deg),
-    FunctionDef("unit", "Unit from a name string", _unit, placeholder='"${1:name}"'),
+    FunctionDef(
+        "to_deg",
+        'Convert to degrees; e.g. "00 02 08.4" (hourangle), "+16 35 13" (deg), "00h02m08.4s"',
+        _to_deg,
+    ),
+    FunctionDef(
+        "unit",
+        'Astropy unit from a name string; e.g. "Mpc", "km/s", "Jy"',
+        _unit,
+        placeholder='"${1:name}"',
+    ),
 )
 
 
@@ -189,6 +198,4 @@ Available constants: {constants}.
     - `180 * deg`
     - `"G"` - fills the column with a text "G"
 - Copy another column: `col("ra")`
-- Sexagesimal coordinates: `to_deg(col("RAJ2000"))`
-- Mathematical expression: `3 * 10 ** col("logd25") * arcsec`
-- Arbitrary units: `col("dist") * unit("Mpc")`"""
+- Mathematical expression: `3 * 10 ** col("logd25") * arcsec`"""
