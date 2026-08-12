@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { WidgetProps } from "@rjsf/utils";
 import { describe, expect, it, vi } from "vitest";
-import { ExpressionWidget } from "./ExpressionWidget";
+import { ExpressionWidget, findToken } from "./ExpressionWidget";
 
 const tokens = [
   {
@@ -32,17 +32,19 @@ function renderWidget(onChange = vi.fn(), value = "") {
 }
 
 describe("ExpressionWidget", () => {
-  it("renders an editor and token list", () => {
+  it("renders an editor", () => {
     renderWidget();
     expect(screen.getByLabelText("Designation expression")).toBeInTheDocument();
-    expect(screen.getByText("col")).toBeInTheDocument();
-    expect(screen.getByText("deg")).toBeInTheDocument();
+  });
+});
+
+describe("findToken", () => {
+  it("returns the token matching a hovered word", () => {
+    expect(findToken("col", tokens)?.detail).toBe("Rawdata column");
+    expect(findToken("deg", tokens)?.detail).toBe("Named constant");
   });
 
-  it("inserts a token when a chip is clicked", () => {
-    const onChange = vi.fn();
-    renderWidget(onChange, "1 * ");
-    fireEvent.click(screen.getByText("deg"));
-    expect(onChange).toHaveBeenCalledWith("1 * deg");
+  it("returns undefined for unknown words", () => {
+    expect(findToken("unknown", tokens)).toBeUndefined();
   });
 });

@@ -1,8 +1,5 @@
-import { useRef, useState } from "react";
-import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
+import Editor, { type Monaco } from "@monaco-editor/react";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
-import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
 import type { WidgetProps } from "@rjsf/utils";
 import type { editor, Position } from "monaco-editor";
@@ -40,11 +37,11 @@ function readTokens(options: WidgetProps["options"]): ExpressionToken[] {
   return raw.filter(isExpressionToken);
 }
 
-function snippetToText(insert: string): string {
-  return insert
-    .replace(/\$\{\d+:([^}]+)\}/g, "$1")
-    .replace(/\$\{\d+\}/g, "")
-    .replace(/\$\d+/g, "");
+export function findToken(
+  word: string,
+  tokens: ExpressionToken[],
+): ExpressionToken | undefined {
+  return tokens.find((token) => token.label === word);
 }
 
 function registerExpressionLanguage(
@@ -97,8 +94,30 @@ function registerExpressionLanguage(
           insertTextRules:
             monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           detail: token.detail,
+          documentation: token.detail,
           range,
         })),
+      };
+    },
+  });
+  monaco.languages.registerHoverProvider(LANGUAGE_ID, {
+    provideHover(model: editor.ITextModel, position: Position) {
+      const word = model.getWordAtPosition(position);
+      if (!word) {
+        return null;
+      }
+      const token = findToken(word.word, currentTokens);
+      if (!token) {
+        return null;
+      }
+      return {
+        range: {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        },
+        contents: [{ value: `**${token.label}**` }, { value: token.detail }],
       };
     },
   });
@@ -107,111 +126,83 @@ function registerExpressionLanguage(
 
 export function ExpressionWidget(props: WidgetProps) {
   const theme = useTheme();
-  const [focused, setFocused] = useState(false);
-  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const tokens = readTokens(props.options);
   const value = typeof props.value === "string" ? props.value : "";
+  const isDark = theme.palette.mode === "dark";
 
   function handleBeforeMount(monaco: Monaco) {
     registerExpressionLanguage(monaco, tokens);
   }
 
-  function handleMount(editor: Parameters<OnMount>[0]) {
-    editorRef.current = editor;
-    editor.onDidFocusEditorText(() => setFocused(true));
-    editor.onDidBlurEditorText(() => setFocused(false));
-  }
-
-  function insertToken(token: ExpressionToken) {
-    const text = snippetToText(token.insert);
-    const instance = editorRef.current;
-    if (instance) {
-      const selection = instance.getSelection();
-      if (selection) {
-        instance.executeEdits("token-chip", [
-          { range: selection, text, forceMoveMarkers: true },
-        ]);
-        instance.focus();
-        props.onChange(instance.getValue());
-        return;
+  function handleMount(
+    editorInstance: editor.IStandaloneCodeEditor,
+    monaco: Monaco,
+  ) {
+    editorInstance.onKeyDown((e) => {
+      if (e.keyCode === monaco.KeyCode.Enter) {
+        e.preventDefault();
+        e.stopPropagation();
       }
-    }
-    props.onChange(`${value}${text}`);
+    });
   }
 
   return (
-    <Box>
-      <Box
-        sx={{
-          border: 1,
-          borderColor: focused ? "primary.main" : "divider",
-          borderRadius: 1,
-          overflow: "hidden",
-          "&:hover": {
-            borderColor: focused ? "primary.main" : "text.primary",
+    <Box
+      sx={{
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 1,
+        overflow: "hidden",
+        bgcolor: isDark ? "#1e1e1e" : "#ffffff",
+        "&:hover": {
+          borderColor: "text.primary",
+        },
+        "&:focus-within": {
+          borderColor: "primary.main",
+        },
+      }}
+    >
+      <Editor
+        height="42px"
+        language={LANGUAGE_ID}
+        theme={isDark ? "vs-dark" : "light"}
+        value={value.replace(/\r?\n/g, "")}
+        onChange={(next) => props.onChange((next ?? "").replace(/\r?\n/g, ""))}
+        beforeMount={handleBeforeMount}
+        onMount={handleMount}
+        options={{
+          ariaLabel: props.label,
+          readOnly: props.disabled || props.readonly,
+          minimap: { enabled: false },
+          lineNumbers: "off",
+          folding: false,
+          glyphMargin: false,
+          lineDecorationsWidth: 12,
+          lineNumbersMinChars: 0,
+          scrollBeyondLastLine: false,
+          wordWrap: "off",
+          fontSize: 14,
+          lineHeight: 22,
+          padding: { top: 10, bottom: 10 },
+          overviewRulerLanes: 0,
+          hideCursorInOverviewRuler: true,
+          renderLineHighlight: "none",
+          scrollbar: {
+            vertical: "hidden",
+            horizontal: "auto",
+            alwaysConsumeMouseWheel: false,
           },
+          quickSuggestions: { other: true, comments: false, strings: true },
+          wordBasedSuggestions: "off",
+          suggestOnTriggerCharacters: true,
+          acceptSuggestionOnEnter: "off",
+          tabCompletion: "on",
+          automaticLayout: true,
+          contextmenu: false,
+          fixedOverflowWidgets: true,
         }}
-      >
-        <Editor
-          height="72px"
-          language={LANGUAGE_ID}
-          theme={theme.palette.mode === "dark" ? "vs-dark" : "light"}
-          value={value}
-          onChange={(next) => props.onChange(next ?? "")}
-          beforeMount={handleBeforeMount}
-          onMount={handleMount}
-          options={{
-            ariaLabel: props.label,
-            readOnly: props.disabled || props.readonly,
-            minimap: { enabled: false },
-            lineNumbers: "off",
-            folding: false,
-            glyphMargin: false,
-            lineDecorationsWidth: 0,
-            lineNumbersMinChars: 0,
-            scrollBeyondLastLine: false,
-            wordWrap: "on",
-            fontSize: 14,
-            lineHeight: 22,
-            padding: { top: 8, bottom: 8 },
-            overviewRulerLanes: 0,
-            hideCursorInOverviewRuler: true,
-            renderLineHighlight: "none",
-            scrollbar: {
-              vertical: "hidden",
-              horizontal: "auto",
-              alwaysConsumeMouseWheel: false,
-            },
-            quickSuggestions: { other: true, comments: false, strings: true },
-            wordBasedSuggestions: "off",
-            suggestOnTriggerCharacters: true,
-            tabCompletion: "on",
-            automaticLayout: true,
-            contextmenu: false,
-          }}
-          loading={<Box sx={{ height: 72 }} />}
-        />
-      </Box>
-      {tokens.length > 0 && (
-        <Stack
-          direction="row"
-          spacing={0.5}
-          useFlexGap
-          flexWrap="wrap"
-          sx={{ mt: 0.75 }}
-        >
-          {tokens.map((token) => (
-            <Chip
-              key={token.label}
-              size="small"
-              label={token.label}
-              title={token.detail}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => insertToken(token)}
-            />
-          ))}
-        </Stack>
-      )}
+        loading={<Box sx={{ height: 42 }} />}
+      />
     </Box>
   );
 }

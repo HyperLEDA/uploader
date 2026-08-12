@@ -82,7 +82,6 @@ describe("TaskPage", () => {
     expect(
       screen.getByLabelText(/designation expression/i),
     ).toBeInTheDocument();
-    expect(screen.getByText("col")).toBeInTheDocument();
     expect(screen.getByText("string")).toBeInTheDocument();
     expect(screen.getByText("string").tagName).toBe("CODE");
   });
