@@ -56,6 +56,7 @@ _INT_TYPES = frozenset(
     }
 )
 _NUMERIC_TYPES = _FLOAT_TYPES | _INT_TYPES
+_DRY_RUN_PREVIEW_ROWS = 5
 
 
 def is_numeric_datatype(data_type: DatatypeEnum) -> bool:
@@ -175,6 +176,22 @@ def _build_column_values(
     return {col: column_quantity(row[col], column_units.get(col, "")) for col in referenced_columns}
 
 
+def _dry_run_preview_message(
+    columns: Sequence[str],
+    ids: Sequence[str],
+    data: Sequence[Sequence[Any]],
+) -> str:
+    n = min(_DRY_RUN_PREVIEW_ROWS, len(ids))
+    rows = [(ids[i], *data[i]) for i in range(n)]
+    return format_table(
+        ("id", *columns),
+        rows,
+        title="would upload",
+        right_align_last_n=0,
+        percent_last_column=False,
+    )
+
+
 def upload_catalog_columns(
     storage: PgStorage,
     table_name: str,
@@ -211,6 +228,7 @@ def upload_catalog_columns(
     processed_rows = 0
 
     fetch_columns = sorted(all_needed_cols)
+    preview_logged = False
     for rows in rawdata_batches(storage, table_name, fetch_columns, batch_size):
         batch_ids: list[str] = []
         batch_data: list[list[Any]] = []
@@ -257,21 +275,25 @@ def upload_catalog_columns(
             batch_data.append(row_values)
             uploaded += 1
 
-        if write and batch_ids:
-            handle_call(
-                save_structured_data.sync_detailed(
-                    client=client,
-                    body=action_description.apply(
-                        SaveStructuredDataRequest(
-                            catalog=catalog,
-                            columns=list(columns),
-                            ids=batch_ids,
-                            data=batch_data,
-                            units=units,
+        if batch_ids:
+            if write:
+                handle_call(
+                    save_structured_data.sync_detailed(
+                        client=client,
+                        body=action_description.apply(
+                            SaveStructuredDataRequest(
+                                catalog=catalog,
+                                columns=list(columns),
+                                ids=batch_ids,
+                                data=batch_data,
+                                units=units,
+                            ),
                         ),
-                    ),
+                    )
                 )
-            )
+            elif not preview_logged:
+                report_func(report.LogEvent(message=_dry_run_preview_message(columns, batch_ids, batch_data)))
+                preview_logged = True
 
         processed_rows += len(rows)
         row_pct = int(100 * processed_rows / total_count) if total_count else 0
