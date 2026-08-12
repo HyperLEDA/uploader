@@ -225,6 +225,29 @@ EVAL_CASES: list[EvalCase] = [
         columns={"ra": Col("00 02 08.4")},
         error=True,
     ),
+    EvalCase(
+        name="unit_from_string",
+        expression='unit("km")',
+        columns={},
+        result_val=1.0,
+        result_unit=u.km,
+    ),
+    EvalCase(
+        name="unit_multiplied",
+        expression='col("float_col") * unit("Mpc")',
+        columns=_COLUMNS,
+        result_val=1.5,
+        result_unit=u.Mpc,
+    ),
+    EvalCase(
+        name="unit_composite",
+        expression='col("float_col") * unit("km/s")',
+        columns=_COLUMNS,
+        result_val=1.5,
+        result_unit=u.km / u.s,
+    ),
+    EvalCase(name="error_unknown_unit", expression='unit("not_a_unit")', columns={}, error=True),
+    EvalCase(name="error_unit_non_string", expression="unit(1)", columns={}, error=True),
 ]
 
 

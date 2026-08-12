@@ -101,13 +101,29 @@ def _to_deg(value: object) -> u.Quantity:
     raise TypeError(f"to_deg() expected angle or coordinate string, got {type(value).__name__}")
 
 
+def _unit(name: object) -> u.Quantity:
+    if not isinstance(name, str):
+        raise TypeError(f"unit() expected a unit name string, got {type(name).__name__}")
+    return 1 * u.Unit(name)
+
+
 COL_FUNCTION = FunctionDef("col", "Rawdata column", placeholder='"${1:name}"')
 
 FUNCTIONS: tuple[FunctionDef, ...] = (
     FunctionDef("sin", "Sine (argument must be an angle)", np.sin),
     FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
     FunctionDef("str", "Convert to text", _formula_str),
-    FunctionDef("to_deg", "Convert to degrees; parses coordinate strings or angle quantities", _to_deg),
+    FunctionDef(
+        "to_deg",
+        'Convert to degrees; e.g. "00 02 08.4" (hourangle), "+16 35 13" (deg), "00h02m08.4s"',
+        _to_deg,
+    ),
+    FunctionDef(
+        "unit",
+        'Astropy unit from a name string; e.g. "Mpc", "km/s", "Jy"',
+        _unit,
+        placeholder='"${1:name}"',
+    ),
 )
 
 
@@ -182,5 +198,4 @@ Available constants: {constants}.
     - `180 * deg`
     - `"G"` - fills the column with a text "G"
 - Copy another column: `col("ra")`
-- Sexagesimal coordinates: `to_deg(col("RAJ2000"))`
 - Mathematical expression: `3 * 10 ** col("logd25") * arcsec`"""
