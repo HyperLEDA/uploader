@@ -6,6 +6,7 @@ from uploader.app.lib.formula import validate_expression
 def test_validate_expression_accepts_valid() -> None:
     assert validate_expression('to_deg(col("RAJ2000"))') == []
     assert validate_expression("sin(pi) + 1.5 * deg") == []
+    assert validate_expression('col("dist") * unit("Mpc")') == []
     assert validate_expression("") == []
 
 

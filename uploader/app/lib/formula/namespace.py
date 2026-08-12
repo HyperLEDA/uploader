@@ -101,6 +101,12 @@ def _to_deg(value: object) -> u.Quantity:
     raise TypeError(f"to_deg() expected angle or coordinate string, got {type(value).__name__}")
 
 
+def _unit(name: object) -> u.Quantity:
+    if not isinstance(name, str):
+        raise TypeError(f"unit() expected a unit name string, got {type(name).__name__}")
+    return 1 * u.Unit(name)
+
+
 COL_FUNCTION = FunctionDef("col", "Rawdata column", placeholder='"${1:name}"')
 
 FUNCTIONS: tuple[FunctionDef, ...] = (
@@ -108,6 +114,7 @@ FUNCTIONS: tuple[FunctionDef, ...] = (
     FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
     FunctionDef("str", "Convert to text", _formula_str),
     FunctionDef("to_deg", "Convert to degrees; parses coordinate strings or angle quantities", _to_deg),
+    FunctionDef("unit", "Unit from a name string", _unit, placeholder='"${1:name}"'),
 )
 
 
@@ -183,4 +190,5 @@ Available constants: {constants}.
     - `"G"` - fills the column with a text "G"
 - Copy another column: `col("ra")`
 - Sexagesimal coordinates: `to_deg(col("RAJ2000"))`
-- Mathematical expression: `3 * 10 ** col("logd25") * arcsec`"""
+- Mathematical expression: `3 * 10 ** col("logd25") * arcsec`
+- Arbitrary units: `col("dist") * unit("Mpc")`"""

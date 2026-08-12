@@ -7,6 +7,7 @@ PARSE_CASES: list[tuple[str, set[str] | type[ExpressionSyntaxError]]] = [
     ('col("weird name")', {"weird name"}),
     ('sin(col("pa")) + pi', {"pa"}),
     ('to_deg(col("RAJ2000"))', {"RAJ2000"}),
+    ('col("dist") * unit("Mpc")', {"dist"}),
     ('3 * 10 ** col("logd25") * col("e_logd25") * arcsec', {"logd25", "e_logd25"}),
     ('"M " + col("id")', {"id"}),
     ("1 + 2", set()),
