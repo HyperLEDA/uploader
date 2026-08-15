@@ -118,6 +118,20 @@ EVAL_CASES: list[EvalCase] = [
         result_unit=u.dimensionless_unscaled,
     ),
     EvalCase(
+        name="sqrt",
+        expression='sqrt(col("float_col") ** 2)',
+        columns=_COLUMNS,
+        result_val=1.5,
+        result_unit=u.dimensionless_unscaled,
+    ),
+    EvalCase(
+        name="vector_sqrt",
+        expression='sqrt(col("vec_col"))',
+        columns=_COLUMNS,
+        result_val=[1.0, 1.4142, 1.7321],
+        result_unit=u.dimensionless_unscaled,
+    ),
+    EvalCase(
         name="constant",
         expression="pi",
         columns={},

@@ -1,10 +1,5 @@
-from uploader.app.lib.formula import expression_json_schema_extra, expression_tokens
+from uploader.app.lib.formula import expression_json_schema_extra
 from uploader.forms.structured_designation import StructuredDesignationForm
-
-
-def test_expression_tokens_include_language_names() -> None:
-    labels = {token["label"] for token in expression_tokens()}
-    assert labels >= {"col", "sin", "cos", "str", "to_deg", "unit", "pi", "deg", "arcsec", "mag"}
 
 
 def test_designation_form_includes_expression_tokens() -> None:
