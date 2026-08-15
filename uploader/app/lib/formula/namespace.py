@@ -112,6 +112,7 @@ COL_FUNCTION = FunctionDef("col", "Rawdata column", placeholder='"${1:name}"')
 FUNCTIONS: tuple[FunctionDef, ...] = (
     FunctionDef("sin", "Sine (argument must be an angle)", np.sin),
     FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
+    FunctionDef("sqrt", "Square root", np.sqrt),
     FunctionDef("str", "Convert to text", _formula_str),
     FunctionDef(
         "to_deg",
