@@ -98,13 +98,17 @@ BATCH_QUERY = sql.SQL("""
     LEFT JOIN designation.data new_desig ON b.id = new_desig.record_id
     LEFT JOIN cz.data new_cz ON b.id = new_cz.record_id
     LEFT JOIN nature.data rec_nat ON b.id = rec_nat.record_id
-    LEFT JOIN layer2.icrs l2
-        ON nc.record_id IS NOT NULL
-        AND ST_DWithin(
-            ST_MakePoint(nc.dec, nc.ra - 180),
-            ST_MakePoint(l2.dec, l2.ra - 180),
-            %s / GREATEST(COS(RADIANS(nc.dec)), 0.01)
-        )
+    LEFT JOIN LATERAL (
+        SELECT l2.*
+        FROM layer2.icrs l2
+        WHERE nc.record_id IS NOT NULL
+          AND ST_DWithin(
+              ST_MakePoint(nc.ra, nc.dec)::geography,
+              ST_MakePoint(l2.ra, l2.dec)::geography,
+              RADIANS(%s) * 6371008.7714,
+              false
+          )
+    ) l2 ON true
     LEFT JOIN layer2.designation l2_desig ON l2.pgc = l2_desig.pgc
     LEFT JOIN layer2.cz l2_cz ON l2.pgc = l2_cz.pgc
     LEFT JOIN layer2.nature l2_nat ON l2.pgc = l2_nat.pgc
@@ -190,6 +194,7 @@ def _enrich_batch(
     table_name: str,
     by_record: dict[str, dict],
     pgc_column: str | None,
+    report_func: Callable[[report.Event], None],
 ) -> tuple[dict[str, int | None], set[int], dict[str, list[int]]]:
     record_pgc_by_id: dict[str, int | None] = {}
     if pgc_column is not None:
@@ -220,6 +225,7 @@ def _enrich_batch(
     design_to_pgcs: dict[str, list[int]] = {}
     if designations_in_batch:
         designs_list = list(designations_in_batch)
+        report_func(report.LogEvent(message=f"Fetching designations ({len(designs_list)})..."))
         pgcs_by_design: dict[str, set[int]] = {}
         for row in storage.query(
             "SELECT design, pgc FROM layer2.designation WHERE design = ANY(%s)",
@@ -414,11 +420,14 @@ def run_crossmatch(
 
     try:
         while True:
+            report_func(report.LogEvent(message="Fetching coordinates..."))
             by_record, last_id = _fetch_batch(storage, table_id, last_id, batch_size, radius_deg)
             if not by_record:
                 break
 
-            record_pgc_by_id, existing_pgcs, design_to_pgcs = _enrich_batch(storage, table_name, by_record, pgc_column)
+            record_pgc_by_id, existing_pgcs, design_to_pgcs = _enrich_batch(
+                storage, table_name, by_record, pgc_column, report_func
+            )
             batch_results = _resolve_batch(
                 by_record,
                 record_pgc_by_id,

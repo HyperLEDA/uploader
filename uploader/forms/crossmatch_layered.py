@@ -30,7 +30,7 @@ class CrossmatchLayeredForm(BaseModel):
         description="Tolerance for redshift matching; will not use redshift for cross-identification if left empty",
         ge=0,
     )
-    batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
+    batch_size: int = Field(default=1000, title="Batch size", ge=1, le=500_000)
     print_pending: bool = Field(default=False, title="Log pending cases")
     write: bool = Field(default=False, title="Write to API")
 
