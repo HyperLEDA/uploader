@@ -79,3 +79,7 @@ The only exception to the above rule is for imports from the `typing` or `collec
 from typing import Any
 from collections.abc import Sequence
 ```
+
+### File changes
+
+When moving files as part of a refactor of any kind prefer using `git mv` whenver possible instead of removing + adding.

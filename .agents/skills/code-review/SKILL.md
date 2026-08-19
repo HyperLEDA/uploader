@@ -119,3 +119,7 @@ An HTTP client fetches a URL taken from user/external input with no allowlist or
 ### command-injection
 
 subprocess/os.system/os.popen runs a shell with concatenated or formatted user/external input (shell=True, or a single string command). Only flag when the injected value is not a constant/whitelist.
+
+### pointless-wrapper
+
+A new or changed function or method only forwards to another callable with the same arguments and return value, adding no conversion, validation, defaulting, error handling, or other logic. Only flag when call sites could invoke the inner callable directly, the wrapper does not implement an interface, protocol, or abstract method, and it is not a public re-export of a private or third-party symbol.
