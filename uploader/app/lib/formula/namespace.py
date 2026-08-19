@@ -82,6 +82,12 @@ OPERATORS: tuple[OperatorDef, ...] = (
     OperatorDef("/", "Division"),
     OperatorDef("**", "Exponentiation"),
     OperatorDef("%", 'Modulo; divisor must carry units (e.g. col("pa") % (180 * deg))'),
+    OperatorDef("==", "Equal"),
+    OperatorDef("!=", "Not equal"),
+    OperatorDef("<", "Less than"),
+    OperatorDef("<=", "Less than or equal"),
+    OperatorDef(">", "Greater than"),
+    OperatorDef(">=", "Greater than or equal"),
 )
 
 
@@ -159,6 +165,26 @@ def _wrap360(value: object) -> u.Quantity:
     return _as_angle(value, u.deg).to(u.deg) % (360 * u.deg)
 
 
+def _mask(cond: object) -> np.ndarray:
+    if isinstance(cond, u.Quantity):
+        return np.asarray(cond.value)
+    return np.asarray(cond)
+
+
+def _where(cond: object, then: object, otherwise: object) -> object:
+    mask = _mask(cond)
+    if mask.shape == ():
+        return then if bool(mask) else otherwise
+    if isinstance(then, u.Quantity) or isinstance(otherwise, u.Quantity):
+        then_q = then if isinstance(then, u.Quantity) else _to_quantity(then)
+        else_q = otherwise if isinstance(otherwise, u.Quantity) else _to_quantity(otherwise)
+        aligned = else_q.to(then_q.unit)
+        return np.where(mask, np.asarray(then_q.value), np.asarray(aligned.value)) * then_q.unit
+    then_v = then.data if isinstance(then, TextValue) else then
+    else_v = otherwise.data if isinstance(otherwise, TextValue) else otherwise
+    return np.where(mask, np.asarray(then_v), np.asarray(else_v))
+
+
 COL_FUNCTION = FunctionDef("col", "Rawdata column", placeholder='"${1:name}"')
 
 FUNCTIONS: tuple[FunctionDef, ...] = (
@@ -183,6 +209,12 @@ FUNCTIONS: tuple[FunctionDef, ...] = (
     FunctionDef("ln", "Natural logarithm", _math(np.log)),
     FunctionDef("pow", "Raise x to the power y", _math(np.power), placeholder="${1:x}, ${2:y}"),
     FunctionDef("str", "Convert to text", _formula_str),
+    FunctionDef(
+        "where",
+        "Pick then if cond is true, otherwise the third argument; nest for extra branches",
+        _where,
+        placeholder="${1:cond}, ${2:then}, ${3:else}",
+    ),
     FunctionDef(
         "to_deg",
         'Convert to degrees; e.g. "00 02 08.4" (hourangle), "+16 35 13" (deg), "00h02m08.4s"',
@@ -267,4 +299,5 @@ Available constants: {constants}.
     - `180 * deg`
     - `"G"` - fills the column with a text "G"
 - Copy another column: `col("ra")`
-- Mathematical expression: `3 * 10 ** col("logd25") * arcsec`"""
+- Mathematical expression: `3 * 10 ** col("logd25") * arcsec`
+- Conditional: `where(col("v") > 0, col("v"), 0)`"""
