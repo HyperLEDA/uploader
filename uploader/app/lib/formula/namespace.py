@@ -165,6 +165,16 @@ def _wrap360(value: object) -> u.Quantity:
     return _as_angle(value, u.deg).to(u.deg) % (360 * u.deg)
 
 
+def _extremum(fn: Callable[..., u.Quantity]) -> Callable[[object, object], u.Quantity]:
+    def impl(left: object, right: object) -> u.Quantity:
+        left_q = left if isinstance(left, u.Quantity) else _to_quantity(left)
+        right_q = right if isinstance(right, u.Quantity) else _to_quantity(right)
+        aligned = right_q.to(left_q.unit)
+        return fn(left_q, aligned)
+
+    return impl
+
+
 def _mask(cond: object) -> np.ndarray:
     if isinstance(cond, u.Quantity):
         return np.asarray(cond.value)
@@ -208,6 +218,8 @@ FUNCTIONS: tuple[FunctionDef, ...] = (
     FunctionDef("log10", "Base-10 logarithm", _math(np.log10)),
     FunctionDef("ln", "Natural logarithm", _math(np.log)),
     FunctionDef("pow", "Raise x to the power y", _math(np.power), placeholder="${1:x}, ${2:y}"),
+    FunctionDef("max", "Larger of two values", _extremum(np.maximum), placeholder="${1:x}, ${2:y}"),
+    FunctionDef("min", "Smaller of two values", _extremum(np.minimum), placeholder="${1:x}, ${2:y}"),
     FunctionDef("str", "Convert to text", _formula_str),
     FunctionDef(
         "where",
@@ -275,9 +287,9 @@ def build_namespace(columns: Mapping[str, Value]) -> dict[str, object]:
 
 
 def expression_syntax_help() -> str:
-    constants = ", ".join(f"`{c.name}` ({c.detail})" for c in NAMED_CONSTANTS)
-    functions = ", ".join(f"`{fn.signature}` ({fn.detail})" for fn in (COL_FUNCTION, *FUNCTIONS))
-    operators = ", ".join(f"`{op.name}` ({op.detail})" for op in OPERATORS)
+    constants = ", ".join(f"`{c.name}`" for c in NAMED_CONSTANTS)
+    functions = ", ".join(f"`{fn.signature}`" for fn in (COL_FUNCTION, *FUNCTIONS))
+    operators = ", ".join(f"`{op.name}`" for op in OPERATORS)
     return f"""\
 ## Expression syntax
 

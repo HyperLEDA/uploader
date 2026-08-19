@@ -13,6 +13,7 @@ PARSE_CASES: list[tuple[str, set[str] | type[ExpressionSyntaxError]]] = [
     ("1 + 2", set()),
     ("pi + deg", set()),
     ("M_sun * G / c ** 2", set()),
+    ("max(1, min(2, 3))", set()),
     ("", ExpressionSyntaxError),
     ("1 +", ExpressionSyntaxError),
     ("col(", ExpressionSyntaxError),

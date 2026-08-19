@@ -14,6 +14,7 @@ def test_validate_expression_accepts_valid() -> None:
     assert validate_expression("M_sun / L_sun * sigma") == []
     assert validate_expression('where(col("v") > 0, col("v"), 0)') == []
     assert validate_expression('where(col("a") == "M", 1, where(col("a") != "N", 2, 3))') == []
+    assert validate_expression("max(1, min(2, 3))") == []
     assert validate_expression("") == []
 
 
