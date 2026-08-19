@@ -12,11 +12,26 @@ from uploader.app.lib.formula.values import TextValue, Value
 
 @final
 @dataclass(frozen=True)
+class ArgumentDef:
+    type: str
+    detail: str
+
+
+@final
+@dataclass(frozen=True)
 class FunctionDef:
     name: str
-    detail: str
+    summary: str
+    args: tuple[ArgumentDef, ...]
+    returns: ArgumentDef
     impl: object | None = None
     placeholder: str = "${1:x}"
+
+    @property
+    def detail(self) -> str:
+        lines = [f"- `arg{i}` ({arg.type}): {arg.detail}" for i, arg in enumerate(self.args, start=1)]
+        lines.append(f"- `return` ({self.returns.type}): {self.returns.detail}")
+        return f"{self.summary}\n\n" + "\n".join(lines)
 
     @property
     def insert(self) -> str:
@@ -132,46 +147,156 @@ def _where(cond: object, then: object, otherwise: object) -> object:
     return np.where(mask, np.asarray(then_v), np.asarray(else_v))
 
 
-COL_FUNCTION = FunctionDef("col", "Rawdata column", placeholder='"${1:name}"')
+_ANGLE = ArgumentDef("angle", "Must be an angle")
+_NUMBER = ArgumentDef("number", "Numeric value")
+_TEXT = ArgumentDef("text | number", "Value to convert to text")
+
+_RET_NUMBER = ArgumentDef("number", "Numeric result")
+_RET_ANGLE = ArgumentDef("angle", "Angle result")
+_RET_RADIANS = ArgumentDef("number", "Angle in radians")
+_RET_TEXT = ArgumentDef("text", "Text result")
+_RET_ANY = ArgumentDef("any", "Result value")
+
+COL_FUNCTION = FunctionDef(
+    "col",
+    "Rawdata column",
+    (ArgumentDef("string", "Column name from rawdata"),),
+    _RET_ANY,
+    placeholder='"${1:name}"',
+)
 
 FUNCTIONS: tuple[FunctionDef, ...] = (
-    FunctionDef("sin", "Sine (argument must be an angle)", np.sin),
-    FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
-    FunctionDef("tan", "Tangent (argument must be an angle)", np.tan),
-    FunctionDef("asin", "Arcsine (returns radians)", _math(np.arcsin)),
-    FunctionDef("acos", "Arccosine (returns radians)", _math(np.arccos)),
-    FunctionDef("atan", "Arctangent (returns radians)", _math(np.arctan)),
+    FunctionDef("sin", "Sine", (_ANGLE,), _RET_NUMBER, np.sin),
+    FunctionDef("cos", "Cosine", (_ANGLE,), _RET_NUMBER, np.cos),
+    FunctionDef("tan", "Tangent", (_ANGLE,), _RET_NUMBER, np.tan),
+    FunctionDef(
+        "asin",
+        "Arcsine",
+        (ArgumentDef("number", "Value in [-1, 1]"),),
+        _RET_RADIANS,
+        _math(np.arcsin),
+    ),
+    FunctionDef(
+        "acos",
+        "Arccosine",
+        (ArgumentDef("number", "Value in [-1, 1]"),),
+        _RET_RADIANS,
+        _math(np.arccos),
+    ),
+    FunctionDef(
+        "atan",
+        "Arctangent",
+        (ArgumentDef("number", "Numeric value"),),
+        _RET_RADIANS,
+        _math(np.arctan),
+    ),
     FunctionDef(
         "atan2",
-        "Two-argument arctangent (returns radians)",
+        "Two-argument arctangent",
+        (
+            ArgumentDef("number", "Y coordinate"),
+            ArgumentDef("number", "X coordinate"),
+        ),
+        _RET_RADIANS,
         _math(np.arctan2),
         placeholder="${1:y}, ${2:x}",
     ),
-    FunctionDef("deg2rad", "Convert degrees to radians", _deg2rad, placeholder="${1:deg}"),
-    FunctionDef("rad2deg", "Convert radians to degrees", _rad2deg, placeholder="${1:rad}"),
-    FunctionDef("wrap360", "Wrap angle to [0, 360) degrees", _wrap360, placeholder="${1:deg}"),
-    FunctionDef("sqrt", "Square root", _math(np.sqrt)),
-    FunctionDef("exp", "Exponential", _math(np.exp)),
-    FunctionDef("log10", "Base-10 logarithm", _math(np.log10)),
-    FunctionDef("ln", "Natural logarithm", _math(np.log)),
-    FunctionDef("pow", "Raise x to the power y", _math(np.power), placeholder="${1:x}, ${2:y}"),
-    FunctionDef("max", "Larger of two values", _extremum(np.maximum), placeholder="${1:x}, ${2:y}"),
-    FunctionDef("min", "Smaller of two values", _extremum(np.minimum), placeholder="${1:x}, ${2:y}"),
-    FunctionDef("str", "Convert to text", _formula_str),
+    FunctionDef(
+        "deg2rad",
+        "Convert degrees to radians",
+        (ArgumentDef("angle", "Angle in degrees"),),
+        ArgumentDef("angle", "Angle in radians"),
+        _deg2rad,
+        placeholder="${1:deg}",
+    ),
+    FunctionDef(
+        "rad2deg",
+        "Convert radians to degrees",
+        (ArgumentDef("angle", "Angle in radians"),),
+        ArgumentDef("angle", "Angle in degrees"),
+        _rad2deg,
+        placeholder="${1:rad}",
+    ),
+    FunctionDef(
+        "wrap360",
+        "Wrap angle to [0, 360) degrees",
+        (ArgumentDef("angle", "Angle in degrees"),),
+        ArgumentDef("angle", "Angle in degrees, wrapped to [0, 360)"),
+        _wrap360,
+        placeholder="${1:deg}",
+    ),
+    FunctionDef("sqrt", "Square root", (_NUMBER,), _RET_NUMBER, _math(np.sqrt)),
+    FunctionDef("exp", "Exponential", (_NUMBER,), _RET_NUMBER, _math(np.exp)),
+    FunctionDef("log10", "Base-10 logarithm", (_NUMBER,), _RET_NUMBER, _math(np.log10)),
+    FunctionDef("ln", "Natural logarithm", (_NUMBER,), _RET_NUMBER, _math(np.log)),
+    FunctionDef(
+        "pow",
+        "Raise x to the power y",
+        (
+            ArgumentDef("number", "Base"),
+            ArgumentDef("number", "Exponent"),
+        ),
+        _RET_NUMBER,
+        _math(np.power),
+        placeholder="${1:x}, ${2:y}",
+    ),
+    FunctionDef(
+        "max",
+        "Larger of two values",
+        (
+            ArgumentDef("number", "First value"),
+            ArgumentDef("number", "Second value"),
+        ),
+        ArgumentDef("number", "Larger of the two inputs, preserving units"),
+        _extremum(np.maximum),
+        placeholder="${1:x}, ${2:y}",
+    ),
+    FunctionDef(
+        "min",
+        "Smaller of two values",
+        (
+            ArgumentDef("number", "First value"),
+            ArgumentDef("number", "Second value"),
+        ),
+        ArgumentDef("number", "Smaller of the two inputs, preserving units"),
+        _extremum(np.minimum),
+        placeholder="${1:x}, ${2:y}",
+    ),
+    FunctionDef("str", "Convert to text", (_TEXT,), _RET_TEXT, _formula_str),
     FunctionDef(
         "where",
-        "Pick then if cond is true, otherwise the third argument; nest for extra branches",
+        "Conditional value selection",
+        (
+            ArgumentDef("boolean", "Condition to test"),
+            ArgumentDef("any", "Value when cond is true"),
+            ArgumentDef("any", "Value when cond is false; nest for extra branches"),
+        ),
+        _RET_ANY,
         _where,
         placeholder="${1:cond}, ${2:then}, ${3:else}",
     ),
     FunctionDef(
         "to_deg",
-        'Convert to degrees; e.g. "00 02 08.4" (hourangle), "+16 35 13" (deg), "00h02m08.4s"',
+        "Convert to degrees",
+        (
+            ArgumentDef(
+                "angle | string",
+                'Angle or coordinate string; e.g. "00 02 08.4" (hourangle), "+16 35 13" (deg), "00h02m08.4s"',
+            ),
+        ),
+        ArgumentDef("angle", "Angle in degrees"),
         _to_deg,
     ),
     FunctionDef(
         "unit",
-        'Astropy unit from a name string; e.g. "Mpc", "km/s", "Jy"',
+        "Astropy unit from a name string",
+        (
+            ArgumentDef(
+                "string",
+                'Unit name; e.g. "Mpc", "km/s", "Jy"',
+            ),
+        ),
+        ArgumentDef("number", "Scalar with the named unit"),
         _unit,
         placeholder='"${1:name}"',
     ),
