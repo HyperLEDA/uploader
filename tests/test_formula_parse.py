@@ -12,6 +12,8 @@ PARSE_CASES: list[tuple[str, set[str] | type[ExpressionSyntaxError]]] = [
     ('"M " + col("id")', {"id"}),
     ("1 + 2", set()),
     ("pi + deg", set()),
+    ("M_sun * G / c ** 2", set()),
+    ("max(1, min(2, 3))", set()),
     ("", ExpressionSyntaxError),
     ("1 +", ExpressionSyntaxError),
     ("col(", ExpressionSyntaxError),
@@ -24,6 +26,9 @@ PARSE_CASES: list[tuple[str, set[str] | type[ExpressionSyntaxError]]] = [
     ("e_logd25 + logd25", ExpressionSyntaxError),
     ("logd25 + logd25", ExpressionSyntaxError),
     ('3 * 10 ** col("logd25") * e_logd25 * arcsec', ExpressionSyntaxError),
+    ("atan2(1, 0) + wrap360(10 * deg)", set()),
+    ('where(col("a") > 0, col("a"), 0)', {"a"}),
+    ('where(col("a") == "M", col("b"), where(col("a") == "N", col("c"), "x"))', {"a", "b", "c"}),
     ("unknown(1)", ExpressionSyntaxError),
     ("col", ExpressionSyntaxError),
 ]
