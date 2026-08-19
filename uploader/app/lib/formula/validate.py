@@ -5,7 +5,8 @@ from typing import Annotated, final
 from pydantic import AfterValidator, ValidationError
 from pydantic_core import PydanticCustomError
 
-from uploader.app.lib.formula.namespace import COL_FUNCTION, FUNCTIONS, NAMED_CONSTANTS
+from uploader.app.lib.formula.constants import NAMED_CONSTANTS
+from uploader.app.lib.formula.functions import COL_FUNCTION, FUNCTIONS
 
 
 @final
