@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+import astropy.constants as const
 import astropy.units as u
 import numpy as np
 import pytest
@@ -228,6 +229,34 @@ EVAL_CASES: list[EvalCase] = [
         columns={},
         result_val=3.1416,
         result_unit=u.dimensionless_unscaled,
+    ),
+    EvalCase(
+        name="speed_of_light",
+        expression="c",
+        columns={},
+        result_val=299792458.0,
+        result_unit=u.m / u.s,
+    ),
+    EvalCase(
+        name="solar_mass",
+        expression="M_sun",
+        columns={},
+        result_val=const.M_sun.value,
+        result_unit=u.kg,
+    ),
+    EvalCase(
+        name="parsec",
+        expression="pc",
+        columns={},
+        result_val=1.0,
+        result_unit=u.pc,
+    ),
+    EvalCase(
+        name="jansky",
+        expression="Jy",
+        columns={},
+        result_val=1.0,
+        result_unit=u.Jy,
     ),
     EvalCase(name="error_missing_column_call", expression='col("missing")', columns={}, error=True),
     EvalCase(name="error_incompatible_units", expression="arcsec + mag", columns={}, error=True),

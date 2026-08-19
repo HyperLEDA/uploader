@@ -12,6 +12,7 @@ PARSE_CASES: list[tuple[str, set[str] | type[ExpressionSyntaxError]]] = [
     ('"M " + col("id")', {"id"}),
     ("1 + 2", set()),
     ("pi + deg", set()),
+    ("M_sun * G / c ** 2", set()),
     ("", ExpressionSyntaxError),
     ("1 +", ExpressionSyntaxError),
     ("col(", ExpressionSyntaxError),
