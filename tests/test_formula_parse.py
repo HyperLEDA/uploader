@@ -24,6 +24,7 @@ PARSE_CASES: list[tuple[str, set[str] | type[ExpressionSyntaxError]]] = [
     ("e_logd25 + logd25", ExpressionSyntaxError),
     ("logd25 + logd25", ExpressionSyntaxError),
     ('3 * 10 ** col("logd25") * e_logd25 * arcsec', ExpressionSyntaxError),
+    ("atan2(1, 0) + wrap360(10 * deg)", set()),
     ("unknown(1)", ExpressionSyntaxError),
     ("col", ExpressionSyntaxError),
 ]

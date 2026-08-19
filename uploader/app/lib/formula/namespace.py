@@ -1,4 +1,5 @@
-from collections.abc import Mapping
+import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, TypedDict, final
 
@@ -24,7 +25,7 @@ class FunctionDef:
 
     @property
     def signature(self) -> str:
-        args = self.placeholder.replace("${1:", "").replace("}", "")
+        args = re.sub(r"\$\{\d+:([^}]+)\}", r"\1", self.placeholder)
         return f"{self.name}({args})"
 
 
@@ -107,12 +108,64 @@ def _unit(name: object) -> u.Quantity:
     return 1 * u.Unit(name)
 
 
+def _to_quantity(value: object) -> u.Quantity:
+    if isinstance(value, u.Quantity):
+        return value
+    return np.asarray(value, dtype=float) * u.dimensionless_unscaled
+
+
+def _math(fn: Callable[..., u.Quantity]) -> Callable[..., u.Quantity]:
+    def impl(*args: object) -> u.Quantity:
+        return fn(*(_to_quantity(arg) for arg in args))
+
+    return impl
+
+
+def _as_angle(value: object, default_unit: u.Unit) -> u.Quantity:
+    if isinstance(value, u.Quantity):
+        if value.unit.is_equivalent(u.rad):
+            return value
+        if value.unit.is_equivalent(u.dimensionless_unscaled):
+            return value.to_value(u.dimensionless_unscaled) * default_unit
+        raise TypeError(f"expected an angle or dimensionless value, got unit {value.unit}")
+    return np.asarray(value, dtype=float) * default_unit
+
+
+def _deg2rad(value: object) -> u.Quantity:
+    return _as_angle(value, u.deg).to(u.rad)
+
+
+def _rad2deg(value: object) -> u.Quantity:
+    return _as_angle(value, u.rad).to(u.deg)
+
+
+def _wrap360(value: object) -> u.Quantity:
+    return _as_angle(value, u.deg).to(u.deg) % (360 * u.deg)
+
+
 COL_FUNCTION = FunctionDef("col", "Rawdata column", placeholder='"${1:name}"')
 
 FUNCTIONS: tuple[FunctionDef, ...] = (
     FunctionDef("sin", "Sine (argument must be an angle)", np.sin),
     FunctionDef("cos", "Cosine (argument must be an angle)", np.cos),
-    FunctionDef("sqrt", "Square root", np.sqrt),
+    FunctionDef("tan", "Tangent (argument must be an angle)", np.tan),
+    FunctionDef("asin", "Arcsine (returns radians)", _math(np.arcsin)),
+    FunctionDef("acos", "Arccosine (returns radians)", _math(np.arccos)),
+    FunctionDef("atan", "Arctangent (returns radians)", _math(np.arctan)),
+    FunctionDef(
+        "atan2",
+        "Two-argument arctangent (returns radians)",
+        _math(np.arctan2),
+        placeholder="${1:y}, ${2:x}",
+    ),
+    FunctionDef("deg2rad", "Convert degrees to radians", _deg2rad, placeholder="${1:deg}"),
+    FunctionDef("rad2deg", "Convert radians to degrees", _rad2deg, placeholder="${1:rad}"),
+    FunctionDef("wrap360", "Wrap angle to [0, 360) degrees", _wrap360, placeholder="${1:deg}"),
+    FunctionDef("sqrt", "Square root", _math(np.sqrt)),
+    FunctionDef("exp", "Exponential", _math(np.exp)),
+    FunctionDef("log10", "Base-10 logarithm", _math(np.log10)),
+    FunctionDef("ln", "Natural logarithm", _math(np.log)),
+    FunctionDef("pow", "Raise x to the power y", _math(np.power), placeholder="${1:x}, ${2:y}"),
     FunctionDef("str", "Convert to text", _formula_str),
     FunctionDef(
         "to_deg",
