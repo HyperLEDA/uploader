@@ -72,8 +72,7 @@ def register_all_tasks() -> None:
             id="upload-structured-designation",
             title="Upload designations",
             description=(
-                "Evaluate a designation expression per row and upload names. "
-                "Normalization is done by the backend."
+                "Evaluate a designation expression per row and upload names. Normalization is done by the backend."
             ),
             additional_description=expression_syntax_help(),
             form_model=StructuredDesignationForm,
