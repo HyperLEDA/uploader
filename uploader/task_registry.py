@@ -70,8 +70,11 @@ def register_all_tasks() -> None:
     register_task(
         TaskDefinition(
             id="upload-structured-designation",
-            title="Normalize designations",
-            description=("Parse designations with catalog-specific rules, normalize them to common form, and upload."),
+            title="Upload designations",
+            description=(
+                "Evaluate a designation expression per row and upload names. "
+                "Normalization is done by the backend."
+            ),
             additional_description=expression_syntax_help(),
             form_model=StructuredDesignationForm,
             handler=handle_structured_designation,

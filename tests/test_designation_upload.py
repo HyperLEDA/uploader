@@ -82,7 +82,7 @@ def test_missing_referenced_columns(mock_fetch_column_units: Mock) -> None:
 
 @patch("uploader.app.structured.designations.upload.rawdata_batches")
 @patch("uploader.app.structured.designations.upload.fetch_column_units")
-def test_null_referenced_values_counted_as_unmatched(
+def test_null_referenced_values_counted_as_skipped(
     mock_fetch_column_units: Mock,
     mock_rawdata_batches: Mock,
 ) -> None:

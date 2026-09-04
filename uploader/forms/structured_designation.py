@@ -17,11 +17,6 @@ from uploader.credentials import load_credentials, load_token
 class StructuredDesignationAdvancedSettings(BaseModel):
     endpoint: Literal["dev", "test", "prod"] = Field(default="prod", title="API endpoint")
     batch_size: int = Field(default=10000, title="Batch size", ge=1, le=500_000)
-    print_unmatched: bool = Field(
-        default=False,
-        title="Log unmatched names",
-        description="Append each unmatched name to the log stream.",
-    )
     output_file: str = Field(
         default="",
         title="Output file",
@@ -43,7 +38,7 @@ class StructuredDesignationForm(BaseModel):
     write: bool = Field(
         default=False,
         title="Upload results?",
-        description="If enabled, upload results; otherwise dry-run (statistics only).",
+        description="If enabled, upload results; otherwise dry-run.",
     )
     advanced: StructuredDesignationAdvancedSettings = Field(
         default_factory=StructuredDesignationAdvancedSettings,
@@ -75,7 +70,6 @@ def handle_structured_designation(
             advanced.batch_size,
             client,
             write=f.write,
-            print_unmatched=advanced.print_unmatched,
             output_file=advanced.output_file.strip(),
             report_func=report_func,
         )
