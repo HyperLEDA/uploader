@@ -18,6 +18,7 @@ dependencies = [
     "pyvo>=1.8",
     "psycopg[binary]>=3.2.0",
     "click~=8.3.1",
+    "httpx>=0.28.0",
 ]
 
 [project.scripts]
