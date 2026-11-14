@@ -17,7 +17,7 @@ from uploader.clients.gen.client.adminapi.models.catalog_field import CatalogFie
 from uploader.clients.gen.client.adminapi.models.catalog_schema import CatalogSchema
 from uploader.clients.gen.client.adminapi.models.datatype_enum import DatatypeEnum
 from uploader.clients.gen.client.adminapi.types import Unset
-from uploader.credentials import load_credentials, load_token
+from uploader.credentials import load_backend_basic_token, load_credentials
 from uploader.tasks import TaskDefinition, register_task
 
 GROUP = "Catalogs"
@@ -132,7 +132,8 @@ def _make_handler(
         )
         client = adminapi.AuthenticatedClient(
             base_url=env_map[endpoint],
-            token=load_token(),
+            token=load_backend_basic_token(),
+            prefix="Basic",
         )
         with connect(dsn) as conn:
             storage = PgStorage(conn)

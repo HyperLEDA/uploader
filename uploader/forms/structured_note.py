@@ -7,7 +7,7 @@ import uploader.app.report as report
 from uploader.app.endpoints import env_map
 from uploader.app.structured.note import upload_note as run_upload_note
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_token
+from uploader.credentials import load_backend_basic_token
 
 
 class StructuredNoteForm(BaseModel):
@@ -22,7 +22,8 @@ def handle_structured_note(
     f = cast(StructuredNoteForm, form)
     client = adminapi.AuthenticatedClient(
         base_url=env_map["prod"],
-        token=load_token(),
+        token=load_backend_basic_token(),
+        prefix="Basic",
     )
     run_upload_note(
         client=client,

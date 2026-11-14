@@ -10,7 +10,7 @@ from uploader.app.crossmatch.submit import run_submit_crossmatch
 from uploader.app.endpoints import db_dsn_map, env_map
 from uploader.app.storage import PgStorage
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_credentials, load_token
+from uploader.credentials import load_backend_basic_token, load_credentials
 
 
 class SubmitCrossmatchForm(BaseModel):
@@ -36,7 +36,8 @@ def handle_submit_crossmatch(
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],
-        token=load_token(),
+        token=load_backend_basic_token(),
+        prefix="Basic",
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)

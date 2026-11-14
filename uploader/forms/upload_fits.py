@@ -9,7 +9,7 @@ from uploader.app.endpoints import env_map
 from uploader.app.sources.fits import FITSSource
 from uploader.app.upload import upload_for_web
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_token
+from uploader.credentials import load_backend_basic_token
 
 
 class UploadFitsAdvancedSettings(BaseModel):
@@ -59,7 +59,8 @@ def handle_upload_fits(form: BaseModel, report_func: Callable[[report.Event], No
     advanced = f.advanced
     client = adminapi.AuthenticatedClient(
         base_url=env_map[advanced.endpoint],
-        token=load_token(),
+        token=load_backend_basic_token(),
+        prefix="Basic",
     )
     source = FITSSource(f.filename, advanced.hdu_index)
     bibcode = f.bibcode.strip() if f.has_bibcode else ""

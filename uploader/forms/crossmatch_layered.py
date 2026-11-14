@@ -11,7 +11,7 @@ from uploader.app.crossmatch.resolver import LayeredResolver
 from uploader.app.endpoints import db_dsn_map, env_map
 from uploader.app.storage import PgStorage
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_credentials, load_token
+from uploader.credentials import load_backend_basic_token, load_credentials
 
 
 class CrossmatchLayeredForm(BaseModel):
@@ -47,7 +47,8 @@ def handle_crossmatch_layered(
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[f.endpoint],
-        token=load_token(),
+        token=load_backend_basic_token(),
+        prefix="Basic",
     )
     resolver = LayeredResolver(
         radius_deg=f.radius / 3600.0,
