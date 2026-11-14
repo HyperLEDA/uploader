@@ -11,7 +11,7 @@ from uploader.app.lib.formula import ExpressionStr, expression_json_schema_extra
 from uploader.app.storage import PgStorage
 from uploader.app.structured.designations import upload_designations as run_upload_designations
 from uploader.clients.gen.client import adminapi
-from uploader.credentials import load_credentials, load_token
+from uploader.credentials import load_backend_basic_token, load_credentials
 
 
 class StructuredDesignationAdvancedSettings(BaseModel):
@@ -59,7 +59,8 @@ def handle_structured_designation(
     )
     client = adminapi.AuthenticatedClient(
         base_url=env_map[advanced.endpoint],
-        token=load_token(),
+        token=load_backend_basic_token(),
+        prefix="Basic",
     )
     with connect(dsn) as conn:
         storage = PgStorage(conn)

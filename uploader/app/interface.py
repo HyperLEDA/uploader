@@ -11,7 +11,7 @@ class UploaderSource(abc.ABC):
     def prepare(self) -> None:
         """
         Makes any necessary preparations before starting the uploading process.
-        For example: opens database connection, gets authentication tokens, opens file descriptors, etc.
+        For example: opens database connection, loads backend credentials, opens file descriptors, etc.
         """
 
     @abc.abstractmethod

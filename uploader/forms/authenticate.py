@@ -2,16 +2,13 @@ from collections.abc import Callable
 from typing import Literal, cast
 from urllib.parse import quote_plus
 
+import httpx
 from psycopg import connect
 from pydantic import BaseModel, Field
 
 import uploader.app.report as report
 from uploader.app.endpoints import db_dsn_map, env_map
-from uploader.clients.gen.client import adminapi
-from uploader.clients.gen.client.adminapi.api.default import login
-from uploader.clients.gen.client.adminapi.models.api_ok_response_login_response import APIOkResponseLoginResponse
-from uploader.clients.gen.client.adminapi.models.login_request import LoginRequest
-from uploader.credentials import save_credentials, save_token
+from uploader.credentials import load_backend_basic_token, save_backend_credentials, save_credentials
 
 
 class AuthenticateForm(BaseModel):
@@ -36,16 +33,18 @@ def handle_authenticate(form: BaseModel, report_func: Callable[[report.Event], N
     report_func(report.LogEvent(message="Database credentials are valid."))
     save_credentials(f.db_user, f.db_password)
 
-    report_func(report.LogEvent(message="Logging in to backend..."))
-    client = adminapi.Client(base_url=env_map[f.endpoint])
-    response = login.sync(
-        client=client,
-        body=LoginRequest(username=f.backend_user, password=f.backend_password),
+    report_func(report.LogEvent(message="Saving backend credentials..."))
+    save_backend_credentials(f.backend_user, f.backend_password)
+
+    report_func(report.LogEvent(message="Verifying backend credentials..."))
+    response = httpx.get(
+        f"{env_map[f.endpoint]}/ping",
+        headers={"Authorization": f"Basic {load_backend_basic_token()}"},
+        follow_redirects=False,
     )
-    if not isinstance(response, APIOkResponseLoginResponse):
-        raise RuntimeError(f"Backend login failed: {response}")
-    save_token(response.data.token)
-    report_func(report.LogEvent(message="Backend login successful."))
+    if response.status_code != 200:
+        raise RuntimeError(f"Backend authentication failed: HTTP {response.status_code}")
+    report_func(report.LogEvent(message="Backend credentials are valid."))
 
     report_func(report.ProgressEvent(percent=100))
     report_func(report.DoneEvent(message="Credentials saved."))

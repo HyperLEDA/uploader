@@ -1,3 +1,4 @@
+import base64
 import pathlib
 
 import dotenv
@@ -20,14 +21,22 @@ def load_credentials() -> tuple[str, str]:
     return str(db_user), str(db_password)
 
 
-def save_token(token: str) -> None:
+def save_backend_credentials(backend_user: str, backend_password: str) -> None:
     ENV_PATH.touch(exist_ok=True)
-    dotenv.set_key(str(ENV_PATH), "BACKEND_TOKEN", token)
+    dotenv.set_key(str(ENV_PATH), "BACKEND_USER", backend_user)
+    dotenv.set_key(str(ENV_PATH), "BACKEND_PASSWORD", backend_password)
 
 
-def load_token() -> str:
+def load_backend_credentials() -> tuple[str, str]:
     values = dotenv.dotenv_values(ENV_PATH)
-    token = values.get("BACKEND_TOKEN", "")
-    if not token:
-        raise RuntimeError("Backend token not configured. Run the 'Authenticate' task first.")
-    return str(token)
+    backend_user = values.get("BACKEND_USER", "")
+    backend_password = values.get("BACKEND_PASSWORD", "")
+    if not backend_user or not backend_password:
+        raise RuntimeError("Backend credentials not configured. Run the 'Authenticate' task first.")
+    return str(backend_user), str(backend_password)
+
+
+def load_backend_basic_token() -> str:
+    backend_user, backend_password = load_backend_credentials()
+    raw = f"{backend_user}:{backend_password}".encode()
+    return base64.b64encode(raw).decode()
