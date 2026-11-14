@@ -38,11 +38,11 @@ def handle_authenticate(form: BaseModel, report_func: Callable[[report.Event], N
 
     report_func(report.LogEvent(message="Verifying backend credentials..."))
     response = httpx.get(
-        env_map[f.endpoint],
+        f"{env_map[f.endpoint]}/ping",
         headers={"Authorization": f"Basic {load_backend_basic_token()}"},
-        follow_redirects=True,
+        follow_redirects=False,
     )
-    if response.status_code in (401, 403):
+    if response.status_code != 200:
         raise RuntimeError(f"Backend authentication failed: HTTP {response.status_code}")
     report_func(report.LogEvent(message="Backend credentials are valid."))
 
