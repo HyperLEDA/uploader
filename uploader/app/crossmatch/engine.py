@@ -90,9 +90,9 @@ BATCH_QUERY = sql.SQL("""
         l2.pgc AS existing_pgc,
         l2.ra AS existing_ra,
         l2.dec AS existing_dec,
-        l2_desig.design AS existing_design,
+        l2.name AS existing_design,
         l2_cz.cz AS existing_cz,
-        l2_nat.type_name AS existing_type
+        l2.objtype AS existing_type
     FROM batch b
     LEFT JOIN icrs.data nc ON b.id = nc.record_id
     LEFT JOIN designation.data new_desig ON b.id = new_desig.record_id
@@ -100,8 +100,10 @@ BATCH_QUERY = sql.SQL("""
     LEFT JOIN nature.data rec_nat ON b.id = rec_nat.record_id
     LEFT JOIN LATERAL (
         SELECT l2.*
-        FROM layer2.icrs l2
+        FROM layer2.objects l2
         WHERE nc.record_id IS NOT NULL
+          AND l2.ra IS NOT NULL
+          AND l2.dec IS NOT NULL
           AND ST_DWithin(
               ST_MakePoint(nc.ra, nc.dec)::geography,
               ST_MakePoint(l2.ra, l2.dec)::geography,
@@ -109,9 +111,7 @@ BATCH_QUERY = sql.SQL("""
               false
           )
     ) l2 ON true
-    LEFT JOIN layer2.designation l2_desig ON l2.pgc = l2_desig.pgc
     LEFT JOIN layer2.cz l2_cz ON l2.pgc = l2_cz.pgc
-    LEFT JOIN layer2.nature l2_nat ON l2.pgc = l2_nat.pgc
     ORDER BY b.id ASC
 """)
 
@@ -214,7 +214,7 @@ def _enrich_batch(
     existing_pgcs: set[int] = set()
     if claimed_pgcs:
         for row in storage.query(
-            "SELECT pgc FROM layer2.icrs WHERE pgc = ANY(%s)",
+            "SELECT pgc FROM layer2.objects WHERE pgc = ANY(%s)",
             (list(claimed_pgcs),),
         ):
             existing_pgcs.add(row["pgc"])
@@ -228,7 +228,7 @@ def _enrich_batch(
         report_func(report.LogEvent(message=f"Fetching designations ({len(designs_list)})..."))
         pgcs_by_design: dict[str, set[int]] = {}
         for row in storage.query(
-            "SELECT design, pgc FROM layer2.designation WHERE design = ANY(%s)",
+            "SELECT name AS design, pgc FROM layer2.objects WHERE name = ANY(%s)",
             (designs_list,),
         ):
             pgcs_by_design.setdefault(row["design"], set()).add(row["pgc"])
