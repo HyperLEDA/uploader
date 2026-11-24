@@ -19,6 +19,10 @@ ELIGIBLE_QUERY = sql.SQL("""
       AND r.pgc IS NULL
       AND c.triage_status = 'resolved'
       AND NOT (c.metadata::jsonb ? 'possible_matches')
+      AND NOT (
+            jsonb_typeof(c.metadata::jsonb -> 'candidates') = 'array'
+            AND jsonb_array_length(c.metadata::jsonb -> 'candidates') > 1
+      )
     ORDER BY r.id ASC
     LIMIT %s
 """)
@@ -31,6 +35,10 @@ ELIGIBLE_COUNT_QUERY = """
       AND r.pgc IS NULL
       AND c.triage_status = 'resolved'
       AND NOT (c.metadata::jsonb ? 'possible_matches')
+      AND NOT (
+            jsonb_typeof(c.metadata::jsonb -> 'candidates') = 'array'
+            AND jsonb_array_length(c.metadata::jsonb -> 'candidates') > 1
+      )
 """
 
 
